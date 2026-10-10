@@ -1,5 +1,8 @@
 package logisticspipes.pipes;
 
+import java.util.Set;
+import java.util.TreeSet;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NBTTagCompound;
@@ -19,14 +22,19 @@ import logisticspipes.network.GuiIDs;
 import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
-import logisticspipes.transport.PipeFluidTransportLogistics;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidRoomCache;
 import logisticspipes.utils.PlayerCollectionList;
+import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.tuples.Pair;
 
 public class PipeFluidBasic extends FluidRoutedPipe implements IFluidSink, IMUICompatiblePipeV2 {
 
+    // a bucket, some tanks only take whole ones
+    private static final int ROOM_PROBE_AMOUNT = 1000;
+
     public final FluidTank filterTank = new FluidTank(1);
+    private final FluidRoomCache roomCache = new FluidRoomCache();
     private final PlayerCollectionList guiOpenedBy = new PlayerCollectionList();
 
     public PipeFluidBasic(Item item) {
@@ -58,41 +66,62 @@ public class PipeFluidBasic extends FluidRoutedPipe implements IFluidSink, IMUIC
         if (!filterTank.getFluid().isFluidEqual(stack)) return 0;
 
         FluidIdentifier ident = FluidIdentifier.get(stack);
+        // what is on its way or waiting at the pipe already has its place in the tanks
+        long freeSpace = getRoom(ident) - countOnRoute(ident) - getPendingFluids().getAmount(ident);
+        return (int) Math.max(0, Math.min(freeSpace, stack.amount));
+    }
 
+    /**
+     * @return the room the adjacent tanks have for that fluid, remembered for a moment
+     */
+    private long getRoom(FluidIdentifier ident) {
+        return roomCache.getRoom(ident, getWorld().getTotalWorldTime(), this::computeRoom);
+    }
+
+    private long computeRoom(FluidIdentifier ident) {
         // using long for our internal calculations avoids an overflow when tanks report
         // a capacity of Integer.MAX_VALUE (notably gt5 super tank when set to void fluids)
-        long onTheWay = (long) this.countOnRoute(ident);
-        long freeSpace = -onTheWay;
-        long internalCapacity = (long) ((PipeFluidTransportLogistics) transport).getSideCapacity();
-
+        long freeSpace = 0;
         for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(true)) {
             if (!(pair.getValue1() instanceof IFluidHandler handler)) {
+                // an ME interface or the like
+                freeSpace += fillTank(
+                        pair.getValue1(),
+                        pair.getValue2(),
+                        ident.makeFluidStack(Integer.MAX_VALUE),
+                        false);
                 continue;
             }
-
             ForgeDirection dir = pair.getValue2().getOpposite();
-
             // ensure we are actually able to fill this handler, and it's not some output tank or such
-            int simulatedFill = handler.fill(dir, stack, false);
-            if (simulatedFill <= 0) {
+            if (handler.fill(dir, ident.makeFluidStack(ROOM_PROBE_AMOUNT), false) <= 0) {
                 continue;
             }
-
-            FluidTank tank = ((PipeFluidTransportLogistics) transport).sideTanks[pair.getValue2().ordinal()];
-            long internalFreeSpace = (long) ident.getFreeSpaceInsideTank(tank);
-            long externalFreeSpace = (long) ident.getFreeSpaceInsideTank(handler, dir);
-
-            // don't count this entity if we have enough in our internal buffer to fill it
-            if (internalCapacity - internalFreeSpace > externalFreeSpace) {
-                continue;
-            }
-
-            freeSpace += internalFreeSpace;
-            freeSpace += externalFreeSpace;
+            freeSpace += ident.getFreeSpaceInsideTank(handler, dir);
         }
+        return freeSpace;
+    }
 
-        int clampedFreeSpace = (int) Math.min(freeSpace, (long) Integer.MAX_VALUE);
-        return Math.min(clampedFreeSpace, stack.amount);
+    @Override
+    protected void onTankContentChanged() {
+        super.onTankContentChanged();
+        roomCache.clear();
+    }
+
+    /**
+     * The filter fluid isn't announced while the tanks have no room for it, so a full sink drops out of the destination
+     * searches.
+     */
+    @Override
+    public Set<ItemIdentifier> getSpecificInterests() {
+        Set<ItemIdentifier> interests = new TreeSet<>();
+        if (filterTank.getFluid() != null) {
+            FluidIdentifier ident = FluidIdentifier.get(filterTank.getFluid());
+            if (getRoom(ident) > 0) {
+                interests.add(ident.getItemIdentifier());
+            }
+        }
+        return interests;
     }
 
     @Override

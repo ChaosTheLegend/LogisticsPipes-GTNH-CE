@@ -100,7 +100,7 @@ Those decisions take precedence over this doc. What they mean for transport:
 
   Otherwise the item is simulated as before.
 - **Arrival** (processed in `updateEntity` when the tick is due). The *fast path* applies when:
-  - the pipe relays normally (`supportsFastRelay`: not entrance, ISC or fluid transport);
+  - the pipe relays normally (`supportsFastRelay`: not entrance or ISC; of the pipes with the fluid transport only the fluid pipes relay, the pattern crafting pipe does not);
   - it isn't the destination;
   - the next path edge still exists, is teleportable, carries `CAN_ROUTE_TO` and leads to an active junction;
   - the destination junction is still active.
@@ -189,7 +189,7 @@ earlier session is in the same working tree.
 | `transport/ClumpTransit.java` (new) | Chunk index of clumps in flight, `onPipeRemoved`, the break rule (`onBreak`), broken-corridor flags |
 | `pipes/basic/LogisticsBlockGenericPipe.java`, `LogisticsPipes.java` | `removePipe` calls `ClumpTransit.onPipeRemoved`; `ClumpTransit.clear()` on server stop |
 | `transport/LPTravelingItem.java` | static `nextId()`, client `extraStacks` + `plannedExits` |
-| `transport/EntrencsTransport`, `TransportInvConnection`, `PipeFluidTransportLogistics` | `supportsFastRelay() = false` |
+| `transport/EntrencsTransport`, `TransportInvConnection`, `PipeFluidTransportLogistics` | `supportsFastRelay() = false`; `PipeFluidTransportLogistics` returns true for the fluid pipes, they do not touch passing items |
 | `network/packets/pipe/ItemClumpPacket.java` (new) | S→C hop packet |
 | `renderer/LogisticsRenderPipe.java` | `placeItem` helper split out of `renderSolids`, trailing clump stacks |
 | `routing/astar/CorridorScanner.java` | direction stack + opaque-hop counter → `travelPathOf(route)` |

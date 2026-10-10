@@ -1,5 +1,8 @@
 package logisticspipes.logistics;
 
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,35 +20,62 @@ import logisticspipes.interfaces.routing.IProvideFluids;
 import logisticspipes.items.LogisticsFluidContainer;
 import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
+import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
+import logisticspipes.routing.astar.InterestRegistry;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
 
 public class LogisticsFluidManager implements ILogisticsFluidManager {
 
+    /**
+     * Only the routers that announced an interest in the fluid are asked, like for items. The closest sink with the
+     * highest priority wins.
+     */
     @Override
     public Pair<Integer, Integer> getBestReply(FluidStack stack, IRouter sourceRouter, List<Integer> jamList) {
-        for (ExitRoute candidateRouter : sourceRouter.getIRoutersByCost()) {
-            if (!candidateRouter.containsFlag(PipeRoutingConnectionType.canRouteTo)) continue;
-            if (candidateRouter.destination.getSimpleID() == sourceRouter.getSimpleID()) continue;
-            if (jamList.contains(candidateRouter.destination.getSimpleID())) continue;
-            if (candidateRouter.destination.getPipe() == null || !candidateRouter.destination.getPipe().isEnabled())
-                continue;
+        BitSet interested = InterestRegistry.getRoutersInterestedIn(FluidIdentifier.get(stack).getItemIdentifier());
+        List<ExitRoute> candidates = new ArrayList<>();
+        for (int i = interested.nextSetBit(0); i >= 0; i = interested.nextSetBit(i + 1)) {
+            if (i == sourceRouter.getSimpleID() || jamList.contains(i)) continue;
+            IRouter router = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
+            if (router == null) continue;
+            List<ExitRoute> exits = sourceRouter.getDistanceTo(router);
+            if (exits == null) continue;
+            for (ExitRoute exit : exits) {
+                if (exit.containsFlag(PipeRoutingConnectionType.canRouteTo)) {
+                    candidates.add(exit);
+                }
+            }
+        }
+        Collections.sort(candidates);
 
+        int bestRouter = 0;
+        int bestAmount = 0;
+        FixedPriority bestPriority = null;
+        for (ExitRoute candidateRouter : candidates) {
             CoreRoutedPipe pipe = candidateRouter.destination.getPipe();
+            if (pipe == null || !pipe.isEnabled()) continue;
             if (!(pipe instanceof IFluidSink iFluidSink)) continue;
             if (pipe instanceof PipeItemsPatternCraftingLogistics || pipe instanceof PipeItemsPatternSatelliteLogistics)
                 continue;
 
+            FixedPriority priority = iFluidSink.getFluidSinkPriority(stack);
+            // the candidates are sorted by distance, a later one has to be more important
+            if (bestPriority != null && priority.ordinal() <= bestPriority.ordinal()) continue;
+
             int amount = iFluidSink.sinkAmount(stack);
             if (amount > 0) {
-                return new Pair<>(candidateRouter.destination.getSimpleID(), amount);
+                bestRouter = candidateRouter.destination.getSimpleID();
+                bestAmount = amount;
+                bestPriority = priority;
             }
         }
-        return new Pair<>(0, 0);
+        return new Pair<>(bestRouter, bestAmount);
     }
 
     @Override

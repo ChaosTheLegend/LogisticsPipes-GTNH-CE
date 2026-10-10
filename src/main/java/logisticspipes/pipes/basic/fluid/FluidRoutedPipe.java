@@ -1,16 +1,19 @@
 package logisticspipes.pipes.basic.fluid;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import net.minecraft.item.Item;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import logisticspipes.LPConstants;
+import logisticspipes.config.Configs;
+import logisticspipes.interfaces.ISpecialTankAccessHandler;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
@@ -19,7 +22,6 @@ import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
-import logisticspipes.routing.ItemRoutingInformation;
 import logisticspipes.routing.order.LogisticsFluidOrderManager;
 import logisticspipes.routing.order.LogisticsOrderManager;
 import logisticspipes.textures.Textures;
@@ -29,13 +31,18 @@ import logisticspipes.transport.PipeFluidTransportLogistics;
 import logisticspipes.utils.CacheHolder.CacheTypes;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.WorldUtil;
-import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
 
 public abstract class FluidRoutedPipe extends CoreRoutedPipe {
 
+    private static final int TICKS_PER_PENDING_RETRY = 5;
+
     private WorldUtil worldUtil;
     private LogisticsFluidOrderManager _orderFluidManager;
+
+    // fluid that arrived but didn't fit into the tank yet, the pipe has no tanks of its own for it
+    private final PendingFluids pendingFluids = new PendingFluids();
+    private boolean tanksMigrated = false;
 
     public FluidRoutedPipe(Item item) {
         super(new PipeFluidTransportLogistics(), item);
@@ -52,6 +59,10 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
 
     @Override
     public boolean logisitcsIsPipeConnected(TileEntity tile, ForgeDirection dir) {
+        // an ME interface or the like
+        if (SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile) != null) {
+            return true;
+        }
         if (tile instanceof IFluidHandler) {
             IFluidHandler liq = (IFluidHandler) tile;
 
@@ -160,81 +171,108 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
     @Override
     public void enabledUpdateEntity() {
         super.enabledUpdateEntity();
-        if (canInsertFromSideToTanks()) {
-            int validDirections = 0;
-            List<Pair<TileEntity, ForgeDirection>> list = getAdjacentTanks(true);
-            for (Pair<TileEntity, ForgeDirection> pair : list) {
-                if (pair.getValue1() instanceof LogisticsTileGenericPipe) {
-                    if (((LogisticsTileGenericPipe) pair.getValue1()).pipe instanceof CoreRoutedPipe) {
-                        continue;
-                    }
-                }
-                if (!(pair.getValue1() instanceof IFluidHandler)) {
+        if (!canInsertFromSideToTanks() || MainProxy.isClient(getWorld())) {
+            return;
+        }
+        if (!tanksMigrated) {
+            migrateTransportTanks();
+        }
+        if (pendingFluids.isEmpty() || !isNthTick(TICKS_PER_PENDING_RETRY)) {
+            return;
+        }
+        insertPendingFluids();
+    }
+
+    /**
+     * Older versions kept fluid that didn't fit in tanks of the transport, take it over.
+     */
+    private void migrateTransportTanks() {
+        tanksMigrated = true;
+        PipeFluidTransportLogistics fluidTransport = (PipeFluidTransportLogistics) transport;
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            FluidTank tank = fluidTransport.sideTanks[dir.ordinal()];
+            pendingFluids.add(tank.getFluid(), dir);
+            tank.setFluid(null);
+        }
+        pendingFluids.add(fluidTransport.internalTank.getFluid(), ForgeDirection.UNKNOWN);
+        fluidTransport.internalTank.setFluid(null);
+    }
+
+    /**
+     * @return the tanks next to the pipe that waiting fluid may go into
+     */
+    private List<Pair<TileEntity, ForgeDirection>> getFillableTanks() {
+        List<Pair<TileEntity, ForgeDirection>> list = getAdjacentTanks(true);
+        list.removeIf(
+                pair -> pair.getValue1() instanceof LogisticsTileGenericPipe pipeTile
+                        && pipeTile.pipe instanceof CoreRoutedPipe);
+        return list;
+    }
+
+    /**
+     * Puts the fluid that is waiting for room into the tanks.
+     */
+    private void insertPendingFluids() {
+        List<Pair<TileEntity, ForgeDirection>> tanks = getFillableTanks();
+        boolean inserted = false;
+        for (Iterator<PendingFluids.Entry> iterator = pendingFluids.iterator(); iterator.hasNext();) {
+            PendingFluids.Entry entry = iterator.next();
+            boolean sideFound = false;
+            for (Pair<TileEntity, ForgeDirection> pair : tanks) {
+                if (entry.side != ForgeDirection.UNKNOWN && entry.side != pair.getValue2()) {
                     continue;
                 }
-                FluidTank tank = ((PipeFluidTransportLogistics) transport).sideTanks[pair.getValue2().ordinal()];
-                validDirections++;
-                if (tank.getFluid() == null) {
-                    continue;
+                sideFound = true;
+                int filled = fillTank(pair.getValue1(), pair.getValue2(), entry.fluid, true);
+                if (filled > 0) {
+                    entry.fluid.amount -= filled;
+                    inserted = true;
                 }
-                int filled = ((IFluidHandler) pair.getValue1())
-                        .fill(pair.getValue2().getOpposite(), tank.getFluid().copy(), true);
-                if (filled == 0) {
-                    continue;
-                }
-                FluidStack drain = tank.drain(filled, true);
-                if (drain == null || filled != drain.amount) {
-                    if (LPConstants.DEBUG) {
-                        throw new UnsupportedOperationException("Fluid Multiplication");
-                    }
+                if (entry.fluid.amount <= 0) {
+                    break;
                 }
             }
-            if (validDirections == 0) {
-                return;
+            if (entry.fluid.amount <= 0) {
+                iterator.remove();
+            } else if (!sideFound) {
+                // the tank on that side is gone
+                entry.side = ForgeDirection.UNKNOWN;
             }
-            FluidTank tank = ((PipeFluidTransportLogistics) transport).internalTank;
-            FluidStack stack = tank.getFluid();
-            if (stack == null) {
-                return;
-            }
-            for (Pair<TileEntity, ForgeDirection> pair : list) {
-                if (pair.getValue1() instanceof LogisticsTileGenericPipe) {
-                    if (((LogisticsTileGenericPipe) pair.getValue1()).pipe instanceof CoreRoutedPipe) {
-                        continue;
-                    }
-                }
-                FluidTank tankSide = ((PipeFluidTransportLogistics) transport).sideTanks[pair.getValue2().ordinal()];
-                stack = tank.getFluid();
-                if (stack == null) {
-                    continue;
-                }
-                stack = stack.copy();
-                int filled = tankSide.fill(stack, true);
-                if (filled == 0) {
-                    continue;
-                }
-                FluidStack drain = tank.drain(filled, true);
-                if (drain == null || filled != drain.amount) {
-                    if (LPConstants.DEBUG) {
-                        throw new UnsupportedOperationException("Fluid Multiplication");
-                    }
-                }
-            }
+        }
+        if (inserted) {
+            onTankContentChanged();
         }
     }
 
-    public int countOnRoute(FluidIdentifier ident) {
-        int amount = 0;
-        for (ItemRoutingInformation next : _inTransitToMe) {
-            ItemIdentifierStack item = next.getItem();
-            if (item.getItem().isFluidContainer()) {
-                FluidStack liquid = SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(item);
-                if (FluidIdentifier.get(liquid).equals(ident)) {
-                    amount += liquid.amount;
-                }
-            }
-        }
-        return amount;
+    /**
+     * Called after this pipe put fluid into an adjacent tank.
+     */
+    protected void onTankContentChanged() {
+        getCacheHolder().trigger(CacheTypes.Inventory);
+    }
+
+    /**
+     * @return how much fluid may wait for room in the tanks before it is sent to another sink, the size of the tanks
+     *         the transport had for that
+     */
+    protected int getPendingCapacity() {
+        return Configs.MAX_LOGISTICS_FLUID_TRANSPORT_INNER_CAPACITY * 3 / 2;
+    }
+
+    public PendingFluids getPendingFluids() {
+        return pendingFluids;
+    }
+
+    @Override
+    public void readFromNBT(NBTTagCompound nbttagcompound) {
+        super.readFromNBT(nbttagcompound);
+        pendingFluids.readFromNBT(nbttagcompound, "pendingFluids");
+    }
+
+    @Override
+    public void writeToNBT(NBTTagCompound nbttagcompound) {
+        super.writeToNBT(nbttagcompound);
+        pendingFluids.writeToNBT(nbttagcompound, "pendingFluids");
     }
 
     public abstract boolean canInsertFromSideToTanks();
@@ -253,15 +291,16 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
             if (getRouter().getSimpleID() != arrivingItem.getDestination()) {
                 return false;
             }
-            int filled = 0;
+            ForgeDirection waitingSide = ForgeDirection.UNKNOWN;
             FluidStack liquid = SimpleServiceLocator.logisticsFluidManager
                     .getFluidFromContainer(arrivingItem.getItemIdentifierStack());
             if (isConnectableTank(tile, arrivingItem.output, false)) {
                 // Try to put liquid into where it should be
                 TileEntity intendedTank = getAdjacentTank(arrivingItem.output, false);
-                if (intendedTank instanceof IFluidHandler tank) {
-                    fillSide(liquid, arrivingItem.output, tank);
+                if (intendedTank != null) {
+                    fillSide(liquid, arrivingItem.output, intendedTank);
                     if (liquid.amount == 0) {
+                        onTankContentChanged();
                         return true;
                     }
                 }
@@ -282,43 +321,52 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
                     List<Pair<TileEntity, ForgeDirection>> adjTanks = getAdjacentTanks(false);
                     // Try to put liquid into all adjacent tanks.
                     for (Pair<TileEntity, ForgeDirection> pair : adjTanks) {
-                        if (!(pair.getValue1() instanceof IFluidHandler tank)) {
-                            continue;
-                        }
                         ForgeDirection dir = pair.getValue2();
-                        fillSide(liquid, dir, tank);
+                        fillSide(liquid, dir, pair.getValue1());
                         if (liquid.amount != 0) {
                             continue;
                         }
+                        onTankContentChanged();
                         return true;
                     }
                 }
-                // Try inserting the liquid into the pipe side tank
-                filled = ((PipeFluidTransportLogistics) transport).sideTanks[arrivingItem.output.ordinal()]
-                        .fill(liquid, true);
-                if (filled == liquid.amount) {
-                    return true;
-                }
-                liquid.amount -= filled;
+                waitingSide = arrivingItem.output;
             }
-            // Try inserting the liquid into the pipe internal tank
-            filled = ((PipeFluidTransportLogistics) transport).internalTank.fill(liquid, true);
-            if (filled == liquid.amount) {
+            onTankContentChanged();
+            if (liquid.amount <= 0) {
                 return true;
             }
-            // If liquids still exist,
-            liquid.amount -= filled;
+            // the rest waits for room in the tank
+            int room = (int) Math.max(0, getPendingCapacity() - pendingFluids.getTotalAmount());
+            if (room >= liquid.amount) {
+                pendingFluids.add(liquid, waitingSide);
+                return true;
+            }
+            FluidStack waiting = liquid.copy();
+            waiting.amount = room;
+            pendingFluids.add(waiting, waitingSide);
+            liquid.amount -= room;
+
+            // too much is waiting already, find another sink
+            Pair<Integer, Integer> replies = SimpleServiceLocator.logisticsFluidManager
+                    .getBestReply(liquid, getRouter(), new ArrayList<>());
+            int dest = replies.getValue1();
+            if (dest == 0 || replies.getValue2() <= 0) {
+                // nobody else takes it, keep it rather than send it nowhere
+                pendingFluids.add(liquid, waitingSide);
+                return true;
+            }
+            FluidStack toSend = liquid.copy();
+            toSend.amount = Math.min(liquid.amount, replies.getValue2());
+            liquid.amount -= toSend.amount;
+            pendingFluids.add(liquid, waitingSide);
 
             // TODO: FIX THIS
             if (this instanceof IRequireReliableFluidTransport) {
-                ((IRequireReliableFluidTransport) this).liquidNotInserted(FluidIdentifier.get(liquid), liquid.amount);
+                ((IRequireReliableFluidTransport) this).liquidNotInserted(FluidIdentifier.get(toSend), toSend.amount);
             }
-
             IRoutedItem routedItem = SimpleServiceLocator.routedItemHelper
-                    .createNewTravelItem(SimpleServiceLocator.logisticsFluidManager.getFluidContainer(liquid));
-            Pair<Integer, Integer> replies = SimpleServiceLocator.logisticsFluidManager
-                    .getBestReply(liquid, getRouter(), routedItem.getJamList());
-            int dest = replies.getValue1();
+                    .createNewTravelItem(SimpleServiceLocator.logisticsFluidManager.getFluidContainer(toSend));
             routedItem.setDestination(dest);
             routedItem.setTransportMode(TransportMode.Passive);
             this.queueRoutedItem(routedItem, arrivingItem.output.getOpposite());
@@ -327,8 +375,22 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
         return false;
     }
 
-    protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, IFluidHandler tile) {
-        toFill.amount -= tile.fill(tankLocation.getOpposite(), toFill.copy(), true);
+    /**
+     * Puts fluid into the tile on that side of the pipe. A tile without a fluid handler is filled through its special
+     * tank handler, like an ME interface.
+     *
+     * @return the amount that was taken
+     */
+    protected int fillTank(TileEntity tile, ForgeDirection tankLocation, FluidStack stack, boolean fill) {
+        if (tile instanceof IFluidHandler handler) {
+            return handler.fill(tankLocation.getOpposite(), stack.copy(), fill);
+        }
+        ISpecialTankAccessHandler special = SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile);
+        return special == null ? 0 : special.fillInto(tile, stack.copy(), fill);
+    }
+
+    protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, TileEntity tile) {
+        toFill.amount -= fillTank(tile, tankLocation, toFill, true);
     }
 
     @Override

@@ -79,6 +79,9 @@ public class Textures {
     public static TextureType LOGISTICSPIPE_CHASSI3_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CHASSI4_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CHASSI5_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CRAFTERMK2_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_REQUESTERMK2_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_PROVIDERMK2_TEXTURE = Textures.empty;
@@ -172,6 +175,9 @@ public class Textures {
     public static String LOGISTICSPIPE_CHASSI3_TEXTURE_FILE = "pipes/chassi/chassi_mk3";
     public static String LOGISTICSPIPE_CHASSI4_TEXTURE_FILE = "pipes/chassi/chassi_mk4";
     public static String LOGISTICSPIPE_CHASSI5_TEXTURE_FILE = "pipes/chassi/chassi_mk5";
+    public static String LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk1";
+    public static String LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk2";
+    public static String LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk3";
 
     // Chassi status overlay
     public static String LOGISTICSPIPE_CHASSI_ROUTED_TEXTURE_FILE = "pipes/chassi/status_overlay/routed";
@@ -357,6 +363,15 @@ public class Textures {
         Textures.LOGISTICSPIPE_CHASSI5_TEXTURE = registerTexture(
                 par1IIconRegister,
                 Textures.LOGISTICSPIPE_CHASSI5_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE_FILE);
 
         // Transport
         Textures.LOGISTICSPIPE_BASIC_TRANSPORT_TEXTURE = registerSmallTexture(

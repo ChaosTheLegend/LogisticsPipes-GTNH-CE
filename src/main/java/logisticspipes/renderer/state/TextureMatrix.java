@@ -84,10 +84,10 @@ public class TextureMatrix {
                 dirty = true;
             }
             hasPower = cPipe._textureBufferPowered || Configs.LOGISTICS_POWER_USAGE_DISABLED;
-            if (isFluid != cPipe.isFluidPipe()) {
+            if (isFluid != cPipe.hasFluidPipeLook()) {
                 dirty = true;
             }
-            isFluid = cPipe.isFluidPipe();
+            isFluid = cPipe.hasFluidPipeLook();
             if (pointedOrientation != cPipe.getPointedOrientation()) {
                 dirty = true;
             }

@@ -110,6 +110,29 @@ public class AETankHandler implements ISpecialTankAccessHandler {
         return null;
     }
 
+    @Override
+    public int fillInto(TileEntity tile, FluidStack stack, boolean fill) {
+        if (!(tile instanceof ITileStorageMonitorable mon) || stack == null || stack.amount <= 0) {
+            return 0;
+        }
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            MachineSource source = new MachineSource(new LPActionHost(((IGridHost) tile).getGridNode(dir)));
+            IStorageMonitorable monitor = mon.getMonitorable(dir, source);
+            if (monitor == null || monitor.getFluidInventory() == null) {
+                continue;
+            }
+            IAEFluidStack toInject = AEApi.instance().storage().createFluidStack(stack);
+            if (toInject == null) {
+                return 0;
+            }
+            IAEFluidStack overflow = monitor.getFluidInventory()
+                    .injectItems(toInject, fill ? Actionable.MODULATE : Actionable.SIMULATE, source);
+            long rest = overflow == null ? 0 : overflow.getStackSize();
+            return (int) Math.max(0, stack.amount - rest);
+        }
+        return 0;
+    }
+
     private TileEntity getBaseTileEntity(IGridNode node) {
         IGrid grid = node.getGrid();
         if (grid == null) {

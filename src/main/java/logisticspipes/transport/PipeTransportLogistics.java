@@ -56,6 +56,7 @@ import logisticspipes.pipes.PipeItemsFluidSupplier;
 import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.PipeLogisticsFluidChassi;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
@@ -983,6 +984,11 @@ public class PipeTransportLogistics {
         }
         if (getPipe() instanceof FluidRoutedPipe) {
             if (((FluidRoutedPipe) getPipe()).endReached(arrivingItem, tile)) {
+                return;
+            }
+        }
+        if (getPipe() instanceof PipeLogisticsFluidChassi fluidChassi && MainProxy.isServer(getWorld())) {
+            if (fluidChassi.endReached(arrivingItem, tile)) {
                 return;
             }
         }

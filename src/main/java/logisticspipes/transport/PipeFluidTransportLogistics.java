@@ -31,9 +31,12 @@ public class PipeFluidTransportLogistics extends PipeTransportLogistics implemen
         }
     }
 
+    /**
+     * The fluid pipes don't touch the items that pass through. Other pipes with this transport do.
+     */
     @Override
     protected boolean supportsFastRelay() {
-        return false;
+        return getPipe() instanceof FluidRoutedPipe;
     }
 
     @Override

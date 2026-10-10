@@ -165,7 +165,7 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         }
     }
 
-    private boolean isValidOrientation(ForgeDirection connection) {
+    protected boolean isValidOrientation(ForgeDirection connection) {
         if (connection == ForgeDirection.UNKNOWN) {
             return false;
         }
@@ -187,6 +187,13 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     public IInventory getModuleInventory() {
         return _moduleInventory;
+    }
+
+    /**
+     * @return true if that module item can be installed in this kind of chassis
+     */
+    public boolean isModuleAllowed(ItemStack stack) {
+        return stack != null && stack.getItem() instanceof ItemModule && !ItemModule.isFluidModule(stack);
     }
 
     public ModuleUpgradeManager getModuleUpgradeManager(int slot) {
@@ -461,7 +468,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         }
 
         if (!entityplayer.isSneaking() && entityplayer.getCurrentEquippedItem().getItem() == LogisticsPipes.ModuleItem
-                && entityplayer.getCurrentEquippedItem().getItemDamage() != ItemModule.BLANK) {
+                && entityplayer.getCurrentEquippedItem().getItemDamage() != ItemModule.BLANK
+                && isModuleAllowed(entityplayer.getCurrentEquippedItem())) {
             if (MainProxy.isServer(getWorld())) {
                 if (settings == null || settings.openGui) {
                     return tryInsertingModule(entityplayer);

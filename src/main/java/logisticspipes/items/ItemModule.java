@@ -52,6 +52,10 @@ import logisticspipes.modules.ModuleEnchantmentSinkMK2;
 import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.modules.ModuleExtractorMk2;
 import logisticspipes.modules.ModuleExtractorMk3;
+import logisticspipes.modules.ModuleFluidExtractor;
+import logisticspipes.modules.ModuleFluidProvider;
+import logisticspipes.modules.ModuleFluidSink;
+import logisticspipes.modules.ModuleFluidTankSupplier;
 import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.ModuleModBasedItemSink;
 import logisticspipes.modules.ModuleOreDictItemSink;
@@ -63,6 +67,7 @@ import logisticspipes.modules.ModuleQuickSort;
 import logisticspipes.modules.ModuleTerminus;
 import logisticspipes.modules.ModuleThaumicAspectSink;
 import logisticspipes.modules.ModuleTypeFilterItemSink;
+import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
@@ -121,6 +126,12 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
     public static final int CRAFTER = 600;
     public static final int CRAFTER_MK2 = 601;
     public static final int CRAFTER_MK3 = 602;
+
+    // Fluid MODULES, for the fluid chassis
+    public static final int FLUID_SINK = 700;
+    public static final int FLUID_EXTRACTOR = 701;
+    public static final int FLUID_PROVIDER = 702;
+    public static final int FLUID_SUPPLIER = 703;
 
     private final List<Module> modules = new ArrayList<>();
 
@@ -245,6 +256,10 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
         registerModule(ItemModule.CRAFTER_MK3, ModuleCrafterMK3.class);
         registerModule(ItemModule.ACTIVE_SUPPLIER, ModuleActiveSupplier.class);
         registerModule(ItemModule.CREATIVETABBASEDITEMSINK, ModuleCreativeTabBasedItemSink.class);
+        registerModule(ItemModule.FLUID_SINK, ModuleFluidSink.class);
+        registerModule(ItemModule.FLUID_EXTRACTOR, ModuleFluidExtractor.class);
+        registerModule(ItemModule.FLUID_PROVIDER, ModuleFluidProvider.class);
+        registerModule(ItemModule.FLUID_SUPPLIER, ModuleFluidTankSupplier.class);
 
         if (LogisticsPipes.isGTNH) {
             registerModule(ItemModule.GT_TYPEFILTER_ITEMSINK, ModuleTypeFilterItemSink.class);
@@ -470,6 +485,22 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
         } else {
             StringUtils.addShiftAddition(itemStack, list);
         }
+    }
+
+    /**
+     * @return true if the stack is a module that works on a tank and so only fits a fluid chassis
+     */
+    public static boolean isFluidModule(ItemStack itemStack) {
+        if (itemStack == null || !(itemStack.getItem() instanceof ItemModule itemModule)) {
+            return false;
+        }
+        for (Module module : itemModule.modules) {
+            if (module.getId() == itemStack.getItemDamage()) {
+                return module.getILogisticsModuleClass() != null
+                        && LogisticsFluidModule.class.isAssignableFrom(module.getILogisticsModuleClass());
+            }
+        }
+        return false;
     }
 
     public static boolean isCrafter(ItemStack itemStack) {

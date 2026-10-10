@@ -256,6 +256,11 @@ public class RequestTree extends RequestTreeNode {
         return RequestTree.requestFluid(liquid, amount, pipe, log, false, null) == amount;
     }
 
+    public static boolean requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
+            IAdditionalTargetInformation info) {
+        return RequestTree.requestFluid(liquid, amount, pipe, log, false, info) == amount;
+    }
+
     private static int requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
             boolean acceptPartial, IAdditionalTargetInformation info) {
         FluidResource req = new FluidResource(liquid, amount, pipe);

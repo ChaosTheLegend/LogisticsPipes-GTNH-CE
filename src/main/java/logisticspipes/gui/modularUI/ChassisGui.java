@@ -326,9 +326,7 @@ public class ChassisGui extends LogisticsModularUI {
     }
 
     private boolean isModuleItem(ItemStack itemStack) {
-        if (itemStack == null) return false;
-
-        return itemStack.getItem() instanceof ItemModule;
+        return pipe.isModuleAllowed(itemStack);
     }
 
     @Override

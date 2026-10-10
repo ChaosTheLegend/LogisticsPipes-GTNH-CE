@@ -915,6 +915,8 @@ public class RecipeManager {
                     'd',
                     parts.getChipTear3());
 
+            RecipeManager.addFluidChassisRecipes();
+
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsPipeControllerItem, 1),
                     CraftingDependency.Basic,
@@ -2293,6 +2295,8 @@ public class RecipeManager {
                     'd',
                     logproc);
 
+            RecipeManager.addFluidChassisRecipes();
+
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsPipeControllerItem, 1),
                     CraftingDependency.Basic,
@@ -2941,6 +2945,10 @@ public class RecipeManager {
 
         loadPatternCraftingConversionRecipes();
 
+        if (LogisticsPipes.isGTNH) {
+            loadFluidChassisAssemblerRecipes();
+        }
+
         for (int moduleId : LogisticsPipes.ModuleItem.getRegisteredModulesIDs()) {
             if (isCrafterModule(moduleId)) {
                 // A lone crafter module converts into a pattern; a reset recipe would match the same grid.
@@ -3008,5 +3016,62 @@ public class RecipeManager {
     private static boolean isCrafterModule(int moduleId) {
         return moduleId == ItemModule.CRAFTER || moduleId == ItemModule.CRAFTER_MK2
                 || moduleId == ItemModule.CRAFTER_MK3;
+    }
+
+    /**
+     * The pack sets the recipes of the mod itself and doesn't know the fluid chassis and its modules, so they get
+     * assembler recipes here that follow the fluid pipes of the pack.
+     */
+    private static void loadFluidChassisAssemblerRecipes() {
+        Item[] chassis = { LogisticsPipes.LogisticsChassisPipeMk1, LogisticsPipes.LogisticsChassisPipeMk2,
+                LogisticsPipes.LogisticsChassisPipeMk3 };
+        Item[] fluidChassis = { LogisticsPipes.LogisticsFluidChassisPipeMk1,
+                LogisticsPipes.LogisticsFluidChassisPipeMk2, LogisticsPipes.LogisticsFluidChassisPipeMk3 };
+        for (int i = 0; i < chassis.length; i++) {
+            GregTechConversionRecipes.addFluidVariant(
+                    new ItemStack(chassis[i], 2),
+                    new ItemStack(LogisticsPipes.LogisticsFluidBasicPipe, 2),
+                    false,
+                    true,
+                    new ItemStack(fluidChassis[i], 2));
+        }
+        addFluidModuleAssemblerRecipe(ItemModule.ITEMSINK, ItemModule.FLUID_SINK, false, false);
+        addFluidModuleAssemblerRecipe(ItemModule.EXTRACTOR, ItemModule.FLUID_EXTRACTOR, true, false);
+        addFluidModuleAssemblerRecipe(ItemModule.PROVIDER, ItemModule.FLUID_PROVIDER, true, true);
+        addFluidModuleAssemblerRecipe(ItemModule.ACTIVE_SUPPLIER, ItemModule.FLUID_SUPPLIER, true, true);
+    }
+
+    private static void addFluidModuleAssemblerRecipe(int module, int fluidModule, boolean withPump, boolean mv) {
+        GregTechConversionRecipes.addFluidVariant(
+                new ItemStack(LogisticsPipes.ModuleItem, 2, module),
+                null,
+                withPump,
+                mv,
+                new ItemStack(LogisticsPipes.ModuleItem, 2, fluidModule));
+    }
+
+    private static void addFluidChassisRecipes() {
+        Item[] chassis = { LogisticsPipes.LogisticsChassisPipeMk1, LogisticsPipes.LogisticsChassisPipeMk2,
+                LogisticsPipes.LogisticsChassisPipeMk3 };
+        Item[] fluidChassis = { LogisticsPipes.LogisticsFluidChassisPipeMk1,
+                LogisticsPipes.LogisticsFluidChassisPipeMk2, LogisticsPipes.LogisticsFluidChassisPipeMk3 };
+        for (int i = 0; i < chassis.length; i++) {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    new ItemStack(fluidChassis[i], 1),
+                    CraftingDependency.Modular_Pipes,
+                    chassis[i],
+                    LogisticsPipes.LogisticsFluidBasicPipe);
+        }
+        int[][] modules = { { ItemModule.FLUID_SINK, ItemModule.ITEMSINK },
+                { ItemModule.FLUID_EXTRACTOR, ItemModule.EXTRACTOR },
+                { ItemModule.FLUID_PROVIDER, ItemModule.PROVIDER },
+                { ItemModule.FLUID_SUPPLIER, ItemModule.ACTIVE_SUPPLIER } };
+        for (int[] module : modules) {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, module[0]),
+                    CraftingDependency.Modular_Pipes,
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, module[1]),
+                    Items.bucket);
+        }
     }
 }
