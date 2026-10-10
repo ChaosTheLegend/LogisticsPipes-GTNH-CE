@@ -36,7 +36,7 @@ public class PipeFluidTransportLogistics extends PipeTransportLogistics implemen
      */
     @Override
     protected boolean supportsFastRelay() {
-        return getPipe() instanceof FluidRoutedPipe;
+        return getPipe() instanceof FluidRoutedPipe pipe && pipe.relaysClumps();
     }
 
     @Override

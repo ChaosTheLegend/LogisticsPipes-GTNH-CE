@@ -275,6 +275,13 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
         pendingFluids.writeToNBT(nbttagcompound, "pendingFluids");
     }
 
+    /**
+     * @return true if clumps that only pass through may skip the routing of this pipe
+     */
+    public boolean relaysClumps() {
+        return true;
+    }
+
     public abstract boolean canInsertFromSideToTanks();
 
     public abstract boolean canInsertToTanks();
