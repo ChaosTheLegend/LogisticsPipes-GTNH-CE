@@ -536,7 +536,4 @@ gui.networkstatistics.add.alreadytracked=This item type is already tracked
 gui.networkstatistics.ItemDisplay=Page %s / %s
 
 gui.settings.pipenewrenderer=Use New Renderer
-gui.settings.pipevborenderer=Use VBO Renderer (experimental)
-gui.settings.pipefallbackrenderer=Use Fallback Renderer
-gui.settings.piperenderdistance=Max. Distance for new Renderer
 gui.settings.pipecontentrenderdistance=Max. Distance for Pipe Content

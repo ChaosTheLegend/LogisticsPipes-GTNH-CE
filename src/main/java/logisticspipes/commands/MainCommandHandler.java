@@ -10,6 +10,7 @@ import logisticspipes.commands.commands.DummyCommand;
 import logisticspipes.commands.commands.DumpCommand;
 import logisticspipes.commands.commands.NBTDebugCommand;
 import logisticspipes.commands.commands.NameLookupCommand;
+import logisticspipes.commands.commands.RoutingThreadClearCommand;
 import logisticspipes.commands.commands.RoutingThreadCommand;
 import logisticspipes.commands.commands.TransferNamesCommand;
 import logisticspipes.commands.commands.WrapperCommand;
@@ -36,6 +37,7 @@ public class MainCommandHandler extends SubCommandHandler {
         registerSubCommand(new DummyCommand());
         registerSubCommand(new NBTDebugCommand());
         registerSubCommand(new RoutingThreadCommand());
+        registerSubCommand(new RoutingThreadClearCommand());
         registerSubCommand(new TransferNamesCommand());
         registerSubCommand(new NameLookupCommand());
         registerSubCommand(new DumpCommand());

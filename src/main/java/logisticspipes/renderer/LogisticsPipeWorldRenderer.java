@@ -211,7 +211,7 @@ public class LogisticsPipeWorldRenderer implements ISimpleBlockRenderingHandler 
         if (tile == null) return false;
         LogisticsTileGenericPipe pipeTile = (LogisticsTileGenericPipe) tile;
         SimpleServiceLocator.thermalDynamicsProxy.renderPipeConnections(pipeTile, renderer);
-        if (config.isUseNewRenderer() && !pipeTile.renderState.forceRenderOldPipe) {
+        if (config.isUseNewRenderer()) {
             return newRenderer.renderWorldBlock(world, x, y, z, block, modelId, renderer);
         }
         return LogisticsPipeWorldRenderer

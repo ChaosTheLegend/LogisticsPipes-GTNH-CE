@@ -102,6 +102,10 @@ public class LPItemList implements Iterable<LPTravelingItem> {
         purgeBadItems();
     }
 
+    public boolean isEmpty() {
+        return items.isEmpty();
+    }
+
     @Override
     public Iterator<LPTravelingItem> iterator() {
         return items.values().iterator();

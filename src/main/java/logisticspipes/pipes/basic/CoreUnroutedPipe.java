@@ -120,10 +120,8 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
         transport.updateEntity();
 
         if (MainProxy.isClient(getWorld())) {
-            if (oldRendererState != (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()
-                    && !container.renderState.forceRenderOldPipe)) {
-                oldRendererState = (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()
-                        && !container.renderState.forceRenderOldPipe);
+            if (oldRendererState != LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()) {
+                oldRendererState = LogisticsPipes.getClientPlayerConfig().isUseNewRenderer();
                 getWorld().markBlockForUpdate(getX(), getY(), getZ());
             }
         }

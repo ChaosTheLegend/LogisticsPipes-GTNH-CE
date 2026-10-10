@@ -28,7 +28,8 @@ import logisticspipes.request.resources.IResource;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
-import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.InterestRegistry;
+import logisticspipes.routing.astar.JunctionRouter;
 import logisticspipes.routing.order.IOrderInfoProvider;
 import logisticspipes.routing.order.IOrderInfoProvider.ResourceType;
 import logisticspipes.routing.order.LinkedLogisticsOrderList;
@@ -293,23 +294,40 @@ public class RequestTreeNode {
         return isDone();
     }
 
+    /**
+     * Routes from {@code source} to every router in {@code routersIndex} that has a loaded pipe. With the junction
+     * router this is one one-to-many search instead of a separate route query per candidate.
+     */
+    private static List<ExitRoute> routesToInterestedRouters(IRouter source, BitSet routersIndex) {
+        List<IRouter> targets = new ArrayList<>();
+        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
+            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
+            if (r == null || !r.isValidCache()) {
+                continue; // Skip Routers without a valid pipe
+            }
+            targets.add(r);
+        }
+        List<ExitRoute> routes = new ArrayList<>();
+        if (source instanceof JunctionRouter) {
+            for (List<ExitRoute> e : ((JunctionRouter) source).getDistancesTo(targets).values()) {
+                routes.addAll(e);
+            }
+        } else {
+            for (IRouter r : targets) {
+                List<ExitRoute> e = source.getDistanceTo(r);
+                if (e != null) {
+                    routes.addAll(e);
+                }
+            }
+        }
+        return routes;
+    }
+
     private static List<Pair<IProvide, List<IFilter>>> getProviders(IRouter destination, IResource item) {
 
         // get all the routers
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn(item);
-        List<ExitRoute> validSources = new ArrayList<>(); // get the routing table
-        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
-            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
-
-            if (!r.isValidCache()) {
-                continue; // Skip Routers without a valid pipe
-            }
-
-            List<ExitRoute> e = destination.getDistanceTo(r);
-            if (e != null) {
-                validSources.addAll(e);
-            }
-        }
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(item);
+        List<ExitRoute> validSources = routesToInterestedRouters(destination, routersIndex);
         // closer providers are good
         validSources.sort(new workWeightedSorter(1.0));
 
@@ -336,16 +354,16 @@ public class RequestTreeNode {
                 continue;
             }
             boolean valid = false;
-            List<ExitRoute> sources = extraPromise.getProvider().getRouter().getRouteTable()
-                    .get(getRequestType().getRouter().getSimpleID());
+            IRouter providerRouter = extraPromise.getProvider().getRouter();
+            IRouter requesterRouter = getRequestType().getRouter();
+            // the provider can send to the requester, and the requester can request from the provider
+            List<ExitRoute> sources = providerRouter.getDistanceTo(requesterRouter);
             outer: for (ExitRoute source : sources) {
                 if (source != null && source.containsFlag(PipeRoutingConnectionType.canRouteTo)) {
-                    for (ExitRoute node : getRequestType().getRouter().getIRoutersByCost()) {
-                        if (node.destination == extraPromise.getProvider().getRouter()) {
-                            if (node.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
-                                valid = true;
-                                break outer;
-                            }
+                    for (ExitRoute node : requesterRouter.getDistanceTo(providerRouter)) {
+                        if (node.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
+                            valid = true;
+                            break outer;
                         }
                     }
                 }
@@ -361,20 +379,8 @@ public class RequestTreeNode {
     private boolean checkCrafting() {
 
         // get all the routers
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn(getRequestType());
-        List<ExitRoute> validSources = new ArrayList<>(); // get the routing table
-        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
-            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
-
-            if (!r.isValidCache()) {
-                continue; // Skip Routers without a valid pipe
-            }
-
-            List<ExitRoute> e = getRequestType().getRouter().getDistanceTo(r);
-            if (e != null) {
-                validSources.addAll(e);
-            }
-        }
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(getRequestType());
+        List<ExitRoute> validSources = routesToInterestedRouters(getRequestType().getRouter(), routersIndex);
         workWeightedSorter wSorter = new workWeightedSorter(0); // distance doesn't matter, because ingredients have to
         // be delivered to the crafter, and we can't
         // tell how long that will take.

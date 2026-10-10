@@ -136,6 +136,8 @@ import logisticspipes.renderer.LogisticsPipeItemRenderer;
 import logisticspipes.renderer.newpipe.LogisticsNewRenderPipe;
 import logisticspipes.routing.RouterManager;
 import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.JunctionRouterManager;
+import logisticspipes.routing.astar.LPJunctionNetwork;
 import logisticspipes.routing.pathfinder.PipeInformationManager;
 import logisticspipes.textures.Textures;
 import logisticspipes.ticks.ClientPacketBufferHandlerThread;
@@ -143,8 +145,8 @@ import logisticspipes.ticks.HudUpdateTick;
 import logisticspipes.ticks.LPTickHandler;
 import logisticspipes.ticks.QueuedTasks;
 import logisticspipes.ticks.RenderTickHandler;
-import logisticspipes.ticks.RoutingTableUpdateThread;
 import logisticspipes.ticks.ServerPacketBufferHandlerThread;
+import logisticspipes.transport.ClumpTransit;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.InventoryUtilFactory;
 import logisticspipes.utils.RoutedItemHelper;
@@ -298,7 +300,7 @@ public class LogisticsPipes {
         // Register Network channels
         MainProxy.createChannels();
 
-        RouterManager manager = new RouterManager();
+        RouterManager manager = new JunctionRouterManager();
         SimpleServiceLocator.setRouterManager(manager);
         SimpleServiceLocator.setDirectConnectionManager(manager);
         SimpleServiceLocator.setSecurityStationManager(manager);
@@ -323,9 +325,9 @@ public class LogisticsPipes {
             SimpleServiceLocator.setClientPacketBufferHandlerThread(new ClientPacketBufferHandlerThread());
         }
         SimpleServiceLocator.setServerPacketBufferHandlerThread(new ServerPacketBufferHandlerThread());
-        for (int i = 0; i < Configs.MULTI_THREAD_NUMBER; i++) {
-            new RoutingTableUpdateThread(i);
-        }
+        // The junction router applies graph edits on its own writer thread and refreshes stale routes on a small pool;
+        // the old per-router table threads are not needed anymore.
+        LPJunctionNetwork.start(Configs.MULTI_THREAD_NUMBER, Configs.MULTI_THREAD_PRIORITY);
         LogisticsEventListener eventListener = new LogisticsEventListener();
         MinecraftForge.EVENT_BUS.register(eventListener);
         FMLCommonHandler.instance().bus().register(eventListener);
@@ -563,6 +565,8 @@ public class LogisticsPipes {
         PipeItemsSatelliteLogistics.cleanup();
         PipeFluidSatellite.cleanup();
         ServerRouter.cleanup();
+        LPJunctionNetwork.cleanup();
+        ClumpTransit.clear();
         if (event.getSide().equals(Side.CLIENT)) {
             LogisticsHUDRenderer.instance().clear();
         }

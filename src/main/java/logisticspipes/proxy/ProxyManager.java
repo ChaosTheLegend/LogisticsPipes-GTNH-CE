@@ -422,6 +422,11 @@ public class ProxyManager {
                             @Override
                             public void dynamicRenderPluggables(
                                     LogisticsTileGenericPipe pipe, double x, double y, double z) {}
+
+                            @Override
+                            public boolean hasDynamicContent(LogisticsTileGenericPipe pipe) {
+                                return false;
+                            }
                         };
                     }
 

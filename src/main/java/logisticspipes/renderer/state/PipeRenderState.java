@@ -14,7 +14,6 @@ import logisticspipes.proxy.buildcraft.subproxies.IBCRenderState;
 import logisticspipes.proxy.buildcraft.subproxies.IBCTilePart;
 import logisticspipes.proxy.object3d.interfaces.I3DOperation;
 import logisticspipes.proxy.object3d.interfaces.IModel3D;
-import logisticspipes.renderer.newpipe.VBOList;
 import logisticspipes.utils.tuples.Pair;
 
 public class PipeRenderState implements IClientState {
@@ -24,11 +23,8 @@ public class PipeRenderState implements IClientState {
     public final IBCRenderState bcRenderState;
 
     public List<Pair<IModel3D, I3DOperation[]>> cachedRenderer = null;
-    public boolean forceRenderOldPipe = false;
     public boolean[] solidSidesCache = new boolean[6];
 
-    public int[] buffer = null;
-    public VBOList renderList;
     /*
      * This is a placeholder for the pipe renderer to set to a value that the BlockGenericPipe->TileGenericPipe will
      * then return the the WorldRenderer

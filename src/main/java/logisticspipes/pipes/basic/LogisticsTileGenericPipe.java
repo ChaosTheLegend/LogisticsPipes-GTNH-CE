@@ -181,6 +181,9 @@ public class LogisticsTileGenericPipe extends TileEntity
     public void onChunkUnload() {
         if (pipe != null) {
             pipe.onChunkUnload();
+            if (pipe.transport != null) {
+                pipe.transport.onChunkUnload();
+            }
         }
         SimpleServiceLocator.openComputersProxy.handleChunkUnload(this);
         tdPart.onChunkUnload();

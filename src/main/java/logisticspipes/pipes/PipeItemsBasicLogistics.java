@@ -16,6 +16,9 @@ import net.minecraftforge.common.util.ForgeDirection;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.logisticspipes.IRoutedItem;
+import logisticspipes.logisticspipes.PipeTransportLayer;
+import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
@@ -97,6 +100,25 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
         return itemSinkModule;
     }
 
+    /**
+     * Items that arrive while there's no inventory, or no room in it, are routed elsewhere instead of being pushed out
+     * of a random exit. With nowhere to go they wait in the pipe's buffer and are dropped after a few retries.
+     */
+    @Override
+    public TransportLayer getTransportLayer() {
+        if (_transportLayer == null) {
+            _transportLayer = new PipeTransportLayer(this, this, getRouter()) {
+
+                @Override
+                public boolean stillWantItem(IRoutedItem item) {
+                    return itemSinkModule.sinksItem(item.getItemIdentifierStack().getItem(), -1, 0, true, false)
+                            != null;
+                }
+            };
+        }
+        return _transportLayer;
+    }
+
     @Override
     public ItemSendMode getItemSendMode() {
         return ItemSendMode.Normal;
@@ -128,20 +150,15 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 
     @Override
     public Set<ItemIdentifier> getSpecificInterests() {
-        if (itemSinkModule.isDefaultRoute()) {
+        Collection<ItemIdentifier> current = itemSinkModule.getSpecificInterests();
+        if (current == null) {
             return null;
         }
-
-        Set<ItemIdentifier> l1 = new TreeSet<>();
-        Collection<ItemIdentifier> current = itemSinkModule.getSpecificInterests();
-        if (current != null) {
-            l1.addAll(current);
-        }
-        return l1;
+        return new TreeSet<>(current);
     }
 
     @Override
     public boolean hasGenericInterests() {
-        return itemSinkModule.isDefaultRoute();
+        return itemSinkModule.hasGenericInterests();
     }
 }

@@ -25,6 +25,7 @@ import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent.Action;
+import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.event.world.ChunkWatchEvent.UnWatch;
 import net.minecraftforge.event.world.ChunkWatchEvent.Watch;
 import net.minecraftforge.event.world.WorldEvent;
@@ -51,6 +52,7 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.renderer.LogisticsGuiOverrenderer;
 import logisticspipes.renderer.LogisticsHUDRenderer;
+import logisticspipes.routing.astar.LPJunctionNetwork;
 import logisticspipes.utils.AdjacentTile;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.PlayerIdentifier;
@@ -179,6 +181,16 @@ public class LogisticsEventListener {
         if (MainProxy.isServer(event.world)) {
             int dim = MainProxy.getDimensionForWorld(event.world);
             SimpleServiceLocator.routerManager.dimensionUnloaded(dim);
+        }
+    }
+
+    @SubscribeEvent
+    public void chunkUnload(ChunkEvent.Unload event) {
+        if (event.world != null && MainProxy.isServer(event.world)) {
+            LPJunctionNetwork.onChunkUnload(
+                    MainProxy.getDimensionForWorld(event.world),
+                    event.getChunk().xPosition,
+                    event.getChunk().zPosition);
         }
     }
 

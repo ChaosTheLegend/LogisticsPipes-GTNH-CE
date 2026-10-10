@@ -28,7 +28,7 @@ import logisticspipes.renderer.LogisticsRenderPipe;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
-import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.RouterIds;
 import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
@@ -107,7 +107,7 @@ public class ItemAmountPipeSign implements IPipeSign, ISimpleInventoryEventHandl
             Map<ItemIdentifier, Integer> availableItems = SimpleServiceLocator.logisticsManager
                     .getAvailableItems(pipe.getRouter().getIRoutersByCost());
             if (availableItems != null) {
-                BitSet set = new BitSet(ServerRouter.getBiggestSimpleID());
+                BitSet set = new BitSet(RouterIds.getBiggestSimpleID());
                 spread(availableItems, set);
                 if (availableItems.containsKey(itemTypeInv.getIDStackInSlot(0).getItem())) {
                     newAmount = availableItems.get(itemTypeInv.getIDStackInSlot(0).getItem());

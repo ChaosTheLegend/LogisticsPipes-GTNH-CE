@@ -49,6 +49,7 @@ import logisticspipes.proxy.buildcraft.subproxies.IBCPipePluggable;
 import logisticspipes.renderer.newpipe.LogisticsNewRenderPipe;
 import logisticspipes.textures.Textures;
 import logisticspipes.ticks.QueuedTasks;
+import logisticspipes.transport.ClumpTransit;
 import logisticspipes.utils.MatrixTranformations;
 import logisticspipes.utils.tuples.LPPosition;
 
@@ -643,6 +644,12 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
         if (!LogisticsBlockGenericPipe.isValid(pipe)) {
             return;
         }
+        // clumps travelling through this pipe finish, drop or turn back before the tile is gone
+        ClumpTransit.onPipeRemoved(
+                pipe.container.getWorldObj(),
+                pipe.container.xCoord,
+                pipe.container.yCoord,
+                pipe.container.zCoord);
 
         if (pipe.canBeDestroyed() || pipe.destroyByPlayer()) {
             pipe.onBlockRemoval();

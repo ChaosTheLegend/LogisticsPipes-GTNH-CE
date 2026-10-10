@@ -98,6 +98,15 @@ public class ChassiModule extends LogisticsGuiModule {
     }
 
     @Override
+    public void insertionFailed(ItemIdentifier item) {
+        for (LogisticsModule module : _modules) {
+            if (module != null) {
+                module.insertionFailed(item);
+            }
+        }
+    }
+
+    @Override
     public LogisticsModule getSubModule(int slot) {
         if (slot < 0 || slot >= _modules.length) {
             return null;

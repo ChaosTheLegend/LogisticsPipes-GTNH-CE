@@ -39,6 +39,8 @@ public class Configs {
     public static boolean MANDATORY_CARPENTER_RECIPES = true;
     public static boolean ENABLE_BETA_RECIPES = false;
     public static boolean ENABLE_PARTICLE_FX = true;
+    public static boolean ITEM_CLUMP_TRANSPORT = true;
+    public static int ITEM_CLUMP_GATHER_TICKS = 5;
 
     // GuiOrderer Popup setting
     public static boolean DISPLAY_POPUP = true;
@@ -169,6 +171,22 @@ public class Configs {
                         Configs.ENABLE_PARTICLE_FX,
                         "Whether or not special particles will spawn.")
                 .getBoolean(false);
+        Configs.ITEM_CLUMP_TRANSPORT = Configs.CONFIGURATION
+                .get(
+                        Configuration.CATEGORY_GENERAL,
+                        "itemClumpTransport",
+                        Configs.ITEM_CLUMP_TRANSPORT,
+                        "Routed items skip corridors of LP pipes as scheduled hops in groups (clumps) instead of being moved block by block every tick. Turn off to go back to the old transport.")
+                .getBoolean(true);
+        Configs.ITEM_CLUMP_GATHER_TICKS = Configs.CONFIGURATION
+                .get(
+                        Configuration.CATEGORY_GENERAL,
+                        "itemClumpGatherTicks",
+                        Configs.ITEM_CLUMP_GATHER_TICKS,
+                        "How many ticks after a clump left a pipe an item going the same way may still join it (it then arrives that much earlier). 0 only groups items leaving in the same tick.",
+                        0,
+                        40)
+                .getInt();
 
         if (Configs.CONFIGURATION.hasKey(Configs.CATEGORY_MULTITHREAD, "enabled")) {
             // ConfigCategory.remove is deprecated, but there's no other way to remove a key-value pair without

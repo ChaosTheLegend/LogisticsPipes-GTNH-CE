@@ -23,6 +23,7 @@ import logisticspipes.proxy.object3d.interfaces.IModel3D;
 import logisticspipes.proxy.object3d.operation.LPScale;
 import logisticspipes.proxy.object3d.operation.LPTranslation;
 import logisticspipes.renderer.IIconProvider;
+import logisticspipes.renderer.LogisticsRenderPipe;
 import logisticspipes.renderer.newpipe.LogisticsNewSolidBlockWorldRenderer.BlockRotation;
 import logisticspipes.renderer.newpipe.LogisticsNewSolidBlockWorldRenderer.CoverSides;
 import logisticspipes.renderer.state.PipeRenderState;
@@ -125,6 +126,12 @@ public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandl
             renderer.renderStandardBlock(block, x, y, z);
 
             block.setBlockBounds(0, 0, 0, 1, 1, 1);
+        }
+
+        // the pipe body is opaque, bake it once into the solid pass
+        if (pipeTile.pipe != null && ForgeHooksClient.getWorldRenderPass() == 0) {
+            LogisticsRenderPipe.secondRenderer.renderWorldBlock(pipeTile, world, block, x, y, z);
+            hasRendered = true;
         }
         return hasRendered;
     }

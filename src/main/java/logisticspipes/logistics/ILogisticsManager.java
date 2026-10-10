@@ -21,6 +21,12 @@ public interface ILogisticsManager {
 
     IRoutedItem assignDestinationFor(IRoutedItem item, int sourceRouterint, boolean excludeSource);
 
+    /**
+     * Last effort before an item that found no destination is dropped: the nearest default route with room for it,
+     * ignoring room already promised to items in transit. Returns whether a destination was assigned.
+     */
+    boolean assignDefaultRouteFor(IRoutedItem item, int sourceRouterint);
+
     Triplet<Integer, SinkReply, List<IFilter>> hasDestination(ItemIdentifier stack, boolean allowDefault, int sourceID,
             List<Integer> routerIDsToExclude);
 

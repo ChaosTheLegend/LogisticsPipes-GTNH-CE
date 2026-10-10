@@ -11,6 +11,11 @@ public class LPConstants {
     public static final float BC_PIPE_MIN_POS = 0.25F;
     public static final float BC_PIPE_MAX_POS = 0.75F;
 
+    /**
+     * Debug mode, off unless the JVM runs with {@code -Dlogisticspipes.enableDebug=true}. Never hard-code it on: it
+     * takes two {@code Thread.getStackTrace()} calls per pipe per tick (tens of microseconds each), and it unlocks
+     * debug-only cheats such as {@code PowerJunctionCheatPacket} and {@code /lp debug} for every player.
+     */
     public static final boolean DEBUG = Boolean.getBoolean("logisticspipes.enableDebug");
 
     public static int pipeModel = -1;

@@ -9,19 +9,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import net.minecraft.block.Block;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.common.util.ForgeDirection;
-
-import org.lwjgl.opengl.GL11;
 
 import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
-import logisticspipes.config.PlayerConfig;
-import logisticspipes.pipes.PipeBlockRequestTable;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.object3d.interfaces.I3DOperation;
@@ -302,8 +297,6 @@ public class LogisticsNewRenderPipe {
     public static IIconTransformation innerBoxTexture;
     public static IIconTransformation statusTexture;
     public static IIconTransformation statusBCTexture;
-
-    private static final ResourceLocation BLOCKS = new ResourceLocation("textures/atlas/blocks.png");
 
     public static void loadModels() {
         if (!SimpleServiceLocator.cclProxy.isActivated()) return;
@@ -709,83 +702,34 @@ public class LogisticsNewRenderPipe {
         }
     }
 
-    private final PlayerConfig config = LogisticsPipes.getClientPlayerConfig();
-
-    public void renderTileEntityAt(LogisticsTileGenericPipe pipeTile, double x, double y, double z,
-            float partialTickTime, double distance) {
-        if (pipeTile.pipe instanceof PipeBlockRequestTable) {
-            return;
-        }
-
-        Minecraft.getMinecraft().getTextureManager().bindTexture(LogisticsNewRenderPipe.BLOCKS);
+    /**
+     * Bakes the pipe body into the chunk mesh. Called from chunk building, so the Tessellator is already drawing and
+     * translated to the chunk; vertices are emitted at world coordinates.
+     */
+    public void renderWorldBlock(LogisticsTileGenericPipe pipeTile, IBlockAccess world, Block block, int x, int y,
+            int z) {
         PipeRenderState renderState = pipeTile.renderState;
-
-        if (renderState.renderList != null && renderState.renderList.isInvalid()) {
-            renderState.renderList = null;
-        }
-
-        if (distance > config.getRenderPipeDistance() * config.getRenderPipeDistance()) {
-            if (config.isUseFallbackRenderer()) {
-                renderState.forceRenderOldPipe = true;
-            }
-            return;
-        }
-
-        if (renderState.renderList == null) {
-            renderState.renderList = SimpleServiceLocator.renderListHandler.getNewRenderList();
-        }
-
-        renderState.forceRenderOldPipe = false;
-        boolean recalculateList = false;
         if (renderState.cachedRenderer == null) {
             List<Pair<IModel3D, I3DOperation[]>> objectsToRender = new ArrayList<>();
             fillObjectsToRenderList(objectsToRender, pipeTile, renderState);
             renderState.cachedRenderer = objectsToRender;
-            recalculateList = true;
         }
-        if (!renderState.renderList.isFilled() || recalculateList) {
-            renderState.renderList.startListCompile();
 
-            Tessellator tess = Tessellator.instance;
+        SimpleServiceLocator.cclProxy.getRenderState().reset();
+        SimpleServiceLocator.cclProxy.getRenderState().setUseNormals(true);
+        SimpleServiceLocator.cclProxy.getRenderState().setAlphaOverride(0xff);
 
-            SimpleServiceLocator.cclProxy.getRenderState().reset();
-            SimpleServiceLocator.cclProxy.getRenderState().setUseNormals(true);
-            SimpleServiceLocator.cclProxy.getRenderState().setAlphaOverride(0xff);
+        Tessellator tess = Tessellator.instance;
+        tess.setColorOpaque_F(1F, 1F, 1F);
+        tess.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z));
 
-            int brightness = pipeTile.getBlockType().getMixedBrightnessForBlock(
-                    pipeTile.getWorldObj(),
-                    pipeTile.xCoord,
-                    pipeTile.yCoord,
-                    pipeTile.zCoord);
-
-            tess.setColorOpaque_F(1F, 1F, 1F);
-            tess.setBrightness(brightness);
-
-            tess.startDrawingQuads();
-            for (Pair<IModel3D, I3DOperation[]> model : renderState.cachedRenderer) {
-                if (model == null) {
-                    SimpleServiceLocator.cclProxy.getRenderState().setAlphaOverride(0xa0);
-                } else {
-                    model.getValue1().render(model.getValue2());
-                }
-            }
-
-            SimpleServiceLocator.cclProxy.getRenderState().setAlphaOverride(0xff);
-
-            tess.draw();
-
-            renderState.renderList.stopCompile();
-        }
-        if (renderState.renderList != null) {
-            GL11.glPushAttrib(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_ENABLE_BIT);
-            GL11.glPushMatrix();
-            GL11.glTranslated(x, y, z);
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_ONE, GL11.GL_ZERO);
-            renderState.renderList.render();
-            GL11.glDisable(GL11.GL_BLEND);
-            GL11.glPopMatrix();
-            GL11.glPopAttrib();
+        LPTranslation translation = new LPTranslation(x, y, z);
+        for (Pair<IModel3D, I3DOperation[]> model : renderState.cachedRenderer) {
+            I3DOperation[] ops = model.getValue2();
+            I3DOperation[] placed = new I3DOperation[ops.length + 1];
+            placed[0] = translation;
+            System.arraycopy(ops, 0, placed, 1, ops.length);
+            model.getValue1().render(placed);
         }
     }
 

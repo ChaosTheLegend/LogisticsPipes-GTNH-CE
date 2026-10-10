@@ -151,6 +151,12 @@ public abstract class LogisticsModule implements ISaveState, ILPCCTypeHolder {
         return false;
     }
 
+    /**
+     * Called when an item routed to this module could not be (fully) inserted into the target inventory, so the module
+     * can stop accepting it right away instead of attracting more items that will bounce.
+     */
+    public void insertionFailed(ItemIdentifier item) {}
+
     public List<CCSinkResponder> queueCCSinkEvent(ItemIdentifierStack item) {
         return new ArrayList<>(0);
     }
