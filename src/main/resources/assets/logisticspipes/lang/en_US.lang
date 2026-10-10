@@ -474,7 +474,6 @@ gui.firewall.Crafting=Crafting
 gui.firewall.Sorting=Sorting
 gui.firewall.Powerflow=Powerflow
 
-gui.fluidbasic.Empty=Empty
 
 gui.fluidsuppliermk2.Fluid=Fluid
 gui.fluidsuppliermk2.partial=Partial
