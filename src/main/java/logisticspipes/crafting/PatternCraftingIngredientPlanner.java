@@ -103,6 +103,14 @@ final class PatternCraftingIngredientPlanner {
         return plan != null && plan.hasSatelliteAssignments;
     }
 
+    /**
+     * Whether any fluid input of the pattern goes into the adjacent target rather than to a satellite.
+     */
+    boolean hasLocalFluidIngredients(ItemStack pattern) {
+        TargetPlan plan = getTargetPlan(pattern);
+        return plan != null && PatternStackHelper.containsFluid(plan.localAggregatedIngredients);
+    }
+
     int ingredientAmount(ItemStack pattern, ItemIdentifier item) {
         TargetPlan plan = getTargetPlan(pattern);
         if (plan == null || item == null) {

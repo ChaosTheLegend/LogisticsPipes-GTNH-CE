@@ -93,6 +93,8 @@ Details: [pattern-crafting.md](pattern-crafting.md) §8.
 - [ ] D8: removing or swapping a pattern with buffered ingredients voids them, or the new pattern inherits them.
 - [ ] D9: same-pipe intermediate not fully accepted locally → parent craft waits forever.
 - [ ] C8: BLOCKING/SMART never unlocks when the target holds permanent contents (circuits, molds, fuel).
+- [ ] B35: BLOCKING/SMART with an item-only pattern starts while the machine has fluid in a tank; a pattern with a
+  local fluid input still waits for the tanks to be empty.
 - [ ] C9: satellite broken or unloaded during a batch blocks the whole pipe; batch lost on reload.
 - [ ] C14: extra promised as a plain item isn't removed when registered as a DictResource with flags.
 - [ ] C15: in OFF mode, passing items get sunk (e.g. ingot↔block patterns) and unrequested crafts happen.

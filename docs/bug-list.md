@@ -252,6 +252,16 @@ Reported in [pattern-crafting.md](pattern-crafting.md) §10. The detailed issue 
 - **Notes:** A machine input that takes several liquids can't be supplied with more than one of them. May overlap
   with B28 and with the planned multi-filter basic fluid pipe ([roadmap.md](roadmap.md) 4a).
 
+### B35: Blocking mode waits for an empty fluid tank even when the pattern has no fluid inputs
+- **Status:** possibly fixed
+- **Found:** 2026-10-04, in game
+- **Where:** `AdjacentInventoryHandler.isEmpty`, blocking/smart readiness checks
+- **Repro:** blocking or smart mode, an item-only pattern, a machine with fluid left in a tank.
+- **Notes:** The "target is empty" check counted every fluid tank no matter which pattern was going in. Fix: the
+  checks go through `ModulePatternCrafting.isInventoryEmptyFor(connected, patternSlot)`, which ignores tanks unless the
+  pattern puts fluid into the target (local fluid inputs; fluids sent to a fluid satellite don't count). The running
+  craft's "finished" check uses its own pattern the same way.
+
 ## GUI and compatibility
 
 Tracked in [pattern-crafting.md](pattern-crafting.md) §8.6. Expected to fail until fixed:

@@ -91,7 +91,7 @@ final class PatternCraftingCapacity {
         AdjacentTile connected = adjacentInventory.getConnected();
         if (module.getEffectiveBlockingMode() == PipeItemsPatternCraftingLogistics.BlockingMode.BLOCKING
                 && connected != null
-                && adjacentInventory.isEmpty(connected)
+                && module.isInventoryEmptyFor(connected, patternSlot)
                 && ingredientPlanner.buildBufferedIngredientPlanAfterAdding(
                         patternSlot,
                         pattern,
@@ -108,7 +108,7 @@ final class PatternCraftingCapacity {
         AdjacentTile connected = adjacentInventory.getConnected();
         if (module.getEffectiveBlockingMode() == PipeItemsPatternCraftingLogistics.BlockingMode.BLOCKING
                 && connected != null
-                && adjacentInventory.isEmpty(connected)
+                && module.isInventoryEmptyFor(connected, patternSlot)
                 && ingredientPlanner.buildBufferedIngredientPlanAfterAdding(
                         patternSlot,
                         pattern,

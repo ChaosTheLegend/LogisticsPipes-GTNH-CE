@@ -40,6 +40,8 @@ class AdjacentInventoryHandler {
     private ForgeDirection contentCacheOrientation = ForgeDirection.UNKNOWN;
     private boolean emptyCached;
     private boolean cachedEmpty;
+    private boolean itemsEmptyCached;
+    private boolean cachedItemsEmpty;
 
     AdjacentInventoryHandler(ModulePatternCrafting module, PipeItemsPatternCraftingLogistics pipe) {
         this.module = module;
@@ -561,20 +563,34 @@ class AdjacentInventoryHandler {
     }
 
     boolean isEmpty(AdjacentTile connected) {
+        return isEmpty(connected, true);
+    }
+
+    /**
+     * Whether the target holds nothing. With {@code includeFluids} false the fluid tanks are ignored, for patterns that
+     * put no fluid into the target.
+     */
+    boolean isEmpty(AdjacentTile connected, boolean includeFluids) {
         if (connected == null
                 || (!(connected.tile instanceof IInventory) && !(connected.tile instanceof IFluidHandler))) {
             return true;
         }
         refreshContentCache(connected);
-        if (emptyCached) {
+        if (includeFluids) {
+            if (!emptyCached) {
+                cachedEmpty = calculateEmpty(connected, true);
+                emptyCached = true;
+            }
             return cachedEmpty;
         }
-        cachedEmpty = calculateEmpty(connected);
-        emptyCached = true;
-        return cachedEmpty;
+        if (!itemsEmptyCached) {
+            cachedItemsEmpty = calculateEmpty(connected, false);
+            itemsEmptyCached = true;
+        }
+        return cachedItemsEmpty;
     }
 
-    private boolean calculateEmpty(AdjacentTile connected) {
+    private boolean calculateEmpty(AdjacentTile connected, boolean includeFluids) {
         if (connected.tile instanceof PatternLogisticsCraftingTableTileEntity) {
             return ((PatternLogisticsCraftingTableTileEntity) connected.tile).isIdle();
         }
@@ -586,7 +602,7 @@ class AdjacentInventoryHandler {
                 }
             }
         }
-        if (connected.tile instanceof IFluidHandler) {
+        if (includeFluids && connected.tile instanceof IFluidHandler) {
             FluidTankInfo[] tanks = ((IFluidHandler) connected.tile)
                     .getTankInfo(getFluidInsertionOrientation(connected));
             if (tanks != null) {
@@ -737,6 +753,7 @@ class AdjacentInventoryHandler {
     private void clearContentCacheValues() {
         patternSetCapacity.clear();
         emptyCached = false;
+        itemsEmptyCached = false;
     }
 
 }

@@ -99,7 +99,7 @@ final class PatternCraftingBlockingHandler {
             return runningCraft == patternSlot;
         }
         AdjacentTile connected = module.getConnectedInventoryTile();
-        return connected == null || module.isInventoryEmpty(connected);
+        return connected == null || module.isInventoryEmptyFor(connected, patternSlot);
     }
 
     boolean shouldSkipPushFor(int patternSlot) {
@@ -138,7 +138,7 @@ final class PatternCraftingBlockingHandler {
         if (hasSatelliteBatchForWithoutRefresh(runningCraft)) {
             return true;
         }
-        return runningCraftInAdjacent && connected != null && !module.isInventoryEmpty(connected);
+        return runningCraftInAdjacent && connected != null && !module.isInventoryEmptyFor(connected, runningCraft);
     }
 
     void refreshRunningCraftState(AdjacentTile connected) {
@@ -153,7 +153,7 @@ final class PatternCraftingBlockingHandler {
         }
         if (runningCraft >= 0 && runningCraftInAdjacent
                 && !hasSatelliteBatchForWithoutRefresh(runningCraft)
-                && (connected == null || module.isInventoryEmpty(connected))) {
+                && (connected == null || module.isInventoryEmptyFor(connected, runningCraft))) {
             module.debugEvent("BUFFER", "running craft adjacent batch finished slot=%d", runningCraft);
             setRunningCraft(runningCraft, runningCraftReference, false);
         }
@@ -192,7 +192,7 @@ final class PatternCraftingBlockingHandler {
         if (hasSatelliteBatchForWithoutRefresh(runningCraft)) {
             return true;
         }
-        return runningCraftInAdjacent && connected != null && !module.isInventoryEmpty(connected);
+        return runningCraftInAdjacent && connected != null && !module.isInventoryEmptyFor(connected, runningCraft);
     }
 
     boolean retrieveAndReleaseSatelliteBatches(Collection<Integer> patternSlots) {

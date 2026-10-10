@@ -2939,7 +2939,13 @@ public class RecipeManager {
                     capsler);
         }
 
+        loadPatternCraftingConversionRecipes();
+
         for (int moduleId : LogisticsPipes.ModuleItem.getRegisteredModulesIDs()) {
+            if (isCrafterModule(moduleId)) {
+                // A lone crafter module converts into a pattern; a reset recipe would match the same grid.
+                continue;
+            }
             RecipeManager.craftingManager.addShapelessResetRecipe(LogisticsPipes.ModuleItem, moduleId);
         }
 
@@ -2951,5 +2957,56 @@ public class RecipeManager {
         //            RecipeManager.craftingManager.addShapelessResetRecipe(LogisticsPipes.LogisticsRemoteOrderer, i);
         //        }
         //        RecipeManager.craftingManager.addShapelessResetRecipe(LogisticsPipes.LogisticsRemoteOrderer, 0);
+    }
+
+    /**
+     * Converts legacy crafting pipes, satellites, crafting tables and crafter modules into their pattern crafting
+     * counterparts. With GregTech the pipes and tables convert in the assembler (programmed circuit 3), since a lone
+     * pipe in the crafting grid clashes with other recipes.
+     */
+    private static void loadPatternCraftingConversionRecipes() {
+        for (Item craftingPipe : new Item[] { LogisticsPipes.LogisticsCraftingPipeMk1,
+                LogisticsPipes.LogisticsCraftingPipeMk2, LogisticsPipes.LogisticsCraftingPipeMk3 }) {
+            addConversionRecipe(
+                    new ItemStack(craftingPipe, 1),
+                    new ItemStack(LogisticsPipes.LogisticsPatternCraftingPipe, 1));
+        }
+
+        addConversionRecipe(
+                new ItemStack(LogisticsPipes.LogisticsSatellitePipe, 1),
+                new ItemStack(LogisticsPipes.LogisticsPatternSatellitePipe, 1));
+        addConversionRecipe(
+                new ItemStack(LogisticsPipes.LogisticsFluidSatellitePipe, 1),
+                new ItemStack(LogisticsPipes.LogisticsPatternFluidSatellitePipe, 1));
+
+        for (int craftingTable : new int[] { LogisticsSolidBlock.LOGISTICS_AUTOCRAFTING_TABLE,
+                LogisticsSolidBlock.LOGISTICS_FUZZYCRAFTING_TABLE }) {
+            addConversionRecipe(
+                    new ItemStack(LogisticsPipes.LogisticsSolidBlock, 1, craftingTable),
+                    new ItemStack(
+                            LogisticsPipes.LogisticsSolidBlock,
+                            1,
+                            LogisticsSolidBlock.LOGISTICS_PATTERN_CRAFTING_TABLE));
+        }
+
+        for (int crafterModule : new int[] { ItemModule.CRAFTER, ItemModule.CRAFTER_MK2, ItemModule.CRAFTER_MK3 }) {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    new ItemStack(LogisticsPipes.LogisticsPattern, 1),
+                    CraftingDependency.Fast_Crafting,
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, crafterModule));
+        }
+    }
+
+    private static void addConversionRecipe(ItemStack input, ItemStack output) {
+        if (LogisticsPipes.isGregTech) {
+            GregTechConversionRecipes.addAssemblerConversion(input, output);
+        } else {
+            RecipeManager.craftingManager.addShapelessRecipe(output, CraftingDependency.Fast_Crafting, input);
+        }
+    }
+
+    private static boolean isCrafterModule(int moduleId) {
+        return moduleId == ItemModule.CRAFTER || moduleId == ItemModule.CRAFTER_MK2
+                || moduleId == ItemModule.CRAFTER_MK3;
     }
 }

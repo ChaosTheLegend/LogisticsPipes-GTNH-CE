@@ -164,7 +164,8 @@ final class PatternCraftingHudHandler {
         if (connected == null) {
             return "Waiting: no target inventory";
         }
-        if (mode != PipeItemsPatternCraftingLogistics.BlockingMode.OFF && !adjacentInventory.isEmpty(connected)) {
+        if (mode != PipeItemsPatternCraftingLogistics.BlockingMode.OFF
+                && !module.isInventoryEmptyFor(connected, patternSlot)) {
             return "Waiting: target inventory occupied";
         }
         if (satelliteDispatchHandler

@@ -1391,8 +1391,14 @@ public class ModulePatternCrafting extends LogisticsModule
         return adjacentInventory.getConnected();
     }
 
-    boolean isInventoryEmpty(AdjacentTile connected) {
-        return adjacentInventory.isEmpty(connected);
+    /**
+     * Blocking-mode readiness of the target for one pattern: fluid tanks only count when the pattern puts fluid into
+     * the target, so leftover fluid doesn't hold up an item-only craft.
+     */
+    boolean isInventoryEmptyFor(AdjacentTile connected, int patternSlot) {
+        ItemStack pattern = patternSlot < 0 ? null : getPatternStack(patternSlot);
+        boolean includeFluids = pattern == null || ingredientPlanner.hasLocalFluidIngredients(pattern);
+        return adjacentInventory.isEmpty(connected, includeFluids);
     }
 
     /**

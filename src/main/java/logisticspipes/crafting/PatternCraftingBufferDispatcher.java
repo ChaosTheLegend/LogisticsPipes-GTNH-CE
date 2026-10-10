@@ -102,7 +102,8 @@ final class PatternCraftingBufferDispatcher {
             return;
         }
         AdjacentTile connected = adjacentInventory.getConnected();
-        if (mode != PipeItemsPatternCraftingLogistics.BlockingMode.OFF && !adjacentInventory.isEmpty(connected)) {
+        if (mode != PipeItemsPatternCraftingLogistics.BlockingMode.OFF
+                && !module.isInventoryEmptyFor(connected, patternSlot)) {
             module.debugEventThrottled("BUFFER", "push slot=%d skipped: blocking target is not ready", patternSlot);
             return;
         }
