@@ -2944,6 +2944,7 @@ public class RecipeManager {
         }
 
         loadPatternCraftingConversionRecipes();
+        loadRequestTableMk2Recipe();
 
         if (LogisticsPipes.isGTNH) {
             loadFluidChassisAssemblerRecipes();
@@ -3010,6 +3011,26 @@ public class RecipeManager {
             GregTechConversionRecipes.addAssemblerConversion(input, output);
         } else {
             RecipeManager.craftingManager.addShapelessRecipe(output, CraftingDependency.Fast_Crafting, input);
+        }
+    }
+
+    /**
+     * The request table Mk2 is the request table with a fluid request pipe built in: it requests fluids too. With
+     * GregTech the two go into the assembler, like the other pipes of the pack.
+     */
+    private static void loadRequestTableMk2Recipe() {
+        ItemStack mk2 = new ItemStack(LogisticsPipes.logisticsNewRequestTable, 1);
+        if (LogisticsPipes.isGregTech) {
+            GregTechConversionRecipes.addRequestTableMk2(
+                    new ItemStack(LogisticsPipes.logisticsRequestTable, 1),
+                    new ItemStack(LogisticsPipes.LogisticsFluidRequestPipe, 1),
+                    mk2);
+        } else {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    mk2,
+                    CraftingDependency.Fast_Crafting,
+                    LogisticsPipes.logisticsRequestTable,
+                    LogisticsPipes.LogisticsFluidRequestPipe);
         }
     }
 

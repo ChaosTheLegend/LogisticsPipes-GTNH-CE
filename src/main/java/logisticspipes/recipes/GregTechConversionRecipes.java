@@ -12,8 +12,9 @@ import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.util.GTUtility;
 
 /**
- * GregTech recipes for converting legacy items into their pattern crafting counterparts and for the fluid chassis and
- * its modules. Kept apart from {@link RecipeManager} so GregTech classes only load when GregTech is installed.
+ * GregTech recipes for converting legacy items into their pattern crafting counterparts, for the fluid chassis and its
+ * modules and for the request table Mk2. Kept apart from {@link RecipeManager} so GregTech classes only load when
+ * GregTech is installed.
  */
 final class GregTechConversionRecipes {
 
@@ -27,6 +28,12 @@ final class GregTechConversionRecipes {
     static void addAssemblerConversion(ItemStack input, ItemStack output) {
         GTValues.RA.stdBuilder().itemInputs(input, GTUtility.getIntegratedCircuit(CONVERSION_CIRCUIT))
                 .itemOutputs(output).duration(5 * 20).eut(TierEU.RECIPE_ULV).addTo(RecipeMaps.assemblerRecipes);
+    }
+
+    /** Assembler: request table + fluid request pipe + programmed circuit 18 → request table Mk2, at MV. */
+    static void addRequestTableMk2(ItemStack table, ItemStack fluidRequestPipe, ItemStack output) {
+        GTValues.RA.stdBuilder().itemInputs(table, fluidRequestPipe, GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
+                .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_MV).addTo(RecipeMaps.assemblerRecipes);
     }
 
     /**
