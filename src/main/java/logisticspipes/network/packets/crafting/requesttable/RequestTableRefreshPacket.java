@@ -67,7 +67,7 @@ public class RequestTableRefreshPacket extends IntegerCoordinatesPacket {
             int internalAmount = getAmount(internalItems, item);
             entries.add(
                     new RequestTableNetworkEntry(
-                            item.makeStack(networkAmount + internalAmount),
+                            item.makeStack(total(networkAmount, internalAmount)),
                             false,
                             networkAmount,
                             internalAmount,
@@ -94,7 +94,7 @@ public class RequestTableRefreshPacket extends IntegerCoordinatesPacket {
             int internalAmount = getAmount(internalFluids, fluid);
             entries.add(
                     new RequestTableNetworkEntry(
-                            fluid.makeStack(networkAmount + internalAmount),
+                            fluid.makeStack(total(networkAmount, internalAmount)),
                             true,
                             networkAmount,
                             internalAmount,
@@ -136,6 +136,13 @@ public class RequestTableRefreshPacket extends IntegerCoordinatesPacket {
             }
         }
         return fluids;
+    }
+
+    /**
+     * @return the sum, at most what an int holds: a network can report that much on its own
+     */
+    private static int total(int networkAmount, int internalAmount) {
+        return (int) Math.min(Integer.MAX_VALUE, (long) networkAmount + internalAmount);
     }
 
     private static int getAmount(Map<ItemIdentifier, Integer> amounts, ItemIdentifier item) {

@@ -1,10 +1,13 @@
 package logisticspipes.crafting.requesttable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -20,9 +23,14 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidContainerItem;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.blocks.crafting.AutoCraftingInventory;
+import logisticspipes.compat.ModularUIHelper;
 import logisticspipes.config.Configs;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.requesttable.RequestTableMui;
 import logisticspipes.interfaces.routing.IRequestFluid;
+import logisticspipes.items.ItemLegacyWrench;
 import logisticspipes.items.ItemUpgrade;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
@@ -42,6 +50,7 @@ import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
+import logisticspipes.utils.item.SimpleStackInventory;
 import logisticspipes.utils.tuples.Pair;
 import lombok.Getter;
 
@@ -53,7 +62,7 @@ import lombok.Getter;
  * crafting semantics required by the redesigned table.
  */
 @Getter
-public class RequestTablePipe extends PipeBlockRequestTable implements IRequestFluid {
+public class RequestTablePipe extends PipeBlockRequestTable implements IRequestFluid, IMUICompatiblePipeV2 {
 
     private static final int BASE_ITEM_SLOTS = 27;
     private static final int ITEM_SLOT_UPGRADE_SIZE = 9;
@@ -67,6 +76,17 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     private final RequestTableFluidStorage fluidStorage = RequestTableFluidStorage.createDefault();
     private final RequestTableDisplaySettingsStore displaySettingsStore = new RequestTableDisplaySettingsStore();
     private final PlayerCollectionList requestTableGuiWatchers = new PlayerCollectionList();
+    private int contentRevision;
+    private static final int NETWORK_REFRESH_TICKS = 300;
+    private long networkRefreshUntil;
+    /**
+     * The items lying in the crafting grid, like in a workbench. {@link #matrix} is the recipe the grid remembers: it
+     * stays when the items are used up, until another recipe is laid out or the grid is cleared.
+     */
+    public final SimpleStackInventory craftGrid = new SimpleStackInventory(9, "Crafting Grid", 64);
+    private static final String NBT_CRAFT_GRID = "newRequestTableCraftGrid";
+    // the players that have the ModularUI GUI of this table open
+    private final Map<UUID, EntityPlayer> guiViewers = new HashMap<>();
 
     /**
      * Creates the new request table pipe item.
@@ -78,10 +98,134 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         updateStorageUpgrades();
     }
 
+    /**
+     * Opens the ModularUI GUI. The legacy GUI is still there for the legacy wrench.
+     */
     @Override
     public void openGui(EntityPlayer player) {
         updateStorageUpgrades();
-        player.openGui(LogisticsPipes.instance, GuiIDs.GUI_New_Request_Table_ID, getWorld(), getX(), getY(), getZ());
+        ItemStack held = player.getCurrentEquippedItem();
+        if (held != null && held.getItem() instanceof ItemLegacyWrench) {
+            player.openGui(
+                    LogisticsPipes.instance,
+                    GuiIDs.GUI_New_Request_Table_ID,
+                    getWorld(),
+                    getX(),
+                    getY(),
+                    getZ());
+            return;
+        }
+        ModularUIHelper.openPipeUI(player, this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new RequestTableMui(this);
+    }
+
+    /**
+     * Something left for the network. It shows up in the network list only once it arrived there, so the list is sent
+     * again for a while.
+     */
+    private void expectNetworkChange() {
+        if (getWorld() != null) {
+            networkRefreshUntil = getWorld().getTotalWorldTime() + NETWORK_REFRESH_TICKS;
+        }
+    }
+
+    /**
+     * @return the world time until which the network list should be sent again from time to time
+     */
+    public long getNetworkRefreshUntil() {
+        return networkRefreshUntil;
+    }
+
+    public void addGuiViewer(EntityPlayer player) {
+        guiViewers.put(player.getUniqueID(), player);
+    }
+
+    public void removeGuiViewer(EntityPlayer player) {
+        guiViewers.remove(player.getUniqueID());
+    }
+
+    /**
+     * Sends as much of the stack into the network as takes it, by default routing and sinks.
+     *
+     * @return the amount that was sent
+     */
+    public int sendStackToNetwork(ItemStack stack) {
+        if (stack == null || stack.stackSize <= 0 || MainProxy.isClient(getWorld())) {
+            return 0;
+        }
+        int sent = 0;
+        while (sent < stack.stackSize) {
+            ItemStack toSend = stack.copy();
+            toSend.stackSize = Math.min(stack.stackSize - sent, stack.getMaxStackSize());
+            IRoutedItem routed = SimpleServiceLocator.routedItemHelper.createNewTravelItem(toSend);
+            SimpleServiceLocator.logisticsManager.assignDestinationFor(routed, getRouter().getSimpleID(), false);
+            if (routed.getDestinationUUID() == null) {
+                break;
+            }
+            ForgeDirection dir = getRouteLayer().getOrientationForItem(routed, null);
+            queueRoutedItem(routed, dir.getOpposite());
+            sent += toSend.stackSize;
+        }
+        if (sent > 0) {
+            expectNetworkChange();
+        }
+        return sent;
+    }
+
+    /**
+     * Sends the item on the cursor of the player into the network: all of it, or one with the right mouse button.
+     *
+     * @return true if something was sent
+     */
+    public boolean sendCursorItemToNetwork(EntityPlayer player, int mouseButton) {
+        ItemStack cursor = player.inventory.getItemStack();
+        if (cursor == null) {
+            return false;
+        }
+        ItemStack toSend = cursor.copy();
+        if (mouseButton == 1) {
+            toSend.stackSize = 1;
+        }
+        int sent = sendStackToNetwork(toSend);
+        if (sent <= 0) {
+            return false;
+        }
+        cursor.stackSize -= sent;
+        player.inventory.setItemStack(cursor.stackSize <= 0 ? null : cursor);
+        player.inventory.markDirty();
+        syncCursor(player);
+        sendNetworkContentToWatchers();
+        return true;
+    }
+
+    /**
+     * Gives an arrived stack to the player who requested it, if that player still has the GUI of the table open. The
+     * stack keeps what the player had no room for.
+     */
+    private void deliverToRequester(IRoutedItem item, ItemStack stack) {
+        if (item.getInfo() == null || !(item.getInfo().targetInfo instanceof RequestTablePlayerTarget target)) {
+            return;
+        }
+        EntityPlayer player = guiViewers.get(target.getPlayer());
+        if (player == null || !player.isEntityAlive()
+                || player.openContainer == null
+                || player.openContainer == player.inventoryContainer) {
+            return;
+        }
+        player.inventory.addItemStackToInventory(stack);
+        player.inventory.markDirty();
+        player.openContainer.detectAndSendChanges();
+    }
+
+    /**
+     * @return a number that changes whenever the content shown in the network list may have changed
+     */
+    public int getContentRevision() {
+        return contentRevision;
     }
 
     @Override
@@ -103,6 +247,8 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
      * Sends a fresh combined network/internal list to all players currently watching this table.
      */
     public void sendNetworkContentToWatchers() {
+        // the ModularUI GUI picks the change up from here
+        contentRevision++;
         if (MainProxy.isClient(getWorld()) || requestTableGuiWatchers.isEmpty()) {
             return;
         }
@@ -192,7 +338,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             inv.clearInventorySlotContents(slot);
         }
         for (ItemStack stack : contents) {
-            stack.stackSize = inv.addCompressed(stack, true);
+            stack.stackSize = addToStorage(stack);
             if (stack.stackSize > 0) {
                 dropItemStack(stack);
             }
@@ -314,7 +460,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             return;
         }
         updateStorageUpgrades();
-        boolean changed = fluid ? handleNetworkFluidInteraction(player, stack.getItem())
+        boolean changed = fluid ? handleNetworkFluidInteraction(player, stack.getItem(), mouseButton)
                 : handleNetworkItemInteraction(player, stack.getItem(), mouseButton, shift);
         if (!changed) {
             return;
@@ -358,7 +504,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         int toMove = mouseButton == 1 ? 1 : cursor.stackSize;
         ItemStack moving = cursor.copy();
         moving.stackSize = toMove;
-        int remaining = inv.addCompressed(moving, true);
+        int remaining = addToStorage(moving);
         int moved = toMove - remaining;
         if (moved <= 0) {
             return false;
@@ -415,7 +561,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         if (player.inventory.addItemStackToInventory(remaining) || remaining.stackSize <= 0) {
             return true;
         }
-        remaining.stackSize = inv.addCompressed(remaining, true);
+        remaining.stackSize = addToStorage(remaining);
         return remaining.stackSize < taken.stackSize;
     }
 
@@ -442,7 +588,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         return removed;
     }
 
-    private boolean handleNetworkFluidInteraction(EntityPlayer player, ItemIdentifier fluidContainer) {
+    private boolean handleNetworkFluidInteraction(EntityPlayer player, ItemIdentifier fluidContainer, int mouseButton) {
         FluidStack target = SimpleServiceLocator.logisticsFluidManager
                 .getFluidFromContainer(new ItemIdentifierStack(fluidContainer, 1));
         ItemStack cursor = player.inventory.getItemStack();
@@ -450,7 +596,8 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             return false;
         }
         if (cursor.stackSize > 1) {
-            return handleStackedFluidContainerInteraction(player, target, cursor);
+            // a left click works on the whole stack, a right click on one container of it
+            return convertHeldFluidContainers(player, target, cursor, mouseButton == 0 ? cursor.stackSize : 1);
         }
         ItemStack result = getNetworkFluidClickResult(target, cursor);
         if (result == cursor) {
@@ -460,21 +607,164 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         return true;
     }
 
-    private boolean handleStackedFluidContainerInteraction(EntityPlayer player, FluidStack target, ItemStack cursor) {
-        ItemStack remainder = cursor.copy();
-        remainder.stackSize--;
-        if (!canAddToPlayerInventory(player, remainder)) {
+    /**
+     * Fills or empties up to the given number of containers of the stack on the cursor. If all of the stack was worked
+     * on, the result stays on the cursor. Otherwise the untouched containers stay there and the others go into the
+     * inventory of the player. Nothing happens if they have no room there.
+     */
+    private boolean convertHeldFluidContainers(EntityPlayer player, FluidStack target, ItemStack cursor, int count) {
+        NBTTagCompound before = new NBTTagCompound();
+        fluidStorage.writeToNBT(before, "");
+        List<ItemStack> converted = new ArrayList<>();
+        int done = 0;
+        while (done < count) {
+            ItemStack single = cursor.copy();
+            single.stackSize = 1;
+            ItemStack result = getNetworkFluidClickResult(target, single);
+            if (result == single) {
+                break;
+            }
+            mergeInto(converted, result);
+            done++;
+        }
+        if (done == 0) {
             return false;
         }
-        ItemStack single = cursor.copy();
+        ItemStack newCursor;
+        if (done < cursor.stackSize) {
+            newCursor = cursor.copy();
+            newCursor.stackSize -= done;
+        } else {
+            newCursor = converted.isEmpty() ? null : converted.remove(0);
+        }
+        ItemStack[] contents = copyStacks(player.inventory.mainInventory);
+        if (!insertAll(contents, converted, player.inventory.getInventoryStackLimit())) {
+            fluidStorage.readFromNBT(before, "");
+            return false;
+        }
+        System.arraycopy(contents, 0, player.inventory.mainInventory, 0, contents.length);
+        player.inventory.setItemStack(newCursor);
+        return true;
+    }
+
+    /**
+     * @return whether the stack is a container with fluid in it
+     */
+    public boolean isFilledFluidContainer(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        ItemStack single = stack.copy();
         single.stackSize = 1;
-        ItemStack result = getNetworkFluidClickResult(target, single);
-        if (result == single) {
+        FluidStack fluid = getContainedFluid(single);
+        return fluid != null && fluid.amount > 0;
+    }
+
+    /**
+     * Empties the fluid containers in a slot of the inventory of the player into the fluid storage, as many of them as
+     * the storage takes. The empty containers stay with the player.
+     *
+     * @return whether anything was emptied
+     */
+    public boolean emptyFluidContainers(EntityPlayer player, int inventorySlot) {
+        ItemStack[] inventory = player.inventory.mainInventory;
+        if (inventorySlot < 0 || inventorySlot >= inventory.length || inventory[inventorySlot] == null) {
             return false;
         }
-        player.inventory.setItemStack(result);
-        if (!player.inventory.addItemStackToInventory(remainder) && remainder.stackSize > 0) {
-            player.dropPlayerItemWithRandomChoice(remainder, false);
+        updateStorageUpgrades();
+        ItemStack source = inventory[inventorySlot];
+        NBTTagCompound before = new NBTTagCompound();
+        fluidStorage.writeToNBT(before, "");
+        List<ItemStack> emptied = new ArrayList<>();
+        int done = 0;
+        while (done < source.stackSize) {
+            ItemStack single = source.copy();
+            single.stackSize = 1;
+            FluidStack held = getContainedFluid(single);
+            if (held == null || held.amount <= 0) {
+                break;
+            }
+            ItemStack result = emptyContainerIntoInternal(single, held);
+            if (result == single) {
+                break;
+            }
+            mergeInto(emptied, result);
+            done++;
+        }
+        if (done == 0) {
+            return false;
+        }
+        ItemStack[] contents = copyStacks(inventory);
+        if (done < source.stackSize) {
+            contents[inventorySlot].stackSize -= done;
+        } else {
+            // the slot the containers came from is free for the empty ones
+            contents[inventorySlot] = null;
+        }
+        if (!insertAll(contents, emptied, player.inventory.getInventoryStackLimit())) {
+            fluidStorage.readFromNBT(before, "");
+            return false;
+        }
+        System.arraycopy(contents, 0, inventory, 0, contents.length);
+        fluidStorage.markDirty();
+        player.inventory.markDirty();
+        if (player.openContainer != null) {
+            player.openContainer.detectAndSendChanges();
+        }
+        sendNetworkContentToWatchers();
+        return true;
+    }
+
+    private static void mergeInto(List<ItemStack> stacks, ItemStack stack) {
+        if (stack == null || stack.stackSize <= 0) {
+            return;
+        }
+        for (ItemStack present : stacks) {
+            if (present.stackSize < present.getMaxStackSize() && present.isItemEqual(stack)
+                    && ItemStack.areItemStackTagsEqual(present, stack)) {
+                present.stackSize += stack.stackSize;
+                return;
+            }
+        }
+        stacks.add(stack.copy());
+    }
+
+    private static ItemStack[] copyStacks(ItemStack[] stacks) {
+        ItemStack[] copy = new ItemStack[stacks.length];
+        for (int i = 0; i < stacks.length; i++) {
+            copy[i] = ItemStack.copyItemStack(stacks[i]);
+        }
+        return copy;
+    }
+
+    /**
+     * Puts the stacks into the given slots, onto equal stacks first.
+     *
+     * @return false if not all of them have room; the slots are a copy the caller throws away then
+     */
+    private static boolean insertAll(ItemStack[] slots, List<ItemStack> stacks, int inventoryLimit) {
+        for (ItemStack stack : stacks) {
+            int left = stack.stackSize;
+            int limit = Math.min(stack.getMaxStackSize(), inventoryLimit);
+            for (ItemStack present : slots) {
+                if (left > 0 && present != null
+                        && present.isItemEqual(stack)
+                        && ItemStack.areItemStackTagsEqual(present, stack)) {
+                    int moved = Math.min(left, Math.max(0, limit - present.stackSize));
+                    present.stackSize += moved;
+                    left -= moved;
+                }
+            }
+            for (int i = 0; i < slots.length && left > 0; i++) {
+                if (slots[i] == null) {
+                    slots[i] = stack.copy();
+                    slots[i].stackSize = Math.min(left, limit);
+                    left -= slots[i].stackSize;
+                }
+            }
+            if (left > 0) {
+                return false;
+            }
         }
         return true;
     }
@@ -634,22 +924,6 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         return true;
     }
 
-    private boolean canAddToPlayerInventory(EntityPlayer player, ItemStack stack) {
-        int remaining = stack.stackSize;
-        int stackLimit = Math.min(stack.getMaxStackSize(), player.inventory.getInventoryStackLimit());
-        for (ItemStack inventoryStack : player.inventory.mainInventory) {
-            if (inventoryStack == null) {
-                remaining -= stackLimit;
-            } else if (inventoryStack.isItemEqual(stack) && ItemStack.areItemStackTagsEqual(inventoryStack, stack)) {
-                remaining -= Math.max(0, stackLimit - inventoryStack.stackSize);
-            }
-            if (remaining <= 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void syncCursor(EntityPlayer player) {
         if (player instanceof EntityPlayerMP) {
             MainProxy.sendPacketToPlayer(
@@ -752,13 +1026,110 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     }
 
     /**
-     * Clears all fake crafting inputs.
+     * Forgets the recipe of the crafting grid and puts the items lying in it into the storage of the table.
      */
     public void clearCraftingGrid() {
         for (int i = 0; i < matrix.getSizeInventory(); i++) {
             matrix.setInventorySlotContents(i, (ItemStack) null);
         }
         cacheRecipe();
+        if (!MainProxy.isClient(getWorld())) {
+            storeCraftGridItems(false);
+        }
+    }
+
+    /**
+     * Moves items out of the crafting grid into the storage of the table. What doesn't fit stays in the grid.
+     *
+     * @param onlyMismatched true to keep the items that lie on the ingredient the recipe wants there
+     */
+    public void storeCraftGridItems(boolean onlyMismatched) {
+        boolean changed = false;
+        for (int i = 0; i < craftGrid.getSizeInventory(); i++) {
+            ItemStack stack = craftGrid.getStackInSlot(i);
+            if (stack == null) {
+                continue;
+            }
+            if (onlyMismatched && matchesRecipeSlot(i, stack)) {
+                continue;
+            }
+            ItemStack moving = stack.copy();
+            int remaining = addToStorage(moving);
+            if (remaining <= 0) {
+                craftGrid.setInventorySlotContents(i, null);
+            } else {
+                stack.stackSize = remaining;
+            }
+            changed = true;
+        }
+        if (changed) {
+            craftGrid.markDirty();
+            inv.markDirty();
+            sendNetworkContentToWatchers();
+        }
+    }
+
+    private boolean matchesRecipeSlot(int slot, ItemStack stack) {
+        ItemStack wanted = matrix.getStackInSlot(slot);
+        return wanted != null && ItemIdentifier.get(wanted).equals(ItemIdentifier.get(stack));
+    }
+
+    /**
+     * Called after a player changed a slot of the crafting grid. An item that isn't what the remembered recipe wants
+     * there starts a new recipe: the one that lies in the grid now.
+     */
+    public void onCraftGridChanged(int slot) {
+        ItemStack stack = craftGrid.getStackInSlot(slot);
+        if (stack == null || matchesRecipeSlot(slot, stack)) {
+            return;
+        }
+        for (int i = 0; i < matrix.getSizeInventory(); i++) {
+            ItemStack lying = craftGrid.getStackInSlot(i);
+            if (lying == null) {
+                matrix.setInventorySlotContents(i, (ItemStack) null);
+            } else {
+                ItemStack single = lying.copy();
+                single.stackSize = 1;
+                matrix.setInventorySlotContents(i, single);
+            }
+        }
+        cacheRecipe();
+    }
+
+    /**
+     * Puts an arrived stack into the slots of the crafting grid whose recipe ingredient it is, spread evenly so the
+     * grid lasts for as many crafts as possible. The stack keeps what didn't go in.
+     */
+    private void addToCraftGrid(ItemStack stack) {
+        ItemIdentifier item = ItemIdentifier.get(stack);
+        int limit = Math.min(stack.getMaxStackSize(), craftGrid.getInventoryStackLimit());
+        boolean placed = true;
+        boolean changed = false;
+        while (stack.stackSize > 0 && placed) {
+            placed = false;
+            for (int i = 0; i < craftGrid.getSizeInventory() && stack.stackSize > 0; i++) {
+                ItemStack wanted = matrix.getStackInSlot(i);
+                if (wanted == null || !ItemIdentifier.get(wanted).equals(item)) {
+                    continue;
+                }
+                ItemStack lying = craftGrid.getStackInSlot(i);
+                if (lying == null) {
+                    ItemStack single = stack.copy();
+                    single.stackSize = 1;
+                    craftGrid.setInventorySlotContents(i, single);
+                } else if (lying.stackSize < limit && ItemIdentifier.get(lying).equals(item)) {
+                    lying.stackSize++;
+                } else {
+                    continue;
+                }
+                stack.stackSize--;
+                placed = true;
+                changed = true;
+            }
+        }
+        if (changed) {
+            craftGrid.markDirty();
+        }
     }
 
     /**
@@ -768,20 +1139,143 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
      * @param multiplier number of craft sets to request
      */
     public void requestCraftingIngredients(EntityPlayer player, int multiplier) {
-        List<ItemIdentifierStack> request = getCraftingIngredientRequest(multiplier);
+        List<ItemIdentifierStack> request = getCraftingIngredientRequest(player, multiplier);
         if (!request.isEmpty()) {
-            RequestHandler.requestList(player, request, this);
+            RequestHandler.requestList(player, request, this, getDisplaySettings(player).reportsRequests());
         }
     }
 
-    private List<ItemIdentifierStack> getCraftingIngredientRequest(int multiplier) {
-        Map<ItemIdentifier, Integer> requested = new HashMap<>();
-        int clampedMultiplier = Math.max(1, multiplier);
-        for (Entry<ItemIdentifier, Integer> entry : matrix.getItemsAndCount().entrySet()) {
-            requested.put(entry.getKey(), entry.getValue() * clampedMultiplier);
+    /**
+     * Puts a stack into the item storage. A slot holds more than a normal stack there, but items that don't stack at
+     * all keep a slot each.
+     *
+     * @return how many items didn't fit
+     */
+    private int addToStorage(ItemStack stack) {
+        return inv.addCompressed(stack, stack != null && stack.getMaxStackSize() > 1);
+    }
+
+    /**
+     * @return whether crafting gives the item back: a tool like a hammer or a wrench, which is used and not used up
+     */
+    private static boolean isTool(ItemStack stack) {
+        Item item = stack.getItem();
+        if (item == null || stack.getMaxStackSize() != 1 || !item.hasContainerItem(stack)) {
+            return false;
         }
+        ItemStack left = item.getContainerItem(stack.copy());
+        return left != null && left.getItem() == item;
+    }
+
+    /**
+     * Looks for a tool in the network that can stand in for an ingredient the network has none of and cannot craft: a
+     * file for the single use file a recipe shows, or a wrench of another material.
+     *
+     * @param networkItems cache of two maps, what the network has and what it can craft; filled on first use
+     * @return the tool the network has most of, or null if the ingredient itself can be had or nothing can replace it
+     */
+    private ItemIdentifier findToolInNetwork(ItemIdentifier ingredient, Map<ItemIdentifier, Integer>[] networkItems) {
+        if (getRouter() == null) {
+            return null;
+        }
+        if (networkItems[0] == null) {
+            networkItems[0] = SimpleServiceLocator.logisticsManager.getAvailableItems(getRouter().getIRoutersByCost());
+            networkItems[1] = new HashMap<>();
+            for (ItemIdentifier craftable : SimpleServiceLocator.logisticsManager
+                    .getCraftableItems(getRouter().getIRoutersByCost())) {
+                networkItems[1].put(craftable, 1);
+            }
+        }
+        Integer amount = networkItems[0].get(ingredient);
+        if ((amount != null && amount > 0) || networkItems[1].containsKey(ingredient)) {
+            return null;
+        }
+        ItemIdentifier best = null;
+        int bestAmount = 0;
+        for (Entry<ItemIdentifier, Integer> entry : networkItems[0].entrySet()) {
+            ItemIdentifier candidate = entry.getKey();
+            if (entry.getValue() <= bestAmount || candidate.getMaxStackSize() != 1) {
+                continue;
+            }
+            if (matchesIngredient(ingredient, candidate, true) && isTool(candidate.unsafeMakeNormalStack(1))) {
+                best = candidate;
+                bestAmount = entry.getValue();
+            }
+        }
+        return best;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ItemIdentifierStack> getCraftingIngredientRequest(EntityPlayer player, int multiplier) {
+        List<ItemStack> present = new ArrayList<>();
         for (Pair<ItemStack, Integer> entry : inv) {
-            ItemStack stack = entry.getValue1();
+            present.add(entry.getValue1());
+        }
+        // what lies in the crafting grid doesn't have to be requested either
+        for (Pair<ItemStack, Integer> entry : craftGrid) {
+            present.add(entry.getValue1());
+        }
+        // the tools at hand: crafting takes them from the grid, the storage or the player and gives them back
+        List<ItemIdentifier> toolsAtHand = new ArrayList<>();
+        List<ItemStack> atHand = new ArrayList<>(present);
+        if (player != null) {
+            atHand.addAll(Arrays.asList(player.inventory.mainInventory));
+        }
+        for (ItemStack stack : atHand) {
+            if (stack != null && isTool(stack)) {
+                toolsAtHand.add(ItemIdentifier.get(stack));
+            }
+        }
+
+        // what the network has and can craft, looked up only when an ingredient needs a replacement
+        Map<ItemIdentifier, Integer>[] networkItems = new Map[2];
+
+        Map<ItemIdentifier, Integer> requested = new HashMap<>();
+        // tools: one of each is enough however often the recipe is crafted
+        List<ItemIdentifier> tools = new ArrayList<>();
+        int clampedMultiplier = Math.max(1, multiplier);
+        for (int i = 0; i < matrix.getSizeInventory(); i++) {
+            ItemStack ingredient = matrix.getStackInSlot(i);
+            if (ingredient == null) {
+                continue;
+            }
+            ItemIdentifier item = ItemIdentifier.get(ingredient);
+            // a tool at hand does the job of the ingredient: any tool of the kind, whatever it is made of and
+            // however worn it is, also when the recipe shows one that is used up, like a single use wrench
+            boolean covered = false;
+            for (ItemIdentifier tool : toolsAtHand) {
+                if (matchesIngredient(item, tool, true)) {
+                    covered = true;
+                    break;
+                }
+            }
+            if (covered) {
+                continue;
+            }
+            // the network may not have what the recipe shows but a tool that does the same job
+            ItemIdentifier networkTool = findToolInNetwork(item, networkItems);
+            if (networkTool != null) {
+                boolean requestedAlready = false;
+                for (ItemIdentifier tool : tools) {
+                    if (matchesIngredient(item, tool, true)) {
+                        requestedAlready = true;
+                        break;
+                    }
+                }
+                if (!requestedAlready) {
+                    tools.add(networkTool);
+                }
+                continue;
+            }
+            if (isTool(ingredient)) {
+                if (!tools.contains(item)) {
+                    tools.add(item);
+                }
+            } else {
+                requested.merge(item, clampedMultiplier, Integer::sum);
+            }
+        }
+        for (ItemStack stack : present) {
             if (stack == null) {
                 continue;
             }
@@ -797,11 +1291,14 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                 requested.remove(item);
             }
         }
-        List<ItemIdentifierStack> result = new ArrayList<>(requested.size());
+        List<ItemIdentifierStack> result = new ArrayList<>(requested.size() + tools.size());
         for (Entry<ItemIdentifier, Integer> entry : requested.entrySet()) {
             if (entry.getValue() > 0) {
                 result.add(entry.getKey().makeStack(entry.getValue()));
             }
+        }
+        for (ItemIdentifier tool : tools) {
+            result.add(tool.makeStack(1));
         }
         return result;
     }
@@ -898,6 +1395,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
 
     private IngredientUse[] findIngredients(EntityPlayer player, boolean oreDict) {
         IngredientUse[] uses = new IngredientUse[9];
+        int[] usedGrid = new int[craftGrid.getSizeInventory()];
         int[] usedInternal = new int[inv.getSizeInventory()];
         int[] usedPlayer = new int[player.inventory.mainInventory.length];
         for (int i = 0; i < 9; i++) {
@@ -906,7 +1404,11 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                 continue;
             }
             ItemIdentifier expected = ItemIdentifier.get(ingredient);
-            IngredientUse use = findIngredientInInventory(expected, inv, usedInternal, oreDict);
+            // what lies in the grid goes first, then the storage of the table, then the inventory of the player
+            IngredientUse use = findIngredientInInventory(expected, craftGrid, usedGrid, oreDict);
+            if (use == null) {
+                use = findIngredientInInventory(expected, inv, usedInternal, oreDict);
+            }
             if (use == null) {
                 use = findIngredientInInventory(expected, player.inventory, usedPlayer, oreDict);
             }
@@ -981,7 +1483,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         if (stack == null || stack.stackSize <= 0) {
             return;
         }
-        stack.stackSize = inv.addCompressed(stack, true);
+        stack.stackSize = addToStorage(stack);
         if (stack.stackSize <= 0) {
             return;
         }
@@ -1018,7 +1520,44 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         if (changed) {
             inv.markDirty();
             sendNetworkContentToWatchers();
+            expectNetworkChange();
         }
+    }
+
+    /**
+     * @return what the item storage holds, one stack with the whole amount for each kind of item
+     */
+    public List<ItemIdentifierStack> getStoredItems() {
+        Map<ItemIdentifier, Integer> amounts = new LinkedHashMap<>();
+        for (Pair<ItemStack, Integer> entry : inv) {
+            ItemStack stack = entry.getValue1();
+            if (stack != null) {
+                amounts.merge(ItemIdentifier.get(stack), stack.stackSize, Integer::sum);
+            }
+        }
+        List<ItemIdentifierStack> result = new ArrayList<>(amounts.size());
+        for (Entry<ItemIdentifier, Integer> entry : amounts.entrySet()) {
+            result.add(entry.getKey().makeStack(entry.getValue()));
+        }
+        return result;
+    }
+
+    /**
+     * @return what the fluid storage holds, one fluid container with the whole amount in millibuckets for each fluid
+     */
+    public List<ItemIdentifierStack> getStoredFluids() {
+        Map<ItemIdentifier, Integer> amounts = new LinkedHashMap<>();
+        for (int slot = 0; slot < fluidStorage.getSizeInventory(); slot++) {
+            FluidStack stored = fluidStorage.getFluid(slot);
+            if (stored != null && stored.amount > 0) {
+                amounts.merge(FluidIdentifier.get(stored).getItemIdentifier(), stored.amount, Integer::sum);
+            }
+        }
+        List<ItemIdentifierStack> result = new ArrayList<>(amounts.size());
+        for (Entry<ItemIdentifier, Integer> entry : amounts.entrySet()) {
+            result.add(entry.getKey().makeStack(entry.getValue()));
+        }
+        return result;
     }
 
     /**
@@ -1057,6 +1596,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         }
         if (changed) {
             sendNetworkContentToWatchers();
+            expectNetworkChange();
         }
     }
 
@@ -1080,7 +1620,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                             fluid.amount -= filled;
                             ItemStack leftover = SimpleServiceLocator.logisticsFluidManager.getFluidContainer(fluid)
                                     .makeNormalStack();
-                            leftover.stackSize = inv.addCompressed(leftover, true);
+                            leftover.stackSize = addToStorage(leftover);
                             if (leftover.stackSize > 0) {
                                 ItemIdentifierInventory.dropItems(getWorld(), leftover, getX(), getY(), getZ());
                             }
@@ -1090,7 +1630,13 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                     } else {
                         updateStorageUpgrades();
                         ItemStack stack = routedStack.makeNormalStack();
-                        stack.stackSize = inv.addCompressed(stack, true);
+                        deliverToRequester(item, stack);
+                        if (stack.stackSize > 0) {
+                            addToCraftGrid(stack);
+                        }
+                        if (stack.stackSize > 0) {
+                            stack.stackSize = addToStorage(stack);
+                        }
                         if (stack.stackSize > 0) {
                             ItemIdentifierInventory.dropItems(getWorld(), stack, getX(), getY(), getZ());
                         }
@@ -1122,6 +1668,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     public void onAllowedRemoval() {
         super.onAllowedRemoval();
         if (MainProxy.isServer(getWorld())) {
+            craftGrid.dropContents(getWorld(), getX(), getY(), getZ());
             fluidStorage.dropContents(getWorld(), getX(), getY(), getZ());
         }
     }
@@ -1130,6 +1677,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         fluidStorage.readFromNBT(tag, NBT_FLUID_STORAGE);
+        craftGrid.readFromNBT(tag, NBT_CRAFT_GRID);
         displaySettingsStore.readFromNBT(tag, NBT_DISPLAY_SETTINGS);
         updateStorageUpgrades();
     }
@@ -1139,6 +1687,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         updateStorageUpgrades();
         super.writeToNBT(tag);
         fluidStorage.writeToNBT(tag, NBT_FLUID_STORAGE);
+        craftGrid.writeToNBT(tag, NBT_CRAFT_GRID);
         displaySettingsStore.writeToNBT(tag, NBT_DISPLAY_SETTINGS);
     }
 

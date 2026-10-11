@@ -3,14 +3,17 @@ package logisticspipes.crafting.requesttable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.utils.item.ItemIdentifier;
 
 /**
  * Cached presentation model for the request table's network entries.
@@ -22,6 +25,10 @@ public class RequestTableNetworkList {
 
     private final List<CachedEntry> sourceEntries = new ArrayList<>();
     private final List<CachedEntry> sortedEntries = new ArrayList<>();
+    private final Map<ItemIdentifier, RequestTableNetworkEntry> knownItems = new HashMap<>();
+    // sort name, mod name and searchable name of the items seen so far; working them out is slow for some items
+    private final Map<ItemIdentifier, String[]> names = new HashMap<>();
+    private static final int MAX_CACHED_NAMES = 50000;
     private final List<RequestTableNetworkEntry> visibleEntries = new ArrayList<>();
     private final List<RequestTableNetworkEntry> visibleEntriesView = Collections.unmodifiableList(visibleEntries);
 
@@ -32,8 +39,20 @@ public class RequestTableNetworkList {
 
     public void setEntries(List<RequestTableNetworkEntry> entries) {
         sourceEntries.clear();
+        knownItems.clear();
+        if (names.size() > MAX_CACHED_NAMES) {
+            names.clear();
+        }
         for (RequestTableNetworkEntry entry : entries) {
-            sourceEntries.add(new CachedEntry(entry));
+            sourceEntries.add(
+                    new CachedEntry(
+                            entry,
+                            names.computeIfAbsent(
+                                    entry.getStack().getItem(),
+                                    item -> { return CachedEntry.resolveNames(entry); })));
+            if (!entry.isFluid()) {
+                knownItems.put(entry.getStack().getItem(), entry);
+            }
         }
         rebuildSortedEntries();
         rebuildVisibleEntries();
@@ -45,9 +64,15 @@ public class RequestTableNetworkList {
         }
         boolean sortingChanged = settings.getSortMode() != newSettings.getSortMode()
                 || settings.getSortDirection() != newSettings.getSortDirection();
+        boolean listChanged = sortingChanged || settings.getFilterMode() != newSettings.getFilterMode()
+                || settings.getTypeFilter() != newSettings.getTypeFilter();
         settings = newSettings;
         if (sortingChanged) {
             rebuildSortedEntries();
+        }
+        if (!listChanged) {
+            // only the look or the click behaviour changed, the list stays
+            return false;
         }
         rebuildVisibleEntries();
         return true;
@@ -69,6 +94,21 @@ public class RequestTableNetworkList {
         return true;
     }
 
+    /**
+     * @return true if the item is in the list, whatever the filters show: stored in the network or the table, or
+     *         craftable
+     */
+    public boolean isKnown(ItemIdentifier item) {
+        return knownItems.containsKey(item);
+    }
+
+    /**
+     * @return the entry of that item with its amounts, or null if the list doesn't have it
+     */
+    public RequestTableNetworkEntry getEntry(ItemIdentifier item) {
+        return knownItems.get(item);
+    }
+
     public List<RequestTableNetworkEntry> getVisibleEntries() {
         return visibleEntriesView;
     }
@@ -81,6 +121,8 @@ public class RequestTableNetworkList {
         if (settings.getSortMode() == RequestTableDisplaySettings.SortMode.AMOUNT) {
             comparator = Comparator.comparingInt((CachedEntry entry) -> entry.entry.getTotalAmount())
                     .thenComparing(nameComparator);
+        } else if (settings.getSortMode() == RequestTableDisplaySettings.SortMode.MOD) {
+            comparator = Comparator.comparing((CachedEntry entry) -> entry.modName).thenComparing(nameComparator);
         }
         comparator = comparator.thenComparing(entry -> entry.entry);
         if (settings.getSortDirection() == RequestTableDisplaySettings.SortDirection.DESCENDING) {
@@ -99,6 +141,20 @@ public class RequestTableNetworkList {
     }
 
     private boolean isVisibleForFilter(RequestTableNetworkEntry entry) {
+        switch (settings.getTypeFilter()) {
+            case ITEMS:
+                if (entry.isFluid()) {
+                    return false;
+                }
+                break;
+            case FLUIDS:
+                if (!entry.isFluid()) {
+                    return false;
+                }
+                break;
+            default:
+                break;
+        }
         switch (settings.getFilterMode()) {
             case STORED:
                 return entry.isStored();
@@ -114,10 +170,20 @@ public class RequestTableNetworkList {
 
         private final RequestTableNetworkEntry entry;
         private final String sortName;
+        private final String modName;
         private final String searchableName;
 
-        private CachedEntry(RequestTableNetworkEntry entry) {
+        private CachedEntry(RequestTableNetworkEntry entry, String[] names) {
             this.entry = entry;
+            sortName = names[0];
+            modName = names[1];
+            searchableName = names[2];
+        }
+
+        /**
+         * @return sort name, mod name and searchable name of the entry
+         */
+        private static String[] resolveNames(RequestTableNetworkEntry entry) {
             ItemStack stack = entry.getStack().unsafeMakeNormalStack();
             String displayName = stack.getDisplayName();
             if (entry.isFluid()) {
@@ -126,11 +192,15 @@ public class RequestTableNetworkList {
                     displayName = fluid.getLocalizedName();
                 }
             }
-            sortName = displayName.toLowerCase(Locale.US);
-            searchableName = (displayName + " "
+            String sortName = displayName.toLowerCase(Locale.US);
+            // fluids go behind the items of all mods
+            String modName = entry.isFluid() ? "\uffff"
+                    : entry.getStack().getItem().getModName().toLowerCase(Locale.US);
+            String searchableName = (displayName + " "
                     + stack.getDisplayName()
                     + " "
                     + entry.getStack().getItem().getFriendlyName()).toLowerCase(Locale.US);
+            return new String[] { sortName, modName, searchableName };
         }
 
         private boolean matches(String[] tokens) {

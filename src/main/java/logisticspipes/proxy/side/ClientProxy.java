@@ -41,6 +41,7 @@ import logisticspipes.crafting.requesttable.RequestTableGui;
 import logisticspipes.gui.GuiCraftingPipe;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.GuiSupplierPipe;
+import logisticspipes.gui.modularUI.requesttable.RequestTableResultPopup;
 import logisticspipes.gui.modules.ModuleBaseGui;
 import logisticspipes.gui.orderer.GuiOrderer;
 import logisticspipes.gui.orderer.GuiRequestTable;
@@ -412,6 +413,10 @@ public class ClientProxy implements IProxy {
 
     @Override
     public void processMissingItemsPacket(MissingItems packet, EntityPlayer player) {
+        // the request table has its own switch for these messages, the setting for the old windows doesn't count
+        if (RequestTableResultPopup.offer(packet.getItems(), packet.isFlag())) {
+            return;
+        }
         if (Configs.DISPLAY_POPUP && FMLClientHandler.instance().getClient().currentScreen instanceof GuiOrderer) {
             ((GuiOrderer) FMLClientHandler.instance().getClient().currentScreen).handleRequestAnswer(
                     packet.getItems(),

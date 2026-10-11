@@ -44,6 +44,8 @@ public class Configs {
 
     // GuiOrderer Popup setting
     public static boolean DISPLAY_POPUP = true;
+    public static int[] REQUEST_TABLE_AMOUNT_STEPS = { 1, 10, 100, 1000 };
+    public static final int MAX_REQUEST_TABLE_AMOUNT_STEP = 99999;
 
     // MultiThread
     public static int MULTI_THREAD_NUMBER = 4;
@@ -141,6 +143,15 @@ public class Configs {
                         Configs.LOGISTICS_HUD_RENDER_DISTANCE,
                         "The max. distance between a player and the HUD that get's shown in blocks.")
                 .getInt();
+
+        Configs.setRequestTableAmountSteps(
+                Configs.CONFIGURATION
+                        .get(
+                                Configuration.CATEGORY_GENERAL,
+                                "requestTableAmountSteps",
+                                Configs.REQUEST_TABLE_AMOUNT_STEPS,
+                                "The four values of the plus and minus buttons in the amount window of the request table.")
+                        .getIntList());
 
         Configs.DISPLAY_POPUP = Configs.CONFIGURATION
                 .get(
@@ -279,6 +290,31 @@ public class Configs {
                 "Sets the maximum amount for a liquid that can be held in a fluid pipe. Default value: 10000 (1000 equals 1 Bucket for normal fluids). If you are playing GTNH this value represents liters (10000 = 10000L).")
             .getInt();
 
+        Configs.CONFIGURATION.save();
+    }
+
+    /**
+     * Takes four values of at least 1, anything else leaves the steps as they are.
+     */
+    public static void setRequestTableAmountSteps(int[] steps) {
+        if (steps == null || steps.length != REQUEST_TABLE_AMOUNT_STEPS.length) {
+            return;
+        }
+        for (int step : steps) {
+            if (step < 1 || step > MAX_REQUEST_TABLE_AMOUNT_STEP) {
+                return;
+            }
+        }
+        REQUEST_TABLE_AMOUNT_STEPS = steps.clone();
+    }
+
+    public static void saveRequestTableAmountSteps() {
+        Property property = Configs.CONFIGURATION.get(
+                Configuration.CATEGORY_GENERAL,
+                "requestTableAmountSteps",
+                Configs.REQUEST_TABLE_AMOUNT_STEPS,
+                "The four values of the plus and minus buttons in the amount window of the request table.");
+        property.set(Configs.REQUEST_TABLE_AMOUNT_STEPS);
         Configs.CONFIGURATION.save();
     }
 
