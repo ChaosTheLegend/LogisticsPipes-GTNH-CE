@@ -31,5 +31,10 @@ public interface IFluidModuleHost extends ILPPositionProvider {
      */
     int countOnRoute(FluidIdentifier fluid);
 
+    /**
+     * @return the amount of that fluid in the tank the modules of the host have promised and not handed out yet
+     */
+    int getReservedFluid(FluidIdentifier fluid);
+
     void queueRoutedItem(IRoutedItem routedItem, ForgeDirection from);
 }

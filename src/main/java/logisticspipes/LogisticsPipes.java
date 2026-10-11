@@ -107,6 +107,8 @@ import logisticspipes.pipes.PipeLogisticsChassiMk5;
 import logisticspipes.pipes.PipeLogisticsFluidChassiMk1;
 import logisticspipes.pipes.PipeLogisticsFluidChassiMk2;
 import logisticspipes.pipes.PipeLogisticsFluidChassiMk3;
+import logisticspipes.pipes.PipeLogisticsFluidChassiMk4;
+import logisticspipes.pipes.PipeLogisticsFluidChassiMk5;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
@@ -256,6 +258,8 @@ public class LogisticsPipes {
     public static Item LogisticsFluidChassisPipeMk1;
     public static Item LogisticsFluidChassisPipeMk2;
     public static Item LogisticsFluidChassisPipeMk3;
+    public static Item LogisticsFluidChassisPipeMk4;
+    public static Item LogisticsFluidChassisPipeMk5;
     public static Item LogisticsRemoteOrdererPipe;
     public static Item LogisticsInvSysConPipe;
     public static Item LogisticsEntrancePipe;
@@ -690,6 +694,14 @@ public class LogisticsPipes {
         LogisticsPipes.LogisticsFluidChassisPipeMk3 = createPipe(
                 PipeLogisticsFluidChassiMk3.class,
                 "Logistics Fluid Chassi Mk3",
+                side);
+        LogisticsPipes.LogisticsFluidChassisPipeMk4 = createPipe(
+                PipeLogisticsFluidChassiMk4.class,
+                "Logistics Fluid Chassi Mk4",
+                side);
+        LogisticsPipes.LogisticsFluidChassisPipeMk5 = createPipe(
+                PipeLogisticsFluidChassiMk5.class,
+                "Logistics Fluid Chassi Mk5",
                 side);
         LogisticsPipes.LogisticsCraftingPipeMk2 = createPipe(
                 PipeItemsCraftingLogisticsMk2.class,

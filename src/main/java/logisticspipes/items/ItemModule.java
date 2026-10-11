@@ -52,6 +52,8 @@ import logisticspipes.modules.ModuleEnchantmentSinkMK2;
 import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.modules.ModuleExtractorMk2;
 import logisticspipes.modules.ModuleExtractorMk3;
+import logisticspipes.modules.ModuleFluidContainerCrafter;
+import logisticspipes.modules.ModuleFluidContainerSink;
 import logisticspipes.modules.ModuleFluidExtractor;
 import logisticspipes.modules.ModuleFluidProvider;
 import logisticspipes.modules.ModuleFluidSink;
@@ -132,6 +134,8 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
     public static final int FLUID_EXTRACTOR = 701;
     public static final int FLUID_PROVIDER = 702;
     public static final int FLUID_SUPPLIER = 703;
+    public static final int FLUID_CONTAINER_SINK = 704;
+    public static final int FLUID_CONTAINER_CRAFTER = 705;
 
     private final List<Module> modules = new ArrayList<>();
 
@@ -260,6 +264,8 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
         registerModule(ItemModule.FLUID_EXTRACTOR, ModuleFluidExtractor.class);
         registerModule(ItemModule.FLUID_PROVIDER, ModuleFluidProvider.class);
         registerModule(ItemModule.FLUID_SUPPLIER, ModuleFluidTankSupplier.class);
+        registerModule(ItemModule.FLUID_CONTAINER_SINK, ModuleFluidContainerSink.class);
+        registerModule(ItemModule.FLUID_CONTAINER_CRAFTER, ModuleFluidContainerCrafter.class);
 
         if (LogisticsPipes.isGTNH) {
             registerModule(ItemModule.GT_TYPEFILTER_ITEMSINK, ModuleTypeFilterItemSink.class);
