@@ -1168,7 +1168,8 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         for (ItemIdentifier i : _hasInterestIn) {
             InterestRegistry.remove(i, this);
         }
-        _hasInterestIn.clear();
+        // a new set: the old one came from the pipe and may be one that can't be changed
+        _hasInterestIn = new TreeSet<>();
     }
 
     @Override
