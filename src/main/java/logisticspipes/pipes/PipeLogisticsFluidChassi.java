@@ -28,10 +28,14 @@ import logisticspipes.interfaces.routing.IFluidSink;
 import logisticspipes.interfaces.routing.IProvideFluids;
 import logisticspipes.interfaces.routing.IRequestFluid;
 import logisticspipes.items.ItemModule;
+import logisticspipes.items.LogisticsFluidContainer;
 import logisticspipes.logisticspipes.FluidChassiTransportLayer;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.logisticspipes.TransportLayer;
+import logisticspipes.modules.IFluidReserver;
+import logisticspipes.modules.ModuleFluidContainerCrafter;
+import logisticspipes.modules.ModuleFluidContainerSink;
 import logisticspipes.modules.ModuleFluidProvider;
 import logisticspipes.modules.ModuleFluidSink;
 import logisticspipes.modules.ModuleFluidTankSupplier;
@@ -48,6 +52,7 @@ import logisticspipes.routing.order.IOrderInfoProvider;
 import logisticspipes.routing.order.IOrderInfoProvider.ResourceType;
 import logisticspipes.transport.LPTravelingItem.LPTravelingItemServer;
 import logisticspipes.utils.CacheHolder.CacheTypes;
+import logisticspipes.utils.FluidContainerUtil;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -212,12 +217,28 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
      */
     public boolean endReached(LPTravelingItemServer arrivingItem, TileEntity tile) {
         ItemIdentifierStack stack = arrivingItem.getItemIdentifierStack();
-        if (stack == null || !stack.getItem().isFluidContainer()) {
+        if (stack == null) {
+            return false;
+        }
+        if (emptyArrivingContainers(arrivingItem, stack)) {
+            return true;
+        }
+        if (!stack.getItem().isFluidContainer()) {
             return false;
         }
         FluidStack liquid = SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(stack);
         if (liquid == null) {
             return false;
+        }
+        // a real item that holds fluid, like a large cell: every one of the stack holds that much, and the empty
+        // ones are given back to the network
+        boolean realContainer = !(stack.getItem().item instanceof LogisticsFluidContainer);
+        if (realContainer) {
+            liquid.amount = (int) Math.min(Integer.MAX_VALUE, (long) liquid.amount * stack.getStackSize());
+            ItemStack empty = FluidContainerUtil.getEmptied(stack.getItem().makeNormalStack(1));
+            if (empty != null) {
+                sendStacks(empty, stack.getStackSize());
+            }
         }
         getCacheHolder().trigger(CacheTypes.Inventory);
         if (getRouter().getSimpleID() == arrivingItem.getDestination()) {
@@ -231,6 +252,82 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
             sendPendingFluids();
         }
         return true;
+    }
+
+    /**
+     * Hands filled containers that were sent to a container sink module to that module. The emptied containers go back
+     * into the network, and so do filled ones the tank had no room for.
+     *
+     * @return true if the item was for such a module and is handled
+     */
+    private boolean emptyArrivingContainers(LPTravelingItemServer arrivingItem, ItemIdentifierStack stack) {
+        if (stack.getItem().item instanceof LogisticsFluidContainer
+                || getRouter().getSimpleID() != arrivingItem.getDestination()) {
+            return false;
+        }
+        // empty containers a crafter module asked for
+        if (arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation target
+                && getModules().getSubModule(target.getModuleSlot()) instanceof ModuleFluidContainerCrafter crafter
+                && crafter.takeContainers(stack.makeNormalStack())) {
+            return true;
+        }
+        ItemStack single = stack.getItem().makeNormalStack(1);
+        FluidStack fluid = FluidContainerUtil.getFluid(single);
+        if (fluid == null) {
+            return false;
+        }
+        ModuleFluidContainerSink module = getContainerSinkFor(arrivingItem.getInfo().targetInfo, fluid);
+        if (module == null) {
+            return false;
+        }
+        getCacheHolder().trigger(CacheTypes.Inventory);
+        int count = stack.getStackSize();
+        int emptied = 0;
+        while (emptied < count && module.acceptContainer(fluid)) {
+            emptied++;
+            FluidStack overflow = module.takeOverflow();
+            if (overflow != null) {
+                addPendingFluid(overflow);
+            }
+        }
+        if (emptied > 0) {
+            ItemStack empty = FluidContainerUtil.getEmptied(single);
+            if (empty != null) {
+                sendStacks(empty, emptied);
+            }
+        }
+        if (emptied < count) {
+            sendStacks(single, count - emptied);
+        }
+        if (!pendingFluids.isEmpty()) {
+            sendPendingFluids();
+        }
+        return true;
+    }
+
+    private ModuleFluidContainerSink getContainerSinkFor(IAdditionalTargetInformation info, FluidStack fluid) {
+        if (info instanceof ChassiTargetInformation target
+                && getModules().getSubModule(target.getModuleSlot()) instanceof ModuleFluidContainerSink module) {
+            return module;
+        }
+        for (ModuleFluidContainerSink sink : getModules(ModuleFluidContainerSink.class)) {
+            if (sink.isFiltered(fluid)) {
+                return sink;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Sends items into the network, in stacks of their normal size.
+     */
+    private void sendStacks(ItemStack prototype, int amount) {
+        while (amount > 0) {
+            ItemStack stack = prototype.copy();
+            stack.stackSize = Math.min(amount, Math.max(1, stack.getMaxStackSize()));
+            amount -= stack.stackSize;
+            transport.sendItem(stack);
+        }
     }
 
     private void addPendingFluid(FluidStack liquid) {
@@ -320,7 +417,11 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     @Override
     public void canProvide(RequestTreeNode tree, RequestTree root, List<IFilter> filters) {
-        if (!isEnabled() || !(tree.getRequestType() instanceof FluidResource)) {
+        if (!isEnabled() || !(tree.getRequestType() instanceof FluidResource resource)) {
+            return;
+        }
+        // a module of this chassis that asks for the fluid of its own recipe answers for it itself out of the tank
+        if (resource.getTarget() instanceof LogisticsFluidModule && isOwnModule(resource.getTarget())) {
             return;
         }
         for (IFilter filter : filters) {
@@ -331,6 +432,27 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         for (ModuleFluidProvider provider : getProviders()) {
             provider.canProvide(tree, root, filters);
         }
+    }
+
+    private boolean isOwnModule(Object module) {
+        for (int i = 0; i < getChassiSize(); i++) {
+            if (getModules().getSubModule(i) == module) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public int getReservedFluid(FluidIdentifier fluid) {
+        // asked once for each fluid of the tank, so no list of the modules is made
+        long reserved = 0;
+        for (int i = 0; i < getChassiSize(); i++) {
+            if (getModules().getSubModule(i) instanceof IFluidReserver module) {
+                reserved += module.getReservedAmount(fluid);
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, reserved);
     }
 
     @Override

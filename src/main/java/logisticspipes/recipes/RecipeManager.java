@@ -3024,9 +3024,11 @@ public class RecipeManager {
      */
     private static void loadFluidChassisAssemblerRecipes() {
         Item[] chassis = { LogisticsPipes.LogisticsChassisPipeMk1, LogisticsPipes.LogisticsChassisPipeMk2,
-                LogisticsPipes.LogisticsChassisPipeMk3 };
+                LogisticsPipes.LogisticsChassisPipeMk3, LogisticsPipes.LogisticsChassisPipeMk4,
+                LogisticsPipes.LogisticsChassisPipeMk5 };
         Item[] fluidChassis = { LogisticsPipes.LogisticsFluidChassisPipeMk1,
-                LogisticsPipes.LogisticsFluidChassisPipeMk2, LogisticsPipes.LogisticsFluidChassisPipeMk3 };
+                LogisticsPipes.LogisticsFluidChassisPipeMk2, LogisticsPipes.LogisticsFluidChassisPipeMk3,
+                LogisticsPipes.LogisticsFluidChassisPipeMk4, LogisticsPipes.LogisticsFluidChassisPipeMk5 };
         for (int i = 0; i < chassis.length; i++) {
             GregTechConversionRecipes.addFluidVariant(
                     new ItemStack(chassis[i], 2),
@@ -3039,6 +3041,10 @@ public class RecipeManager {
         addFluidModuleAssemblerRecipe(ItemModule.EXTRACTOR, ItemModule.FLUID_EXTRACTOR, true, false);
         addFluidModuleAssemblerRecipe(ItemModule.PROVIDER, ItemModule.FLUID_PROVIDER, true, true);
         addFluidModuleAssemblerRecipe(ItemModule.ACTIVE_SUPPLIER, ItemModule.FLUID_SUPPLIER, true, true);
+        // the container sink is a fluid sink that opens containers itself
+        addFluidModuleAssemblerRecipe(ItemModule.FLUID_SINK, ItemModule.FLUID_CONTAINER_SINK, true, false);
+        // the container crafter hands the tank out in containers, like a provider hands it out as fluid
+        addFluidModuleAssemblerRecipe(ItemModule.FLUID_PROVIDER, ItemModule.FLUID_CONTAINER_CRAFTER, true, true);
     }
 
     private static void addFluidModuleAssemblerRecipe(int module, int fluidModule, boolean withPump, boolean mv) {
@@ -3052,9 +3058,11 @@ public class RecipeManager {
 
     private static void addFluidChassisRecipes() {
         Item[] chassis = { LogisticsPipes.LogisticsChassisPipeMk1, LogisticsPipes.LogisticsChassisPipeMk2,
-                LogisticsPipes.LogisticsChassisPipeMk3 };
+                LogisticsPipes.LogisticsChassisPipeMk3, LogisticsPipes.LogisticsChassisPipeMk4,
+                LogisticsPipes.LogisticsChassisPipeMk5 };
         Item[] fluidChassis = { LogisticsPipes.LogisticsFluidChassisPipeMk1,
-                LogisticsPipes.LogisticsFluidChassisPipeMk2, LogisticsPipes.LogisticsFluidChassisPipeMk3 };
+                LogisticsPipes.LogisticsFluidChassisPipeMk2, LogisticsPipes.LogisticsFluidChassisPipeMk3,
+                LogisticsPipes.LogisticsFluidChassisPipeMk4, LogisticsPipes.LogisticsFluidChassisPipeMk5 };
         for (int i = 0; i < chassis.length; i++) {
             RecipeManager.craftingManager.addShapelessRecipe(
                     new ItemStack(fluidChassis[i], 1),
@@ -3065,7 +3073,9 @@ public class RecipeManager {
         int[][] modules = { { ItemModule.FLUID_SINK, ItemModule.ITEMSINK },
                 { ItemModule.FLUID_EXTRACTOR, ItemModule.EXTRACTOR },
                 { ItemModule.FLUID_PROVIDER, ItemModule.PROVIDER },
-                { ItemModule.FLUID_SUPPLIER, ItemModule.ACTIVE_SUPPLIER } };
+                { ItemModule.FLUID_SUPPLIER, ItemModule.ACTIVE_SUPPLIER },
+                { ItemModule.FLUID_CONTAINER_SINK, ItemModule.FLUID_SINK },
+                { ItemModule.FLUID_CONTAINER_CRAFTER, ItemModule.FLUID_PROVIDER } };
         for (int[] module : modules) {
             RecipeManager.craftingManager.addShapelessRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, module[0]),

@@ -35,7 +35,7 @@ import logisticspipes.utils.item.ItemIdentifier;
 /**
  * Offers the fluids in the tank to requests from the network, like the fluid provider pipe.
  */
-public class ModuleFluidProvider extends LogisticsFluidModule implements IProvideFluids {
+public class ModuleFluidProvider extends LogisticsFluidModule implements IProvideFluids, IFluidReserver {
 
     private static final int TICKS_PER_SEND = 6;
 
@@ -109,7 +109,8 @@ public class ModuleFluidProvider extends LogisticsFluidModule implements IProvid
             return result;
         }
         for (Entry<FluidIdentifier, Integer> entry : getTankContents().entrySet()) {
-            int remaining = entry.getValue() - getOrderManager().totalFluidsCountInOrders(entry.getKey());
+            // what any module of the chassis promised is taken, not only what this one did
+            int remaining = entry.getValue() - getHost().getReservedFluid(entry.getKey());
             if (remaining > 0) {
                 result.put(entry.getKey(), remaining);
             }
@@ -121,6 +122,11 @@ public class ModuleFluidProvider extends LogisticsFluidModule implements IProvid
     public IOrderInfoProvider fullFill(FluidLogisticsPromise promise, IRequestFluid destination, ResourceType type,
             IAdditionalTargetInformation info) {
         return getOrderManager().addOrder(promise, destination, type, info);
+    }
+
+    @Override
+    public int getReservedAmount(FluidIdentifier fluid) {
+        return orderManager == null ? 0 : orderManager.totalFluidsCountInOrders(fluid);
     }
 
     @Override

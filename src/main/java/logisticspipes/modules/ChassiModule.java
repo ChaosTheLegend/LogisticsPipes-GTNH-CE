@@ -8,6 +8,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.IIcon;
 
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.interfaces.IInventorylessSink;
 import logisticspipes.interfaces.IModuleInventory;
 import logisticspipes.interfaces.IModuleInventoryOverride;
 import logisticspipes.interfaces.IPipeServiceProvider;
@@ -74,6 +75,10 @@ public class ChassiModule extends LogisticsGuiModule {
         }
         // Always deny items when we can't put the item anywhere
         int moduleSlot = ((ChassiTargetInformation) bestresult.addInfo).getModuleSlot();
+        if (_modules[moduleSlot] instanceof IInventorylessSink) {
+            // the module takes the item itself and answered for its room already
+            return bestresult;
+        }
         IInventoryUtil invUtil = getModuleInventory(moduleSlot);
         if (invUtil == null) {
             invUtil = _parentPipe.getSneakyInventory(false, ModulePositionType.SLOT, moduleSlot);
