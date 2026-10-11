@@ -14,4 +14,4 @@ See [this repo](https://github.com/RS485/LogisticsPipes-Language) for translatio
 
 ## Contact
 
-This is the GTNH Fork
+This is a community rework the GTNH Fork
