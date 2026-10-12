@@ -1,5 +1,14 @@
 package logisticspipes.nei;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.item.ItemStack;
+
+import org.lwjgl.input.Keyboard;
+
 import codechicken.nei.api.ShortcutInputHandler;
 import codechicken.nei.guihook.IContainerObjectHandler;
 import codechicken.nei.guihook.IContainerTooltipHandler;
@@ -7,13 +16,6 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.gui.RequestTableGui;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
-import net.minecraft.client.gui.inventory.GuiContainer;
-import net.minecraft.item.ItemStack;
-import org.lwjgl.input.Keyboard;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /** Makes the terminal's virtual entries available to NEI's normal item shortcuts and tooltips. */
 @SideOnly(Side.CLIENT)

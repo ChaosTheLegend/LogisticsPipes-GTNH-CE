@@ -1,5 +1,18 @@
 package logisticspipes.crafting.requesttable;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.ICrafting;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidContainerRegistry;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.IFluidContainerItem;
+
+import org.jetbrains.annotations.NotNull;
+
 import logisticspipes.LogisticsPipes;
 import logisticspipes.crafting.requesttable.gui.RequestTableLayout;
 import logisticspipes.crafting.requesttable.storage.RequestTableFluidContainers;
@@ -15,17 +28,6 @@ import logisticspipes.utils.gui.DummySlot;
 import logisticspipes.utils.gui.HandelableSlot;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import lombok.Getter;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.ICrafting;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.FluidContainerRegistry;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.IFluidContainerItem;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Container for the new request table.

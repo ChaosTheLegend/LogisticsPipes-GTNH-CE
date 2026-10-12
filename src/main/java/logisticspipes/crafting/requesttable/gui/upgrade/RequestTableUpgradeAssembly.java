@@ -1,13 +1,14 @@
 package logisticspipes.crafting.requesttable.gui.upgrade;
 
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
-import logisticspipes.crafting.requesttable.gui.upgrade.RequestTableBoardLayout.Node;
+import java.util.HashMap;
+import java.util.Map;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 
-import java.util.HashMap;
-import java.util.Map;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.crafting.requesttable.gui.upgrade.RequestTableBoardLayout.Node;
 
 /** One-shot pixel assembly effects in board coordinates, using the installed chip's native artwork. */
 @SideOnly(Side.CLIENT)

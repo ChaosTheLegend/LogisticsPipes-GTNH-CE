@@ -1,5 +1,27 @@
 package logisticspipes.crafting.requesttable;
 
+import static logisticspipes.crafting.requesttable.RequestTableContainer.getFluidStack;
+import static logisticspipes.crafting.requesttable.RequestTableContainer.getItemStack;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.SlotCrafting;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.FluidContainerRegistry;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.IFluidContainerItem;
+
 import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.crafting.AutoCraftingInventory;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
@@ -31,27 +53,6 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.item.SimpleStackInventory;
 import logisticspipes.utils.tuples.Pair;
 import lombok.Getter;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.SlotCrafting;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraftforge.common.util.ForgeDirection;
-import net.minecraftforge.fluids.FluidContainerRegistry;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.IFluidContainerItem;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-
-import static logisticspipes.crafting.requesttable.RequestTableContainer.getFluidStack;
-import static logisticspipes.crafting.requesttable.RequestTableContainer.getItemStack;
 
 /**
  * New request table implementation with separate item and fluid storage.
@@ -1255,9 +1256,8 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                         return null;
                     }
                     ItemStack result = recipe.getCraftingResult(preview);
-                    return result != null
-                        && Objects.requireNonNull(ItemIdentifier.get(expectedResult)).equalsWithoutNBT(Objects.requireNonNull(ItemIdentifier.get(result))) ? result
-                                    : null;
+                    return result != null && Objects.requireNonNull(ItemIdentifier.get(expectedResult))
+                        .equalsWithoutNBT(Objects.requireNonNull(ItemIdentifier.get(result))) ? result : null;
                 });
     }
 

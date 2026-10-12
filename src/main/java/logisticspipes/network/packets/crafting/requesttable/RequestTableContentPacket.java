@@ -1,5 +1,12 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+
 import cpw.mods.fml.client.FMLClientHandler;
 import logisticspipes.crafting.requesttable.gui.RequestTableGui;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
@@ -8,12 +15,6 @@ import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.abstractpackets.CoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Sends the combined item/fluid request list to the new request table GUI.

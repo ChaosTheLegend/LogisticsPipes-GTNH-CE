@@ -1,11 +1,13 @@
 package logisticspipes.crafting.requesttable.network;
 
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
+
 import com.github.bsideup.jabel.Desugar;
+
 import logisticspipes.crafting.requesttable.storage.RequestTableFluidDisplay;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifierStack;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
 
 /**
  * A requestable stack in the new request table list.
@@ -14,7 +16,8 @@ import net.minecraftforge.fluids.FluidStack;
  * request code to use the fluid request path and interpret the amount as millibuckets.
  */
 @Desugar
-public record RequestTableNetworkEntry(ItemIdentifierStack stack, boolean fluid, int networkAmount, int internalAmount, boolean craftable) implements Comparable<RequestTableNetworkEntry> {
+public record RequestTableNetworkEntry(ItemIdentifierStack stack, boolean fluid, int networkAmount, int internalAmount,
+                                       boolean craftable) implements Comparable<RequestTableNetworkEntry> {
 
     /**
      * Creates a new network-list entry with separated availability information.

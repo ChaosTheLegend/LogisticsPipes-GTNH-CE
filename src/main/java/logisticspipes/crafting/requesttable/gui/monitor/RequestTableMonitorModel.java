@@ -1,5 +1,13 @@
 package logisticspipes.crafting.requesttable.gui.monitor;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LogisticsPipes;
@@ -12,14 +20,6 @@ import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.crafting.requesttable.RequestTableMonitorRequestPacket;
 import logisticspipes.proxy.MainProxy;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 /** Per-screen subscription and atomic snapshot assembly, independent of GUI rendering. */
 @SideOnly(Side.CLIENT)

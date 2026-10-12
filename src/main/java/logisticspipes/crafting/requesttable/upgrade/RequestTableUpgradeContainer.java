@@ -1,5 +1,15 @@
 package logisticspipes.crafting.requesttable.upgrade;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.ICrafting;
+import net.minecraft.inventory.InventoryBasic;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
+
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeMaterials.Requirement;
 import logisticspipes.network.PacketGuards;
@@ -8,15 +18,6 @@ import logisticspipes.network.packets.crafting.requesttable.RequestTableUpgradeS
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.DummyContainer;
 import lombok.Getter;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.ICrafting;
-import net.minecraft.inventory.InventoryBasic;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /** Per-viewer material escrow; completed tiers live on the table, never on this container. */
 public class RequestTableUpgradeContainer extends DummyContainer {

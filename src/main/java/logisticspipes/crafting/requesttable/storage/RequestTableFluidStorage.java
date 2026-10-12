@@ -1,13 +1,9 @@
 package logisticspipes.crafting.requesttable.storage;
 
-import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
-import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
-import logisticspipes.proxy.SimpleServiceLocator;
-import logisticspipes.utils.FluidIdentifier;
-import logisticspipes.utils.ISimpleInventoryEventHandler;
-import logisticspipes.utils.item.ItemIdentifierInventory;
-import logisticspipes.utils.item.ItemIdentifierStack;
-import lombok.Getter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
@@ -16,9 +12,14 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
+import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.ISimpleInventoryEventHandler;
+import logisticspipes.utils.item.ItemIdentifierInventory;
+import logisticspipes.utils.item.ItemIdentifierStack;
+import lombok.Getter;
 
 /**
  * Fixed-slot fluid storage for the new request table.

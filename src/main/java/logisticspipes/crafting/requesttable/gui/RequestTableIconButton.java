@@ -1,11 +1,12 @@
 package logisticspipes.crafting.requesttable.gui;
 
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
+import java.util.Objects;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 
-import java.util.Objects;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 
 /** Icon buttons and tabs, with native block models and a shared rendering implementation. */
 @SideOnly(Side.CLIENT)

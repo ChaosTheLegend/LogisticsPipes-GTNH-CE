@@ -1,8 +1,9 @@
 package logisticspipes.crafting.requesttable.gui;
 
+import net.minecraft.client.Minecraft;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import net.minecraft.client.Minecraft;
 
 /** A small CRT and power lamp enabled by the table's permanent monitoring upgrade. */
 @SideOnly(Side.CLIENT)

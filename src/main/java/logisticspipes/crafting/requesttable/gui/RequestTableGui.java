@@ -1,5 +1,25 @@
 package logisticspipes.crafting.requesttable.gui;
 
+import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+import net.minecraft.block.Block;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.renderer.entity.RenderItem;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
+import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumChatFormatting;
+
+import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
+
 import codechicken.nei.LayoutManager;
 import cpw.mods.fml.common.registry.GameRegistry;
 import cpw.mods.fml.relauncher.Side;
@@ -33,24 +53,6 @@ import logisticspipes.utils.gui.ISubGuiControler;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import logisticspipes.utils.string.StringUtils;
 import lombok.Getter;
-import net.minecraft.block.Block;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.renderer.entity.RenderItem;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumChatFormatting;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
-import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
 
 /**
  * Redesigned request table GUI with a combined item/fluid network list, internal storage views and fake crafting grid.
@@ -638,9 +640,8 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
                 layout.panelHeight)) {
                 MainProxy.sendPacketToServer(
                     PacketHandler.getPacket(RequestTableNetworkInteractPacket.class).setCursorInteraction(true)
-                        .setFluid(entry != null && entry.fluid()).setMouseButton(button)
-                        .setShift(isShiftDown()).setStack(entry == null ? null : entry.stack())
-                        .setTilePos(table.container));
+                        .setFluid(entry != null && entry.fluid()).setMouseButton(button).setShift(isShiftDown())
+                        .setStack(entry == null ? null : entry.stack()).setTilePos(table.container));
                 return;
             }
             if (entry != null) {
@@ -812,8 +813,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         }
         RequestTableNetworkEntry entry = requestOverlay.getEntry();
         MainProxy.sendPacketToServer(
-            PacketHandler.getPacket(RequestTableSubmitPacket.class).setFluid(entry.fluid())
-                .setDimension(dimension)
+            PacketHandler.getPacket(RequestTableSubmitPacket.class).setFluid(entry.fluid()).setDimension(dimension)
                 .setStack(entry.stack().getItem().makeStack(requestOverlay.getAmount()))
                 .setTilePos(table.container));
         requestOverlay.close();
@@ -1127,7 +1127,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
                 "Request missing ingredients",
                 getIngredientRequestAmount() + " craft sets",
                 "Uses ingredients already in the table first.");
-            case CLEAR_CRAFTING_BUTTON -> List.of("Clear crafting grid");
+            case CLEAR_CRAFTING_BUTTON -> Arrays.asList("Clear crafting grid");
             case SEND_BUTTON -> Arrays.asList(
                 "Send all " + (view == RequestTableView.FLUID_STORAGE ? "fluids" : "items"),
                 "Return stored contents to the network.");

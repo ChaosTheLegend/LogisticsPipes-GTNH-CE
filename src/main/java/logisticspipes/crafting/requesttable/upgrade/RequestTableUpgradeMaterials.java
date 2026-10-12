@@ -1,16 +1,17 @@
 package logisticspipes.crafting.requesttable.upgrade;
 
-import cpw.mods.fml.common.Loader;
-import gregtech.api.enums.ItemList;
-import logisticspipes.LogisticsPipes;
-import lombok.Getter;
+import java.util.Arrays;
+import java.util.List;
+
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
-import java.util.Arrays;
-import java.util.List;
+import cpw.mods.fml.common.Loader;
+import gregtech.api.enums.ItemList;
+import logisticspipes.LogisticsPipes;
+import lombok.Getter;
 
 /** Shared material recipes for the server escrow and the upgrade board's cost previews. */
 public final class RequestTableUpgradeMaterials {

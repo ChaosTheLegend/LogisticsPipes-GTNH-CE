@@ -1,10 +1,11 @@
 package logisticspipes.crafting.requesttable.settings;
 
+import net.minecraft.nbt.NBTTagCompound;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Value;
 import lombok.With;
-import net.minecraft.nbt.NBTTagCompound;
 
 /**
  * Immutable terminal preferences for one player at one request table.

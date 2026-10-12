@@ -1,9 +1,10 @@
 package logisticspipes.crafting.requesttable.gui;
 
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
+
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 
 /** Complete Minecraft bevels and isolated drawing state for every request-table button size. */
 @SideOnly(Side.CLIENT)

@@ -1,10 +1,10 @@
 package logisticspipes.crafting.requesttable.gui.upgrade;
 
-import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
-import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
 
 /** Fixed motherboard coordinates and native chip dimensions shared by drawing and hit detection. */
 final class RequestTableBoardLayout {

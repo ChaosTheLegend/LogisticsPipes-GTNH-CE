@@ -1,11 +1,11 @@
 package logisticspipes.crafting.requesttable.storage;
 
-import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.item.ItemStack;
-
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.item.ItemStack;
 
 /** Plans cell conversions before committing fluid and player inventory changes together. */
 public final class RequestTableFluidContainers {

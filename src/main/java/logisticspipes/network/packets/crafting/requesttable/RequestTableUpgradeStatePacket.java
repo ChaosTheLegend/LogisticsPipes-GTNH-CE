@@ -1,5 +1,9 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import java.io.IOException;
+
+import net.minecraft.entity.player.EntityPlayer;
+
 import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
@@ -7,9 +11,6 @@ import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketGuards;
 import logisticspipes.network.abstractpackets.ModernPacket;
-import net.minecraft.entity.player.EntityPlayer;
-
-import java.io.IOException;
 
 /** Sends authoritative tree progress and configured bonuses/costs to the current upgrade window. */
 public class RequestTableUpgradeStatePacket extends ModernPacket {

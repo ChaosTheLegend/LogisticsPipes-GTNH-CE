@@ -1,5 +1,16 @@
 package logisticspipes.crafting.requesttable.gui.upgrade;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.ResourceLocation;
+
+import org.lwjgl.opengl.GL11;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.gui.RequestTableGuiStyle;
@@ -10,15 +21,6 @@ import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeMaterials;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeMaterials.Requirement;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.ResourceLocation;
-import org.lwjgl.opengl.GL11;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /** One motherboard with four storage buses fed by a CPU and a separate fluid controller. */
 @SideOnly(Side.CLIENT)

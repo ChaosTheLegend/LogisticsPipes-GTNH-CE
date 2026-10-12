@@ -1,10 +1,11 @@
 package logisticspipes.crafting.requesttable.gui.upgrade;
 
+import net.minecraft.util.ResourceLocation;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.gui.RequestTableRender;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
-import net.minecraft.util.ResourceLocation;
 
 /** Native GUI sprites: installed storage chips are composed of base, tier and branch layers. */
 @SideOnly(Side.CLIENT)

@@ -1,10 +1,11 @@
 package logisticspipes.crafting.requesttable.storage;
 
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
+
 import cpw.mods.fml.common.Loader;
 import gregtech.api.util.GTUtility;
 import logisticspipes.utils.FluidIdentifier;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
 
 /** Uses NEI's fluid display item while retaining the LP fluid identifier for packets and storage. */
 public final class RequestTableFluidDisplay {

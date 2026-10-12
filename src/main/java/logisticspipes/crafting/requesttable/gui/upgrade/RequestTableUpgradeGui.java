@@ -1,5 +1,18 @@
 package logisticspipes.crafting.requesttable.gui.upgrade;
 
+import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import net.minecraft.client.gui.GuiButton;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumChatFormatting;
+
+import org.lwjgl.input.Mouse;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
@@ -16,17 +29,6 @@ import logisticspipes.network.packets.crafting.requesttable.RequestTableOpenUpgr
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumChatFormatting;
-import org.lwjgl.input.Mouse;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
 
 /** Fixed material controls around a freely draggable motherboard-style upgrade tree. */
 @SideOnly(Side.CLIENT)
@@ -264,9 +266,9 @@ public class RequestTableUpgradeGui extends LogisticsBaseGuiScreen {
                     "Drag the board to move in any direction.",
                     "Mouse wheel: move vertically.",
                     "Shift + mouse wheel: move horizontally.");
-                case ZOOM_OUT -> List.of("Zoom out");
-                case ZOOM_IN -> List.of("Zoom in");
-                case SHOW_ALL -> List.of("Show the whole motherboard");
+                case ZOOM_OUT -> Arrays.asList("Zoom out");
+                case ZOOM_IN -> Arrays.asList("Zoom in");
+                case SHOW_ALL -> Arrays.asList("Show the whole motherboard");
                 case APPLY -> applyTooltip();
                 case APPLY_CREATIVE -> Arrays.asList(
                     "Apply without materials (creative mode)",

@@ -1,14 +1,14 @@
 package logisticspipes.crafting.monitor;
 
-import logisticspipes.network.LPDataInputStream;
-import logisticspipes.network.LPDataOutputStream;
-import logisticspipes.utils.item.ItemIdentifierStack;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+
+import logisticspipes.network.LPDataInputStream;
+import logisticspipes.network.LPDataOutputStream;
+import logisticspipes.utils.item.ItemIdentifierStack;
 
 /** Display-only snapshots. No snapshot exposes or modifies a live LP order. */
 public final class CraftingMonitorData {

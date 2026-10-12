@@ -1,5 +1,9 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import java.io.IOException;
+
+import net.minecraft.entity.player.EntityPlayer;
+
 import cpw.mods.fml.client.FMLClientHandler;
 import logisticspipes.crafting.monitor.CraftingMonitorData;
 import logisticspipes.crafting.requesttable.gui.RequestTableGui;
@@ -8,9 +12,6 @@ import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketGuards;
 import logisticspipes.network.abstractpackets.CoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
-import net.minecraft.entity.player.EntityPlayer;
-
-import java.io.IOException;
 
 /** Bounded chunks; the client applies a complete transfer atomically. */
 public class RequestTableMonitorUpdatePacket extends CoordinatesPacket {

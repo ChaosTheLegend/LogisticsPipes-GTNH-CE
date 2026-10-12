@@ -1,10 +1,11 @@
 package logisticspipes.crafting.requesttable.storage;
 
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
+
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.UnmodifiableSlot;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
 
 /** Displays the stored fluid with the same item used by NEI, without making it transferable. */
 public class RequestTableFluidSlot extends UnmodifiableSlot {

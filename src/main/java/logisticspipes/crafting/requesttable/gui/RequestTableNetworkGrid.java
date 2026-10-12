@@ -1,16 +1,17 @@
 package logisticspipes.crafting.requesttable.gui;
 
+import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
+
+import java.util.List;
+
+import net.minecraft.client.gui.Gui;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettings;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import lombok.Getter;
-import net.minecraft.client.gui.Gui;
-
-import java.util.List;
-
-import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
 
 /**
  * Scrollable icon grid for requestable network items and fluids.

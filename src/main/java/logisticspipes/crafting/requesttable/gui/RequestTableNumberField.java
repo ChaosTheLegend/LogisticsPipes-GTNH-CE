@@ -1,9 +1,10 @@
 package logisticspipes.crafting.requesttable.gui;
 
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
+
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 
 /** Numeric input shared by request amounts and crafting sets, preserving the caret while editing. */
 @SideOnly(Side.CLIENT)

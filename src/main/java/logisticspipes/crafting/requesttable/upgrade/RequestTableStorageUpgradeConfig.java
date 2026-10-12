@@ -1,13 +1,14 @@
 package logisticspipes.crafting.requesttable.upgrade;
 
-import lombok.Getter;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.oredict.OreDictionary;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import lombok.Getter;
 
 /** Editable cumulative tier bonuses and ore-dictionary circuit costs, also sent to the upgrade GUI. */
 public final class RequestTableStorageUpgradeConfig {

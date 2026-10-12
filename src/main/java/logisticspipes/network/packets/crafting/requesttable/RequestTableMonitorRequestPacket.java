@@ -1,14 +1,15 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import java.io.IOException;
+
+import net.minecraft.entity.player.EntityPlayer;
+
 import logisticspipes.crafting.monitor.CraftingMonitorService;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketGuards;
 import logisticspipes.network.abstractpackets.CoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
-import net.minecraft.entity.player.EntityPlayer;
-
-import java.io.IOException;
 
 /** Subscribes, selects an observed job, or unsubscribes. Never mutates crafting state. */
 public class RequestTableMonitorRequestPacket extends CoordinatesPacket {

@@ -1,13 +1,15 @@
 package logisticspipes.crafting.requesttable.gui;
 
+import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
+
+import net.minecraft.client.gui.FontRenderer;
+
+import org.lwjgl.input.Keyboard;
+
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import lombok.Getter;
-import net.minecraft.client.gui.FontRenderer;
-import org.lwjgl.input.Keyboard;
-
-import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
 
 /**
  * Small modal request editor opened by clicking a network entry.
@@ -75,8 +77,7 @@ public class RequestTableRequestOverlay {
             return;
         }
         for (RequestTableNetworkEntry refreshed : entries) {
-            if (refreshed.fluid() == entry.fluid()
-                && refreshed.stack().getItem().equals(entry.stack().getItem())) {
+            if (refreshed.fluid() == entry.fluid() && refreshed.stack().getItem().equals(entry.stack().getItem())) {
                 entry = refreshed;
                 return;
             }
@@ -116,16 +117,10 @@ public class RequestTableRequestOverlay {
         RequestTableGuiStyle.requestButton(left + WIDTH - 13, top + 3, 10, 10, true);
         screen.getMC().fontRenderer.drawString("x", left + WIDTH - 10, top + 4, 0x404040);
         String unit = entry.fluid() ? " mB" : "";
-        screen.getMC().fontRenderer.drawString(
-            "In table: " + entry.internalAmount() + unit,
-            left + 8,
-            top + 5,
-            RequestTableGuiStyle.TEXT);
-        screen.getMC().fontRenderer.drawString(
-            "Network: " + entry.networkAmount() + unit,
-            left + 8,
-            top + 17,
-            RequestTableGuiStyle.TEXT);
+        screen.getMC().fontRenderer
+            .drawString("In table: " + entry.internalAmount() + unit, left + 8, top + 5, RequestTableGuiStyle.TEXT);
+        screen.getMC().fontRenderer
+            .drawString("Network: " + entry.networkAmount() + unit, left + 8, top + 17, RequestTableGuiStyle.TEXT);
         GuiGraphics.drawBigSlotBackground(screen.getMC(), left + 24, top + ITEM_TOP);
 
         for (int i = 0; i < DELTAS.length; i++) {

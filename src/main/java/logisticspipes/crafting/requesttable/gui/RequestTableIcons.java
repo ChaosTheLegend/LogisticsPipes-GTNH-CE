@@ -1,14 +1,16 @@
 package logisticspipes.crafting.requesttable.gui;
 
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
-import logisticspipes.crafting.requesttable.gui.RequestTableIconButton.Icon;
+import static net.minecraft.client.gui.Gui.drawRect;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.util.ResourceLocation;
+
 import org.lwjgl.opengl.GL11;
 
-import static net.minecraft.client.gui.Gui.drawRect;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.crafting.requesttable.gui.RequestTableIconButton.Icon;
 
 /** Pixel artwork shared by buttons, network entries and the request popup. */
 @SideOnly(Side.CLIENT)

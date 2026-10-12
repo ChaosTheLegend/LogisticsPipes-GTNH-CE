@@ -1,5 +1,10 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import java.io.IOException;
+
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettings;
 import logisticspipes.network.LPDataInputStream;
@@ -7,10 +12,6 @@ import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.abstractpackets.CoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
-
-import java.io.IOException;
 
 /**
  * Saves a player's display and request-message preferences at one redesigned request table.

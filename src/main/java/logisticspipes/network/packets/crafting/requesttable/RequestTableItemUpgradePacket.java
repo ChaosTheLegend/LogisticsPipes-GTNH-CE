@@ -1,14 +1,15 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import java.io.IOException;
+
+import net.minecraft.entity.player.EntityPlayer;
+
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketGuards;
 import logisticspipes.network.abstractpackets.ModernPacket;
-import net.minecraft.entity.player.EntityPlayer;
-
-import java.io.IOException;
 
 /** Carries the selected branch/tier and explicit confirmation; the server owns costs and unlocks. */
 public class RequestTableItemUpgradePacket extends ModernPacket {

@@ -1,5 +1,7 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
+import net.minecraft.entity.player.EntityPlayer;
+
 import logisticspipes.LogisticsPipes;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
@@ -7,7 +9,6 @@ import logisticspipes.network.GuiIDs;
 import logisticspipes.network.PacketGuards;
 import logisticspipes.network.abstractpackets.IntegerCoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
-import net.minecraft.entity.player.EntityPlayer;
 
 /** Opens the item upgrade tree, or returns from it to the normal request-table screen. */
 public class RequestTableOpenUpgradesPacket extends IntegerCoordinatesPacket {

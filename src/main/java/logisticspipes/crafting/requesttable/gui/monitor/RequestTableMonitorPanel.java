@@ -1,5 +1,22 @@
 package logisticspipes.crafting.requesttable.gui.monitor;
 
+import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.audio.PositionedSoundRecord;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.ResourceLocation;
+
+import org.lwjgl.opengl.GL11;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.monitor.CraftingMonitorData.Node;
@@ -14,21 +31,6 @@ import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.item.ItemIdentifier;
 import lombok.Getter;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.audio.PositionedSoundRecord;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.ResourceLocation;
-import org.lwjgl.opengl.GL11;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
 
 /** Minecraft-style resource cards and a clipped, draggable rendering of LP's order-list tree. */
 @SideOnly(Side.CLIENT)
