@@ -7,12 +7,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.SlotCrafting;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
@@ -27,6 +25,7 @@ import logisticspipes.blocks.crafting.AutoCraftingInventory;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettings;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettingsStore;
+import logisticspipes.crafting.requesttable.settings.RequestTableOrderSettings;
 import logisticspipes.crafting.requesttable.storage.RequestTableFluidContainers;
 import logisticspipes.crafting.requesttable.storage.RequestTableFluidStorage;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
@@ -178,15 +177,20 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
      * Returns the saved view state for this player at this table.
      */
     public RequestTableDisplaySettings getDisplaySettings(EntityPlayer player) {
-        return displaySettingsStore.get(player.getUniqueID());
+        return displaySettingsStore.get(player.getUniqueID())
+                .withOrderSettings(RequestTableOrderSettings.forPlayer(player));
     }
 
     /**
      * Saves the view state for this player at this table.
      */
     public void setDisplaySettings(EntityPlayer player, RequestTableDisplaySettings settings) {
-        if (displaySettingsStore.set(player.getUniqueID(), settings) && container != null) {
-            container.markDirty();
+        boolean orderChanged = !RequestTableOrderSettings.forPlayer(player).equals(settings.getOrderSettings());
+        if (orderChanged) settings.getOrderSettings().saveForPlayer(player);
+        boolean displayChanged = displaySettingsStore
+                .set(player.getUniqueID(), settings.withOrderSettings(RequestTableOrderSettings.DEFAULT));
+        if ((displayChanged || orderChanged) && container != null) {
+            if (displayChanged) container.markDirty();
             sendNetworkContentToPlayer(player);
         }
     }
@@ -840,7 +844,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     }
 
     /**
-     * Requests the missing fake crafting-grid ingredients for the given number of crafts.
+     * Requests complete ingredient sets without subtracting existing table or player stock.
      *
      * @param player     player requesting the ingredients
      * @param multiplier number of craft sets to request
@@ -853,35 +857,32 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     }
 
     private List<ItemIdentifierStack> getCraftingIngredientRequest(int multiplier) {
-        Map<ItemIdentifier, Integer> requested = new HashMap<>();
-        int clampedMultiplier = Math.max(1, multiplier);
-        for (Entry<ItemIdentifier, Integer> entry : matrix.getItemsAndCount().entrySet()) {
-            requested.put(entry.getKey(), entry.getValue() * clampedMultiplier);
-        }
-        for (Pair<ItemStack, Integer> entry : inv) {
-            ItemStack stack = entry.getValue1();
-            if (stack == null) {
-                continue;
+        var requirements = RequestTableCraftingIngredients.requirements(matrix);
+        Map<ItemIdentifier, Integer> network = SimpleServiceLocator.logisticsManager
+                .getAvailableItems(getRouter().getIRoutersByCost());
+        List<ItemIdentifierStack> result = new ArrayList<>();
+        for (var entry : requirements.entrySet()) {
+            int remaining = entry.getValue().amount(multiplier);
+            // Request the actual stored variant, retaining its NBT and damage for LP's exact routing identity.
+            for (var available : network.entrySet()) {
+                if (remaining == 0) break;
+                if (!entry.getKey().equals(RequestTableCraftingIngredients.key(available.getKey()))) continue;
+                int amount = Math.min(remaining, Math.max(0, available.getValue()));
+                if (amount == 0) continue;
+                result.add(available.getKey().makeStack(amount));
+                remaining -= amount;
             }
-            ItemIdentifier item = ItemIdentifier.get(stack);
-            Integer remaining = requested.get(item);
-            if (remaining == null) {
-                continue;
-            }
-            int missing = remaining - stack.stackSize;
-            if (missing > 0) {
-                requested.put(item, missing);
-            } else {
-                requested.remove(item);
-            }
-        }
-        List<ItemIdentifierStack> result = new ArrayList<>(requested.size());
-        for (Entry<ItemIdentifier, Integer> entry : requested.entrySet()) {
-            if (entry.getValue() > 0) {
-                result.add(entry.getKey().makeStack(entry.getValue()));
-            }
+            if (remaining > 0) result.add(entry.getValue().example.makeStack(remaining));
         }
         return result;
+    }
+
+    /** Counts complete requestable sets from network stock, with returned tools needed only once. */
+    public int getNetworkCraftingSets(Map<ItemIdentifier, Integer> networkStock) {
+        var requirements = RequestTableCraftingIngredients.requirements(matrix);
+        Map<ItemIdentifier, Long> stock = new HashMap<>();
+        networkStock.forEach((item, amount) -> RequestTableCraftingIngredients.addStock(stock, item, amount));
+        return RequestTableCraftingIngredients.maxSets(requirements, stock);
     }
 
     private FluidStack getContainedFluid(ItemStack stack) {
@@ -911,7 +912,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         }
         ItemStack previewResult = recipe.getCraftingResult(preview);
         if (previewResult == null || !Objects.requireNonNull(ItemIdentifier.get(previewResult))
-            .equalsWithoutNBT(Objects.requireNonNull(ItemIdentifier.get(resultInv.getStackInSlot(0))))) {
+                .equalsWithoutNBT(Objects.requireNonNull(ItemIdentifier.get(resultInv.getStackInSlot(0))))) {
             return null;
         }
         return new CraftingPreview(recipe, uses, previewResult.copy());
@@ -925,12 +926,46 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         }
         result = result.copy();
 
-        SlotCrafting craftingSlot = new SlotCrafting(player, consumed, resultInv, 0, 0, 0);
+        List<ItemStack> displacedTools = new ArrayList<>();
+        RequestTableCraftingSlot craftingSlot = new RequestTableCraftingSlot(
+                player,
+                consumed,
+                resultInv,
+                (slot, tool) -> returnCraftingTool(preview.uses[slot], tool, displacedTools));
         craftingSlot.onPickupFromSlot(player, result);
+        displacedTools.forEach(stack -> storeCraftingRemainder(stack, player));
         collectCraftingRemainders(consumed, player);
         inv.markDirty();
         player.inventory.markDirty();
         return result;
+    }
+
+    private void returnCraftingTool(IngredientUse source, ItemStack tool, List<ItemStack> displacedTools) {
+        ItemStack stored = source.inventory.getStackInSlot(source.slot);
+        // Compressed table slots can contain several identical tools. Keep the worn tool here and
+        // relocate the unused stack when its unchanged durability prevents merging it with the return.
+        if (stored != null && !canMerge(stored, tool)
+                && RequestTableCraftingIngredients.isReusable(stored)
+                && RequestTableCraftingIngredients.key(ItemIdentifier.get(stored))
+                        .equals(RequestTableCraftingIngredients.key(ItemIdentifier.get(tool)))) {
+            displacedTools.add(stored);
+            stored = null;
+            source.inventory.setInventorySlotContents(source.slot, null);
+        } else if (stored != null && !canMerge(stored, tool)) {
+            displacedTools.add(tool);
+            return;
+        }
+        int limit = source.inventory == inv ? inv.getInventoryStackLimit()
+                : Math.min(tool.getMaxStackSize(), source.inventory.getInventoryStackLimit());
+        int existing = stored == null ? 0 : stored.stackSize;
+        int accepted = Math.min(tool.stackSize, Math.max(0, limit - existing));
+        if (accepted > 0) {
+            ItemStack returned = tool.copy();
+            returned.stackSize = existing + accepted;
+            source.inventory.setInventorySlotContents(source.slot, returned);
+            tool.stackSize -= accepted;
+        }
+        if (tool.stackSize > 0) displacedTools.add(tool);
     }
 
     private boolean canMerge(ItemStack first, ItemStack second) {
@@ -1020,7 +1055,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     }
 
     private boolean matchesIngredient(ItemIdentifier expected, ItemIdentifier candidate, boolean oreDict) {
-        if (expected.equalsForCrafting(candidate)) {
+        if (RequestTableCraftingIngredients.key(expected).equals(RequestTableCraftingIngredients.key(candidate))) {
             return true;
         }
         return oreDict && expected.getDictIdentifiers() != null
@@ -1240,13 +1275,14 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                 stored,
                 pattern,
                 (expected, candidate) -> matchesIngredient(
-                    Objects.requireNonNull(ItemIdentifier.get(expected)),
+                        Objects.requireNonNull(ItemIdentifier.get(expected)),
                         ItemIdentifier.get(candidate),
                         true),
                 (expected, candidate) -> matchesIngredient(
-                    Objects.requireNonNull(ItemIdentifier.get(expected)),
+                        Objects.requireNonNull(ItemIdentifier.get(expected)),
                         ItemIdentifier.get(candidate),
                         false),
+                RequestTableCraftingIngredients::isReusable,
                 inputs -> {
                     AutoCraftingInventory preview = new AutoCraftingInventory(null);
                     for (int i = 0; i < inputs.length; i++) {
@@ -1257,7 +1293,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                     }
                     ItemStack result = recipe.getCraftingResult(preview);
                     return result != null && Objects.requireNonNull(ItemIdentifier.get(expectedResult))
-                        .equalsWithoutNBT(Objects.requireNonNull(ItemIdentifier.get(result))) ? result : null;
+                            .equalsWithoutNBT(Objects.requireNonNull(ItemIdentifier.get(result))) ? result : null;
                 });
     }
 

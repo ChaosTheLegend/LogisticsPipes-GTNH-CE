@@ -3,12 +3,11 @@ package logisticspipes.crafting.requesttable.gui;
 import java.util.Objects;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.item.ItemStack;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-/** Icon buttons and tabs, with native block models and a shared rendering implementation. */
+/** Icon buttons and tabs with shared pixel artwork. */
 @SideOnly(Side.CLIENT)
 final class RequestTableIconButton extends RequestTableButton {
 
@@ -16,7 +15,6 @@ final class RequestTableIconButton extends RequestTableButton {
     private static final int TAB_LETTER_HEIGHT = 7;
     private static final int TAB_FILL_GAP = 1;
     private Icon icon;
-    private ItemStack item;
     private boolean selected;
     private float fill = -1;
     private int fillColor;
@@ -29,10 +27,6 @@ final class RequestTableIconButton extends RequestTableButton {
 
     void setIcon(Icon icon) {
         this.icon = icon;
-    }
-
-    void setItem(ItemStack item) {
-        this.item = item;
     }
 
     void setSelected(boolean selected) {
@@ -62,11 +56,11 @@ final class RequestTableIconButton extends RequestTableButton {
     protected void drawContent(Minecraft mc, boolean hover) {
         if (tabLabel != null && !selected) {
             drawRect(
-                xPosition + 2,
-                yPosition + 2,
-                xPosition + width - 2,
-                yPosition + height - 2,
-                hover ? 0xffb8bec6 : 0xffaeaeae);
+                    xPosition + 2,
+                    yPosition + 2,
+                    xPosition + width - 2,
+                    yPosition + height - 2,
+                    hover ? 0xffb8bec6 : 0xffaeaeae);
         }
         if (selected) {
             drawRect(xPosition + 1, yPosition + 1, xPosition + width - 1, yPosition + 2, 0xffe8c66a);
@@ -76,32 +70,27 @@ final class RequestTableIconButton extends RequestTableButton {
         }
         int x = xPosition + (tabLabel == null ? (width - 16) / 2 : 5);
         int y = yPosition + (tabLabel == null ? (height - 16) / 2 : 2);
-        if (item != null) {
-            RequestTableRender.item(item, x, y, 100.0F, false, enabled);
-        } else {
-            if (Objects.requireNonNull(icon) == Icon.CLEAR) {
-                int size = Math.max(1, Math.min(width, height) - 2);
-                RequestTableIcons
+        if (Objects.requireNonNull(icon) == Icon.CLEAR) {
+            int size = Math.max(1, Math.min(width, height) - 2);
+            RequestTableIcons
                     .draw(icon, xPosition + (width - size) / 2, yPosition + (height - size) / 2, size, enabled);
-            } else {
-                boolean small = width < 18 || height < 18;
-                RequestTableIcons
-                    .draw(icon, small ? xPosition + 2 : x, small ? yPosition + 2 : y, small ? 8 : 16, enabled);
-            }
+        } else {
+            boolean small = width < 18 || height < 18;
+            RequestTableIcons.draw(icon, small ? xPosition + 2 : x, small ? yPosition + 2 : y, small ? 8 : 16, enabled);
         }
         if (tabLabel != null) {
             mc.fontRenderer.drawString(
-                tabLabel,
-                xPosition + 25,
-                yPosition + TAB_LABEL_TOP,
-                enabled ? RequestTableGuiStyle.TEXT : RequestTableGuiStyle.MUTED);
+                    tabLabel,
+                    xPosition + 25,
+                    yPosition + TAB_LABEL_TOP,
+                    enabled ? RequestTableGuiStyle.TEXT : RequestTableGuiStyle.MUTED);
         }
         if (fill >= 0) {
             int left = xPosition + (tabLabel == null ? 3 : 25);
             int barWidth = xPosition + width - 3 - left;
             int length = Math.round((barWidth - 2) * Math.max(0, Math.min(1, fill)));
             int top = tabLabel == null ? yPosition + height - 7
-                : yPosition + TAB_LABEL_TOP + TAB_LETTER_HEIGHT + TAB_FILL_GAP;
+                    : yPosition + TAB_LABEL_TOP + TAB_LETTER_HEIGHT + TAB_FILL_GAP;
             drawRect(left, top, left + barWidth, top + 5, 0xff373737);
             drawRect(left + 1, top + 1, left + barWidth - 1, top + 4, 0xff555555);
             drawRect(left + 1, top + 1, left + 1 + length, top + 4, fillColor);

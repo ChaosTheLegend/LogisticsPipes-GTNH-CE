@@ -19,7 +19,16 @@ public final class RequestTableIcons {
     private static final ResourceLocation ATLAS = RequestTableRender.texture("requesttable_icons");
     private static final float CRAFTABLE_ICON_SCALE = 0.75F;
 
-    private RequestTableIcons() {
+    private RequestTableIcons() {}
+
+    /** Eight-pixel cog for compact popup controls. */
+    static void gear(int x, int y) {
+        drawRect(x + 1, y + 1, x + 7, y + 7, 0xff373737);
+        drawRect(x + 3, y, x + 5, y + 8, 0xff373737);
+        drawRect(x, y + 3, x + 8, y + 5, 0xff373737);
+        drawRect(x + 2, y + 2, x + 6, y + 6, 0xff8b8b8b);
+        drawRect(x + 2, y + 2, x + 5, y + 3, 0xffe4e4e4);
+        drawRect(x + 3, y + 3, x + 5, y + 5, 0xff373737);
     }
 
     static void draw(Icon icon, int x, int y, int size, boolean enabled) {
@@ -27,8 +36,7 @@ public final class RequestTableIcons {
             case MESSAGES_ON, MESSAGES_OFF -> drawRequestMessagesIcon(x, y, icon == Icon.MESSAGES_ON);
             case MONITOR_GRID, MONITOR_TREE -> drawMonitorViewIcon(x, y, icon == Icon.MONITOR_TREE);
             case CRAFTABLE, BOTH -> drawCraftingFilterIcon(x, y, size, icon == Icon.BOTH);
-            case SEARCH_STANDARD, SEARCH_AUTO, SEARCH_NEI_AUTO, SEARCH_NEI_STANDARD, SAVE_SEARCH_ON, SAVE_SEARCH_OFF, TERMINAL_SMALL, TERMINAL_TALL, ITEMS_ON, ITEMS_OFF, FLUIDS_ON, FLUIDS_OFF, UPGRADES ->
-                drawTerminalControlIcon(
+            case SEARCH_STANDARD, SEARCH_AUTO, SEARCH_NEI_AUTO, SEARCH_NEI_STANDARD, SAVE_SEARCH_ON, SAVE_SEARCH_OFF, TERMINAL_SMALL, TERMINAL_TALL, ITEMS_ON, ITEMS_OFF, FLUIDS_ON, FLUIDS_OFF, UPGRADES -> drawTerminalControlIcon(
                     icon,
                     x,
                     y);
@@ -46,16 +54,16 @@ public final class RequestTableIcons {
                     default -> throw new IllegalArgumentException("No atlas sprite for " + icon);
                 };
                 RequestTableRender.textureRegion(
-                    ATLAS,
-                    x,
-                    y,
-                    size,
-                    size,
-                    tile / 16.0,
-                    0,
-                    (tile + 1) / 16.0,
-                    1 / 16.0,
-                    enabled ? 1.0F : 0.5F);
+                        ATLAS,
+                        x,
+                        y,
+                        size,
+                        size,
+                        tile / 16.0,
+                        0,
+                        (tile + 1) / 16.0,
+                        1 / 16.0,
+                        enabled ? 1.0F : 0.5F);
             }
         }
     }
@@ -162,8 +170,7 @@ public final class RequestTableIcons {
                 drawRect(x + 5, y + 7, x + 11, y + 9, 0xffe4d29a);
                 drawRect(x + 7, y + 9, x + 9, y + 11, 0xffe4d29a);
             }
-            default -> {
-            }
+            default -> {}
         }
         if (icon == Icon.SAVE_SEARCH_OFF || icon == Icon.ITEMS_OFF || icon == Icon.FLUIDS_OFF) {
             for (int i = 0; i < 7; i++) {

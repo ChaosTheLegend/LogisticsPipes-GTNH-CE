@@ -17,8 +17,7 @@ public final class RequestTableGuiStyle {
     static final int MONITOR_POWER_ON = 0xff86be65;
     static final int MONITOR_POWER_OFF = 0xff777777;
 
-    private RequestTableGuiStyle() {
-    }
+    private RequestTableGuiStyle() {}
 
     public static String formatCount(int amount) {
         if (amount >= 1_000_000_000) {
@@ -40,7 +39,7 @@ public final class RequestTableGuiStyle {
 
     /** Limits a corner count when a status icon shares the top edge. */
     public static void drawCount(FontRenderer font, String amount, int x, int y, int color, boolean topLeft,
-                                 int availableWidth) {
+            int availableWidth) {
         float scale = font.getUnicodeFlag() ? 3.0F / 4.0F : 1.0F / 2.0F;
         if (availableWidth > 0) {
             scale = Math.min(scale, availableWidth / (float) (font.getStringWidth(amount) + 1));
@@ -76,6 +75,11 @@ public final class RequestTableGuiStyle {
 
     static void requestButton(int x, int y, int width, int height, boolean enabled) {
         bevel(x, y, width, height, enabled ? 0xffc6c6c6 : 0xff7f7f7f, 0xff000000);
+    }
+
+    static void requestButton(int x, int y, int width, int height, boolean enabled, int mouseX, int mouseY) {
+        boolean hover = enabled && RequestTableRender.inside(mouseX, mouseY, x, y, width, height);
+        bevel(x, y, width, height, !enabled ? 0xff7f7f7f : hover ? 0xffa8b4c2 : 0xffc6c6c6, 0xff000000);
     }
 
     public static void border(int x, int y, int width, int height, int color) {

@@ -8,7 +8,7 @@ import lombok.Value;
 import lombok.With;
 
 /**
- * Immutable terminal preferences for one player at one request table.
+ * Immutable terminal preferences for one player, combining table-local display and player-wide order settings.
  */
 @Value
 @AllArgsConstructor
@@ -16,9 +16,9 @@ import lombok.With;
 public class RequestTableDisplaySettings {
 
     public static final RequestTableDisplaySettings DEFAULT = new RequestTableDisplaySettings(
-        SortMode.NAME,
-        SortDirection.ASCENDING,
-        FilterMode.BOTH);
+            SortMode.NAME,
+            SortDirection.ASCENDING,
+            FilterMode.BOTH);
     private static final String NBT_SORT_MODE = "sortMode";
     private static final String NBT_SORT_DIRECTION = "sortDirection";
     private static final String NBT_FILTER_MODE = "filterMode";
@@ -29,6 +29,7 @@ public class RequestTableDisplaySettings {
     private static final String NBT_TERMINAL_STYLE = "terminalStyle";
     private static final String NBT_SHOW_ITEMS = "showItems";
     private static final String NBT_SHOW_FLUIDS = "showFluids";
+    private static final String NBT_ORDER_SETTINGS = "orderSettings";
     private static final int MAX_SEARCH_LENGTH = 256;
     SortMode sortMode;
     SortDirection sortDirection;
@@ -40,24 +41,26 @@ public class RequestTableDisplaySettings {
     TerminalStyle terminalStyle;
     boolean showItems;
     boolean showFluids;
+    RequestTableOrderSettings orderSettings;
 
     public RequestTableDisplaySettings(SortMode sortMode, SortDirection sortDirection, FilterMode filterMode) {
         this(sortMode, sortDirection, filterMode, true);
     }
 
     public RequestTableDisplaySettings(SortMode sortMode, SortDirection sortDirection, FilterMode filterMode,
-                                       boolean requestMessagesEnabled) {
+            boolean requestMessagesEnabled) {
         this(
-            sortMode,
-            sortDirection,
-            filterMode,
-            requestMessagesEnabled,
-            SearchBoxMode.STANDARD,
-            false,
-            "",
-            TerminalStyle.SMALL,
-            true,
-            true);
+                sortMode,
+                sortDirection,
+                filterMode,
+                requestMessagesEnabled,
+                SearchBoxMode.STANDARD,
+                false,
+                "",
+                TerminalStyle.SMALL,
+                true,
+                true,
+                RequestTableOrderSettings.DEFAULT);
     }
 
     public static RequestTableDisplaySettings readFromNBT(NBTTagCompound tag) {
@@ -65,33 +68,35 @@ public class RequestTableDisplaySettings {
             return DEFAULT;
         }
         RequestTableDisplaySettings settings = fromOrdinals(
-            tag.getInteger(NBT_SORT_MODE),
-            tag.getInteger(NBT_SORT_DIRECTION),
-            tag.getInteger(NBT_FILTER_MODE),
-            !tag.hasKey(NBT_REQUEST_MESSAGES) || tag.getBoolean(NBT_REQUEST_MESSAGES))
-            .withSearchBoxMode(
-                valueOrDefault(
-                    SearchBoxMode.values(),
-                    tag.getInteger(NBT_SEARCH_BOX_MODE),
-                    DEFAULT.searchBoxMode))
-            .withSaveSearch(tag.getBoolean(NBT_SAVE_SEARCH))
-            .withTerminalStyle(
-                valueOrDefault(
-                    TerminalStyle.values(),
-                    tag.getInteger(NBT_TERMINAL_STYLE),
-                    DEFAULT.terminalStyle))
-            .withShowItems(!tag.hasKey(NBT_SHOW_ITEMS) || tag.getBoolean(NBT_SHOW_ITEMS))
-            .withShowFluids(!tag.hasKey(NBT_SHOW_FLUIDS) || tag.getBoolean(NBT_SHOW_FLUIDS));
+                tag.getInteger(NBT_SORT_MODE),
+                tag.getInteger(NBT_SORT_DIRECTION),
+                tag.getInteger(NBT_FILTER_MODE),
+                !tag.hasKey(NBT_REQUEST_MESSAGES) || tag.getBoolean(NBT_REQUEST_MESSAGES))
+                        .withSearchBoxMode(
+                                valueOrDefault(
+                                        SearchBoxMode.values(),
+                                        tag.getInteger(NBT_SEARCH_BOX_MODE),
+                                        DEFAULT.searchBoxMode))
+                        .withSaveSearch(tag.getBoolean(NBT_SAVE_SEARCH))
+                        .withTerminalStyle(
+                                valueOrDefault(
+                                        TerminalStyle.values(),
+                                        tag.getInteger(NBT_TERMINAL_STYLE),
+                                        DEFAULT.terminalStyle))
+                        .withShowItems(!tag.hasKey(NBT_SHOW_ITEMS) || tag.getBoolean(NBT_SHOW_ITEMS))
+                        .withShowFluids(!tag.hasKey(NBT_SHOW_FLUIDS) || tag.getBoolean(NBT_SHOW_FLUIDS))
+                        .withOrderSettings(
+                                RequestTableOrderSettings.readFromNBT(tag.getCompoundTag(NBT_ORDER_SETTINGS)));
         return settings.rememberSearch(tag.getString(NBT_SAVED_SEARCH));
     }
 
     public static RequestTableDisplaySettings fromOrdinals(int sortMode, int sortDirection, int filterMode,
-                                                           boolean requestMessagesEnabled) {
+            boolean requestMessagesEnabled) {
         return new RequestTableDisplaySettings(
-            valueOrDefault(SortMode.values(), sortMode, DEFAULT.sortMode),
-            valueOrDefault(SortDirection.values(), sortDirection, DEFAULT.sortDirection),
-            valueOrDefault(FilterMode.values(), filterMode, DEFAULT.filterMode),
-            requestMessagesEnabled);
+                valueOrDefault(SortMode.values(), sortMode, DEFAULT.sortMode),
+                valueOrDefault(SortDirection.values(), sortDirection, DEFAULT.sortDirection),
+                valueOrDefault(FilterMode.values(), filterMode, DEFAULT.filterMode),
+                requestMessagesEnabled);
     }
 
     private static <T> T valueOrDefault(T[] values, int ordinal, T defaultValue) {
@@ -151,6 +156,9 @@ public class RequestTableDisplaySettings {
         tag.setInteger(NBT_TERMINAL_STYLE, terminalStyle.ordinal());
         tag.setBoolean(NBT_SHOW_ITEMS, showItems);
         tag.setBoolean(NBT_SHOW_FLUIDS, showFluids);
+        NBTTagCompound orderTag = new NBTTagCompound();
+        orderSettings.writeToNBT(orderTag);
+        tag.setTag(NBT_ORDER_SETTINGS, orderTag);
     }
 
     @Getter

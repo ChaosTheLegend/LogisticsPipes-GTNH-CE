@@ -88,6 +88,10 @@ public class RequestTableLayout {
     public final int craftingRequestY;
     public final int craftingRequestWidth;
     public final int craftingRequestHeight;
+    public final int craftingAllX;
+    public final int craftingAllY;
+    public final int craftingAllWidth;
+    public final int craftingAllHeight;
 
     public final int playerLeft;
     public final int playerTop;
@@ -151,12 +155,16 @@ public class RequestTableLayout {
         craftingRequestX = panelLeft + panelWidth - craftingRequestWidth;
         craftingRequestY = craftingAmountY - 1;
         craftingAmountX = craftingRequestX - 4 - craftingAmountWidth;
+        craftingAllWidth = 26;
+        craftingAllHeight = 12;
+        craftingAllX = craftingRequestX + craftingRequestWidth - craftingAllWidth;
+        craftingAllY = craftingAmountY - 14;
 
         panelTop = searchY + searchHeight + headerMargin;
         searchX = panelLeft;
         searchWidth = panelWidth;
         panelHeight = Math
-            .max(PANEL_CELL, (craftingTop - 1 - panelTop - CONTENT_CRAFTING_GAP) / PANEL_CELL * PANEL_CELL);
+                .max(PANEL_CELL, (craftingTop - 1 - panelTop - CONTENT_CRAFTING_GAP) / PANEL_CELL * PANEL_CELL);
         scrollbarX = panelLeft + panelWidth + 3;
 
         monitorButtonX = centralLeft + centralWidth + 6;
@@ -169,7 +177,7 @@ public class RequestTableLayout {
     public static int getGuiHeight(int screenHeight, RequestTableDisplaySettings.TerminalStyle style) {
         int available = Math.max(MIN_GUI_HEIGHT, screenHeight - NEI_TOP_MARGIN - NEI_BOTTOM_MARGIN);
         int target = style == RequestTableDisplaySettings.TerminalStyle.SMALL ? Math.min(SMALL_HEIGHT, available)
-            : Math.max(MIN_GUI_HEIGHT, available - TALL_HEIGHT_TRIM);
+                : Math.max(MIN_GUI_HEIGHT, available - TALL_HEIGHT_TRIM);
         // Whole rows keep the crafting gap at five pixels in each spacing mode.
         if (target >= SMALL_HEIGHT) {
             return SMALL_HEIGHT + (target - SMALL_HEIGHT) / SLOT * SLOT;

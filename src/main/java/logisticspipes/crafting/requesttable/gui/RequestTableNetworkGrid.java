@@ -10,6 +10,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettings;
+import logisticspipes.crafting.requesttable.storage.RequestTableFluidDisplay;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import lombok.Getter;
 
@@ -86,24 +87,24 @@ public class RequestTableNetworkGrid {
             int x = layout.panelLeft + 1 + (localIndex % columns) * RequestTableLayout.PANEL_CELL;
             int y = layout.panelTop + 1 + (localIndex / columns) * RequestTableLayout.PANEL_CELL;
             boolean hover = inside(
-                mouseX,
-                mouseY,
-                x - 1,
-                y - 1,
-                RequestTableLayout.PANEL_CELL,
-                RequestTableLayout.PANEL_CELL);
+                    mouseX,
+                    mouseY,
+                    x - 1,
+                    y - 1,
+                    RequestTableLayout.PANEL_CELL,
+                    RequestTableLayout.PANEL_CELL);
             if (hover) {
                 Gui.drawRect(x, y, x + 16, y + 16, 0x50ffffff);
             }
             RequestTableRender.item(entry.getDisplayStack(), x, y, 100.0F, false);
             if (!entry.fluid() && entry.getTotalAmount() != 1) {
                 RequestTableGuiStyle.drawCount(
-                    screen.getMC().fontRenderer,
-                    RequestTableGuiStyle.formatCount(entry.getTotalAmount()),
-                    x,
-                    y,
-                    0xffffff,
-                    false);
+                        screen.getMC().fontRenderer,
+                        RequestTableGuiStyle.formatCount(entry.getTotalAmount()),
+                        x,
+                        y,
+                        0xffffff,
+                        false);
             }
             drawInternalAmount(screen, entry, x, y);
             if (entry.craftable()) {
@@ -117,13 +118,13 @@ public class RequestTableNetworkGrid {
             return;
         }
         RequestTableGuiStyle.drawCount(
-            screen.getMC().fontRenderer,
-            RequestTableGuiStyle.formatCount(entry.internalAmount()),
-            x,
-            y,
-            0xffdf80,
-            true,
-            entry.craftable() ? 11 : 0);
+                screen.getMC().fontRenderer,
+                entry.fluid() ? RequestTableFluidDisplay.formatAmount(entry.internalAmount())
+                        : RequestTableGuiStyle.formatCount(entry.internalAmount()),
+                x + 1,
+                y + 2,
+                0xffdf80,
+                true);
     }
 
     /**
@@ -131,12 +132,12 @@ public class RequestTableNetworkGrid {
      */
     public RequestTableNetworkEntry getEntryAt(RequestTableLayout layout, int mouseX, int mouseY) {
         if (!inside(
-            mouseX,
-            mouseY,
-            layout.panelLeft,
-            layout.panelTop,
-            layout.panelWidth,
-            layout.getVisiblePanelRows() * RequestTableLayout.PANEL_CELL)) {
+                mouseX,
+                mouseY,
+                layout.panelLeft,
+                layout.panelTop,
+                layout.panelWidth,
+                layout.getVisiblePanelRows() * RequestTableLayout.PANEL_CELL)) {
             return null;
         }
         List<RequestTableNetworkEntry> filtered = entries.getVisibleEntries();

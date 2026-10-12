@@ -12,9 +12,27 @@ and contents. Mk2 uses the existing logistics item and fluid request engines.
 - Per-player controls select sorting, item/fluid visibility, stored/craftable filtering, request messages,
   search focus, one-way search synchronization to NEI, remembered search text and small/tall terminal layouts.
 - Requests open an amount popup initially set to zero, with stock counts and increment/decrement buttons.
+  Middle-click opens the popup for any entry; left/right clicks also open it when the entry has no internal stock
+  and the cursor is empty. With internal stock, left/right clicks retain their storage behavior. Held items and
+  fluid cells retain their insertion/container behavior; Ctrl-click remains an explicit request shortcut.
+  All fills the amount with network stock; the crafting-set All button selects the largest complete set count
+  supported by network stock. The existing request buttons submit these amounts.
+  The gear beside the popup's close button opens an in-game editor with four positive values each for items and
+  fluids (mB), in left-to-right order. Both default to `1, 10, 100, 1000`. Save applies the steps immediately;
+  Back discards edits and Reset restores the defaults in the editor. These preferences are saved per player across
+  all request tables and survive
+  reconnects and respawns. The editor preserves the pending order amount and never submits an order itself.
 - Internal storage and the cursor synchronize from the server after player interaction and routed arrivals.
+  Vanilla Shift-double-click batches matching player-inventory stacks into one server transfer, respecting the
+  active tab's item/fluid rules and available storage space. Rapid player shift-clicks use stable inventory indexes
+  so a pending snapshot does not discard them.
 - Crafting uses the table's storage and the player's inventory, previews the available output and can request
-  missing ingredients. NEI recipe import fills the ghost crafting grid.
+  complete ingredient sets without subtracting existing table or player stock. NEI recipe import fills the ghost crafting grid.
+  Ingredient matching ignores NBT and tool wear while retaining subtype metadata. Returned tools are needed once
+  per occupied tool slot when requesting sets. Requests
+  select the actual stored damage/NBT variants. Actual crafting still validates the recipe and applies tool wear.
+  Surviving tools return to their original table or player-inventory slot before crafting byproducts are inserted.
+  If a compressed slot holds several tools, the used tool keeps that slot and unchanged tools are stored separately.
 - Filled and empty fluid cells support whole-stack left clicks and one-cell right clicks, with converted cells
   returned to the inventory for right clicks. Fluid-tab shift clicks accept filled cells; ordinary items stay
   put. Main-tab shift clicks handle fluid cells specially and otherwise insert items. Item-tab shift clicks

@@ -2,26 +2,25 @@ package logisticspipes.crafting.requesttable.gui;
 
 import static logisticspipes.crafting.requesttable.gui.RequestTableRender.inside;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import net.minecraft.block.Block;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
 import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import codechicken.nei.LayoutManager;
-import cpw.mods.fml.common.registry.GameRegistry;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.RequestTableContainer;
@@ -51,6 +50,7 @@ import logisticspipes.utils.gui.GuiGraphics;
 import logisticspipes.utils.gui.GuiSearchBar;
 import logisticspipes.utils.gui.ISubGuiControler;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
+import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.string.StringUtils;
 import lombok.Getter;
 
@@ -79,6 +79,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     private static final int ITEM_UPGRADES_BUTTON = 16;
     private static final int MONITOR_GRID_BUTTON = 17;
     private static final int MONITOR_TREE_BUTTON = 18;
+    private static final int ALL_INGREDIENTS_BUTTON = 19;
 
     /**
      * -- GETTER --
@@ -90,6 +91,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     private final EntityPlayer player;
     private final RequestTableContainer container;
     private final RequestTableNetworkGrid networkGrid = new RequestTableNetworkGrid();
+    private final Map<ItemIdentifier, Integer> networkStock = new HashMap<>();
     private final RequestTableRequestOverlay requestOverlay = new RequestTableRequestOverlay();
     private final RequestTableItemRenderer storageItemRenderer = new RequestTableItemRenderer();
     private final RequestTableMonitorModel monitorModel;
@@ -100,6 +102,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     private RequestTableNumberField ingredientAmountField;
     private RequestTableIconButton sendButton;
     private RequestTableIconButton requestIngredientsButton;
+    private RequestTableButton allIngredientsButton;
     private RequestTableIconButton sortModeButton;
     private RequestTableIconButton sortDirectionButton;
     private RequestTableIconButton filterModeButton;
@@ -128,6 +131,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     private boolean searchEdited;
     private boolean searchFocusChosen;
     private boolean restoringSearch;
+    private List<Integer> playerShiftClickBatch;
 
     /**
      * Creates the client GUI for the new request table.
@@ -146,59 +150,67 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     @Override
     public void initGui() {
         xSize = view == RequestTableView.CRAFTING_MONITOR
-            ? Math.min(416, Math.max(RequestTableLayout.GUI_WIDTH, width - 16))
-            : RequestTableLayout.GUI_WIDTH;
+                ? Math.min(416, Math.max(RequestTableLayout.GUI_WIDTH, width - 16))
+                : RequestTableLayout.GUI_WIDTH;
         ySize = RequestTableLayout.getGuiHeight(height, displaySettings.getTerminalStyle());
         super.initGui();
         updateLayout();
         buttonList.clear();
         sendButton = new RequestTableIconButton(
-            SEND_BUTTON,
-            layout.sendButtonX,
-            layout.sendButtonY,
-            layout.sendButtonWidth,
-            layout.sendButtonHeight,
-            Icon.SEND);
+                SEND_BUTTON,
+                layout.sendButtonX,
+                layout.sendButtonY,
+                layout.sendButtonWidth,
+                layout.sendButtonHeight,
+                Icon.SEND);
         buttonList.add(sendButton);
         requestIngredientsButton = new RequestTableIconButton(
-            REQUEST_INGREDIENTS_BUTTON,
-            layout.craftingRequestX,
-            layout.craftingRequestY,
-            layout.craftingRequestWidth,
-            layout.craftingRequestHeight,
-            Icon.REQUEST);
+                REQUEST_INGREDIENTS_BUTTON,
+                layout.craftingRequestX,
+                layout.craftingRequestY,
+                layout.craftingRequestWidth,
+                layout.craftingRequestHeight,
+                Icon.REQUEST);
         buttonList.add(requestIngredientsButton);
+        allIngredientsButton = new RequestTableButton(
+                ALL_INGREDIENTS_BUTTON,
+                layout.craftingAllX,
+                layout.craftingAllY,
+                layout.craftingAllWidth,
+                layout.craftingAllHeight,
+                "All");
+        buttonList.add(allIngredientsButton);
         sortModeButton = new RequestTableIconButton(
-            SORT_MODE_BUTTON,
-            layout.displayButtonX,
-            layout.sortModeButtonY,
-            layout.displayButtonWidth,
-            layout.displayButtonHeight,
-            Icon.NAME);
+                SORT_MODE_BUTTON,
+                layout.displayButtonX,
+                layout.sortModeButtonY,
+                layout.displayButtonWidth,
+                layout.displayButtonHeight,
+                Icon.NAME);
         buttonList.add(sortModeButton);
         sortDirectionButton = new RequestTableIconButton(
-            SORT_DIRECTION_BUTTON,
-            layout.displayButtonX,
-            layout.sortDirectionButtonY,
-            layout.displayButtonWidth,
-            layout.displayButtonHeight,
-            Icon.ASCENDING);
+                SORT_DIRECTION_BUTTON,
+                layout.displayButtonX,
+                layout.sortDirectionButtonY,
+                layout.displayButtonWidth,
+                layout.displayButtonHeight,
+                Icon.ASCENDING);
         buttonList.add(sortDirectionButton);
         filterModeButton = new RequestTableIconButton(
-            FILTER_MODE_BUTTON,
-            layout.visibilityButtonX,
-            layout.filterModeButtonY,
-            layout.displayButtonWidth,
-            layout.displayButtonHeight,
-            Icon.BOTH);
+                FILTER_MODE_BUTTON,
+                layout.visibilityButtonX,
+                layout.filterModeButtonY,
+                layout.displayButtonWidth,
+                layout.displayButtonHeight,
+                Icon.BOTH);
         buttonList.add(filterModeButton);
         requestMessagesButton = new RequestTableIconButton(
-            REQUEST_MESSAGES_BUTTON,
-            layout.displayButtonX,
-            layout.requestMessagesButtonY,
-            layout.displayButtonWidth,
-            layout.displayButtonHeight,
-            Icon.MESSAGES_ON);
+                REQUEST_MESSAGES_BUTTON,
+                layout.displayButtonX,
+                layout.requestMessagesButtonY,
+                layout.displayButtonWidth,
+                layout.displayButtonHeight,
+                Icon.MESSAGES_ON);
         buttonList.add(requestMessagesButton);
         searchModeButton = addSidebarButton(SEARCH_MODE_BUTTON, Icon.SEARCH_STANDARD);
         saveSearchButton = addSidebarButton(SAVE_SEARCH_BUTTON, Icon.SAVE_SEARCH_OFF);
@@ -209,39 +221,36 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         monitorGridButton = addSidebarButton(MONITOR_GRID_BUTTON, Icon.MONITOR_GRID);
         monitorTreeButton = addSidebarButton(MONITOR_TREE_BUTTON, Icon.MONITOR_TREE);
         networkButton = new RequestTableIconButton(
-            NETWORK_VIEW_BUTTON,
-            layout.networkButtonX,
-            layout.networkButtonY,
-            RequestTableLayout.MAIN_TAB_WIDTH,
-            RequestTableLayout.TAB_HEIGHT,
-            Icon.NETWORK);
+                NETWORK_VIEW_BUTTON,
+                layout.networkButtonX,
+                layout.networkButtonY,
+                RequestTableLayout.MAIN_TAB_WIDTH,
+                RequestTableLayout.TAB_HEIGHT,
+                Icon.NETWORK);
         networkButton.setTabLabel("Main");
         itemButton = new RequestTableIconButton(
-            ITEM_VIEW_BUTTON,
-            layout.itemButtonX,
-            layout.itemButtonY,
-            RequestTableLayout.STORAGE_TAB_WIDTH,
-            RequestTableLayout.TAB_HEIGHT,
-            Icon.STORED);
+                ITEM_VIEW_BUTTON,
+                layout.itemButtonX,
+                layout.itemButtonY,
+                RequestTableLayout.STORAGE_TAB_WIDTH,
+                RequestTableLayout.TAB_HEIGHT,
+                Icon.ITEMS_ON);
         itemButton.setTabLabel("Items");
-        itemButton.setItem(new ItemStack(Blocks.chest));
         fluidButton = new RequestTableIconButton(
-            FLUID_VIEW_BUTTON,
-            layout.fluidButtonX,
-            layout.fluidButtonY,
-            RequestTableLayout.STORAGE_TAB_WIDTH,
-            RequestTableLayout.TAB_HEIGHT,
-            Icon.STORED);
+                FLUID_VIEW_BUTTON,
+                layout.fluidButtonX,
+                layout.fluidButtonY,
+                RequestTableLayout.STORAGE_TAB_WIDTH,
+                RequestTableLayout.TAB_HEIGHT,
+                Icon.FLUIDS_ON);
         fluidButton.setTabLabel("Fluids");
-        Block tank = GameRegistry.findBlock("BuildCraft|Factory", "tankBlock");
-        fluidButton.setItem(tank == null ? new ItemStack(Items.water_bucket) : new ItemStack(tank));
         clearCraftingButton = new RequestTableIconButton(
-            CLEAR_CRAFTING_BUTTON,
-            layout.craftingClearX,
-            layout.craftingClearY,
-            layout.craftingClearSize,
-            layout.craftingClearSize,
-            Icon.CLEAR);
+                CLEAR_CRAFTING_BUTTON,
+                layout.craftingClearX,
+                layout.craftingClearY,
+                layout.craftingClearSize,
+                layout.craftingClearSize,
+                Icon.CLEAR);
         buttonList.add(networkButton);
         buttonList.add(itemButton);
         buttonList.add(fluidButton);
@@ -251,45 +260,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         buttonList.add(monitorButton);
         updateDisplayButtons();
         if (search == null) {
-            search = new GuiSearchBar("new_request_table_search") {
-
-                @Override
-                public void reposition(int left, int top, int width, int height) {
-                    super.reposition(left, top, width, height);
-                    setDimensionsAndColor();
-                }
-
-                @Override
-                protected void setDimensionsAndColor() {
-                    field.setEnableBackgroundDrawing(false);
-                    field.setCanLoseFocus(false);
-                    field.xPosition = x + 3;
-                    field.yPosition = y + Math.max(1, (h - 8) / 2);
-                    field.width = w - 6;
-                    field.height = 8;
-                    field.setTextColor(0xffe0e0e0);
-                }
-
-                @Override
-                public void draw(int mouseX, int mouseY) {
-                    RequestTableGuiStyle.inset(x, y, w, h);
-                    if (isFocused()) {
-                        Gui.drawRect(x + 1, y + 1, x + w - 1, y + h - 1, 0xff555555);
-                    }
-                    super.draw(mouseX, mouseY);
-                }
-
-                @Override
-                public void setText(String text) {
-                    super.setText(text);
-                    field.setCursorPositionEnd();
-                }
-
-                @Override
-                public void onTextChange(String oldText) {
-                    handleSearchTextChange(oldText);
-                }
-            };
+            search = new RequestTableSearchBar();
         }
         search.reposition(layout.searchX, layout.searchY, layout.searchWidth, layout.searchHeight);
         initializeSearch();
@@ -300,12 +271,12 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
 
     private RequestTableIconButton addSidebarButton(int id, Icon icon) {
         RequestTableIconButton button = new RequestTableIconButton(
-            id,
-            layout.displayButtonX,
-            layout.sortModeButtonY,
-            layout.displayButtonWidth,
-            layout.displayButtonHeight,
-            icon);
+                id,
+                layout.displayButtonX,
+                layout.sortModeButtonY,
+                layout.displayButtonWidth,
+                layout.displayButtonHeight,
+                icon);
         buttonList.add(button);
         return button;
     }
@@ -314,9 +285,13 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
      * Receives the server-built network list.
      */
     public void handleNetworkContent(List<RequestTableNetworkEntry> entries,
-                                     RequestTableDisplaySettings displaySettings) {
+            RequestTableDisplaySettings displaySettings) {
         boolean styleChanged = this.displaySettings.getTerminalStyle() != displaySettings.getTerminalStyle();
         this.displaySettings = displaySettings;
+        networkStock.clear();
+        for (RequestTableNetworkEntry entry : entries) {
+            if (!entry.fluid()) networkStock.put(entry.stack().getItem(), Math.max(0, entry.networkAmount()));
+        }
         settingsReceived = true;
         if (styleChanged && mc != null) {
             initGui();
@@ -333,8 +308,8 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
      */
     public boolean isForTable(int x, int y, int z) {
         return table.container != null && table.container.xCoord == x
-            && table.container.yCoord == y
-            && table.container.zCoord == z;
+                && table.container.yCoord == y
+                && table.container.zCoord == z;
     }
 
     /** Exposes virtual grid entries to NEI using the same hit detection as requests. */
@@ -364,6 +339,10 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             requestIngredientsButton.height = layout.craftingRequestHeight;
             requestIngredientsButton.visible = view != RequestTableView.CRAFTING_MONITOR;
             requestIngredientsButton.enabled = container.isInventoryReady() && hasCraftingInputs();
+            allIngredientsButton.xPosition = layout.craftingAllX;
+            allIngredientsButton.yPosition = layout.craftingAllY;
+            allIngredientsButton.visible = view != RequestTableView.CRAFTING_MONITOR;
+            allIngredientsButton.enabled = container.isInventoryReady() && getNetworkCraftingSets() > 0;
             updateDisplayButtonLayout();
             networkButton.setSelected(view == RequestTableView.NETWORK);
             itemButton.setSelected(view == RequestTableView.ITEM_STORAGE);
@@ -380,23 +359,23 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             itemButton.drawBehindPanel(mc, mouseX, mouseY);
             fluidButton.drawBehindPanel(mc, mouseX, mouseY);
             GuiGraphics.drawGuiBackGround(
-                mc,
-                layout.centralLeft,
-                layout.centralTop,
-                layout.centralLeft + layout.centralWidth,
-                bottom,
-                zLevel,
-                true);
+                    mc,
+                    layout.centralLeft,
+                    layout.centralTop,
+                    layout.centralLeft + layout.centralWidth,
+                    bottom,
+                    zLevel,
+                    true);
             drawHeader();
             drawMainPanel(mouseX, mouseY);
             if (view != RequestTableView.CRAFTING_MONITOR) {
                 drawCraftingArea();
                 if (!layout.compact) {
                     mc.fontRenderer.drawString(
-                        "Inventory",
-                        layout.playerLeft,
-                        layout.playerTop - 12,
-                        RequestTableGuiStyle.TEXT);
+                            "Inventory",
+                            layout.playerLeft,
+                            layout.playerTop - 12,
+                            RequestTableGuiStyle.TEXT);
                 }
                 GuiGraphics.drawPlayerInventoryBackground(mc, layout.playerLeft, layout.playerTop);
             }
@@ -415,10 +394,10 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
                 default -> throw new IllegalStateException("Unexpected value: " + view);
             };
             mc.fontRenderer.drawString(
-                title,
-                layout.searchX,
-                layout.searchY + (layout.searchHeight - 8) / 2,
-                RequestTableGuiStyle.TEXT);
+                    title,
+                    layout.searchX,
+                    layout.searchY + (layout.searchHeight - 8) / 2,
+                    RequestTableGuiStyle.TEXT);
         }
     }
 
@@ -436,18 +415,18 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     private void drawStoragePanel() {
         int columns = RequestTableLayout.INVENTORY_COLUMNS;
         int size = view == RequestTableView.ITEM_STORAGE ? table.inv.getSizeInventory()
-            : table.getFluidStorage().getSizeInventory();
+                : table.getFluidStorage().getSizeInventory();
         int rows = (size + columns - 1) / columns;
         int visibleRows = layout.getVisibleStorageRows();
         int maxScroll = Math.max(0, rows - visibleRows);
         drawStorageScrollbar(maxScroll);
         RequestTableRender.slotGrid(
-            mc,
-            layout.panelLeft,
-            layout.panelTop,
-            columns,
-            visibleRows,
-            size - storageScrollRow * columns);
+                mc,
+                layout.panelLeft,
+                layout.panelTop,
+                columns,
+                visibleRows,
+                size - storageScrollRow * columns);
     }
 
     private void drawStorageScrollbar(int maxScroll) {
@@ -464,16 +443,16 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             Gui.drawRect(arrowX + 8 + i, arrowY - 4 + i, arrowX + 9 + i, arrowY + 7 - i, 0xff707070);
         }
         mc.fontRenderer
-            .drawString("Sets", layout.craftingAmountX, layout.craftingAmountY - 12, RequestTableGuiStyle.TEXT);
+                .drawString("Sets", layout.craftingAmountX, layout.craftingAmountY - 12, RequestTableGuiStyle.TEXT);
         if (ingredientAmountField != null) {
             ingredientAmountField.drawTextBox();
         }
         String amount = StringUtils.getFormatedStackSize(container.getCraftableAmount(), true);
         mc.fontRenderer.drawString(
-            "Craftable: " + amount,
-            layout.getCraftableLabelX(),
-            layout.getCraftableLabelY(),
-            container.getCraftableAmount() > 0 ? 0x37622e : RequestTableGuiStyle.MUTED);
+                "Craftable: " + amount,
+                layout.getCraftableLabelX(),
+                layout.getCraftableLabelY(),
+                container.getCraftableAmount() > 0 ? 0x37622e : RequestTableGuiStyle.MUTED);
     }
 
     private boolean hasCraftingInputs() {
@@ -543,7 +522,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         if (requestOverlay.isOpen()) {
             try (var ignored = RequestTableRender.guiState()) {
                 Gui.drawRect(0, 0, width, height, 0x66000000);
-                requestOverlay.render(this);
+                requestOverlay.render(this, mouseX, mouseY);
             }
         } else if (!hasSubGui()) {
             drawDisplayButtonTooltip(mouseX, mouseY);
@@ -555,6 +534,11 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     protected void actionPerformed(GuiButton button) {
         switch (button.id) {
             case REQUEST_INGREDIENTS_BUTTON -> requestCraftingIngredients();
+            case ALL_INGREDIENTS_BUTTON -> {
+                ingredientAmountField.setText(Integer.toString(getNetworkCraftingSets()));
+                ingredientAmountField.setCursorPositionEnd();
+                ingredientAmountField.setFocused(false);
+            }
             case SORT_MODE_BUTTON -> applyDisplaySettings(displaySettings.nextSortMode());
             case SORT_DIRECTION_BUTTON -> applyDisplaySettings(displaySettings.nextSortDirection());
             case FILTER_MODE_BUTTON -> applyDisplaySettings(displaySettings.nextFilterMode());
@@ -567,24 +551,24 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             case MONITOR_GRID_BUTTON -> monitorPanel.setTree(false);
             case MONITOR_TREE_BUTTON -> monitorPanel.setTree(true);
             case ITEM_UPGRADES_BUTTON -> MainProxy
-                .sendPacketToServer(PacketHandler.getPacket(RequestTableOpenUpgradesPacket.class).setInteger(0));
+                    .sendPacketToServer(PacketHandler.getPacket(RequestTableOpenUpgradesPacket.class).setInteger(0));
             case NETWORK_VIEW_BUTTON -> setView(RequestTableView.NETWORK);
             case ITEM_VIEW_BUTTON -> setView(RequestTableView.ITEM_STORAGE);
             case FLUID_VIEW_BUTTON -> setView(RequestTableView.FLUID_STORAGE);
             case CRAFTING_MONITOR_BUTTON -> {
                 if (button.enabled) {
                     setView(
-                        view == RequestTableView.CRAFTING_MONITOR ? monitorReturnView
-                            : RequestTableView.CRAFTING_MONITOR);
+                            view == RequestTableView.CRAFTING_MONITOR ? monitorReturnView
+                                    : RequestTableView.CRAFTING_MONITOR);
                 }
             }
             case SEND_BUTTON -> MainProxy.sendPacketToServer(
-                PacketHandler.getPacket(RequestTableSendStoragePacket.class)
-                    .setInteger(view == RequestTableView.FLUID_STORAGE ? 1 : 0).setTilePos(table.container));
+                    PacketHandler.getPacket(RequestTableSendStoragePacket.class)
+                            .setInteger(view == RequestTableView.FLUID_STORAGE ? 1 : 0).setTilePos(table.container));
             case CLEAR_CRAFTING_BUTTON -> {
                 table.clearCraftingGrid();
                 MainProxy.sendPacketToServer(
-                    PacketHandler.getPacket(RequestTableClearCraftingPacket.class).setTilePos(table.container));
+                        PacketHandler.getPacket(RequestTableClearCraftingPacket.class).setTilePos(table.container));
             }
         }
     }
@@ -595,7 +579,13 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         if (scrollbarDragging) {
             return;
         }
-        if (requestOverlay.mouseClicked(mouseX, mouseY, button, this::submitOverlayRequest)) {
+        if (requestOverlay.mouseClicked(
+                mouseX,
+                mouseY,
+                button,
+                this::submitOverlayRequest,
+                this,
+                settings -> applyDisplaySettings(displaySettings.withOrderSettings(settings)))) {
             return;
         }
         searchFocusChosen = true;
@@ -605,17 +595,17 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         if (view != RequestTableView.CRAFTING_MONITOR && ingredientAmountField != null) {
             ingredientAmountField.mouseClicked(mouseX, mouseY, button);
             if (inside(
-                mouseX,
-                mouseY,
-                layout.craftingAmountX,
-                layout.craftingAmountY,
-                layout.craftingAmountWidth,
-                layout.craftingAmountHeight)) {
+                    mouseX,
+                    mouseY,
+                    layout.craftingAmountX,
+                    layout.craftingAmountY,
+                    layout.craftingAmountWidth,
+                    layout.craftingAmountHeight)) {
                 return;
             }
         }
         if (view != RequestTableView.CRAFTING_MONITOR
-            && inside(mouseX, mouseY, layout.scrollbarX, layout.panelTop, 7, layout.panelHeight)) {
+                && inside(mouseX, mouseY, layout.scrollbarX, layout.panelTop, 7, layout.panelHeight)) {
             if (button == 0) {
                 startScrollbarDrag(mouseY);
             }
@@ -630,28 +620,28 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             networkGrid.setSearch(getSearchText());
             RequestTableNetworkEntry entry = networkGrid.getEntryAt(layout, mouseX, mouseY);
             if ((button == 0 || button == 1) && !shouldOpenRequestOverlay(button)
-                && mc.thePlayer.inventory.getItemStack() != null
-                && inside(
-                mouseX,
-                mouseY,
-                layout.panelLeft,
-                layout.panelTop,
-                layout.panelWidth,
-                layout.panelHeight)) {
+                    && mc.thePlayer.inventory.getItemStack() != null
+                    && inside(
+                            mouseX,
+                            mouseY,
+                            layout.panelLeft,
+                            layout.panelTop,
+                            layout.panelWidth,
+                            layout.panelHeight)) {
                 MainProxy.sendPacketToServer(
-                    PacketHandler.getPacket(RequestTableNetworkInteractPacket.class).setCursorInteraction(true)
-                        .setFluid(entry != null && entry.fluid()).setMouseButton(button).setShift(isShiftDown())
-                        .setStack(entry == null ? null : entry.stack()).setTilePos(table.container));
+                        PacketHandler.getPacket(RequestTableNetworkInteractPacket.class).setCursorInteraction(true)
+                                .setFluid(entry != null && entry.fluid()).setMouseButton(button).setShift(isShiftDown())
+                                .setStack(entry == null ? null : entry.stack()).setTilePos(table.container));
                 return;
             }
             if (entry != null) {
-                if (shouldOpenRequestOverlay(button)) {
-                    requestOverlay.open(entry, mc.fontRenderer, width, height);
+                if (shouldOpenRequestOverlay(button) || ((button == 0 || button == 1) && entry.internalAmount() <= 0)) {
+                    requestOverlay.open(entry, mc.fontRenderer, width, height, displaySettings.getOrderSettings());
                 } else if (button == 0 || button == 1) {
                     MainProxy.sendPacketToServer(
-                        PacketHandler.getPacket(RequestTableNetworkInteractPacket.class).setFluid(entry.fluid())
-                            .setMouseButton(button).setShift(isShiftDown()).setStack(entry.stack())
-                            .setTilePos(table.container));
+                            PacketHandler.getPacket(RequestTableNetworkInteractPacket.class).setFluid(entry.fluid())
+                                    .setMouseButton(button).setShift(isShiftDown()).setStack(entry.stack())
+                                    .setTilePos(table.container));
                 }
                 return;
             }
@@ -683,7 +673,19 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             }
             return;
         }
-        super.mouseMovedOrUp(mouseX, mouseY, button);
+        if (button != 0 || !isShiftDown()) {
+            super.mouseMovedOrUp(mouseX, mouseY, button);
+            return;
+        }
+        // Vanilla emits one shift-click per matching stack during a Shift-double-click release.
+        playerShiftClickBatch = new ArrayList<>();
+        try {
+            super.mouseMovedOrUp(mouseX, mouseY, button);
+        } finally {
+            List<Integer> slots = playerShiftClickBatch;
+            playerShiftClickBatch = null;
+            if (!slots.isEmpty()) sendPlayerShiftClicks(slots);
+        }
     }
 
     private void startScrollbarDrag(int mouseY) {
@@ -724,15 +726,17 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
 
     @Override
     protected void handleMouseClick(Slot slot, int slotId, int mouseButton, int mode) {
+        if (mode == 1 && slot != null && slot.inventory == player.inventory) {
+            // Player inventory indexes stay valid while a server snapshot changes the storage slot layout.
+            if (playerShiftClickBatch != null) {
+                playerShiftClickBatch.add(slot.getSlotIndex());
+            } else {
+                sendPlayerShiftClicks(Collections.singletonList(slot.getSlotIndex()));
+            }
+            return;
+        }
         // Wait for the server's layout before sending container slot indexes.
         if (container.isInventoryReady()) {
-            if (mode == 1 && slot != null && slot.inventory == player.inventory) {
-                container.awaitInventory();
-                MainProxy.sendPacketToServer(
-                    PacketHandler.getPacket(RequestTableShiftClickPacket.class)
-                        .setClick(container.windowId, slot.getSlotIndex(), view));
-                return;
-            }
             if (mode == 5 && (mouseButton & 3) == 2) {
                 container.awaitInventory();
             }
@@ -740,13 +744,23 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         }
     }
 
+    private void sendPlayerShiftClicks(List<Integer> slots) {
+        container.awaitInventory();
+        MainProxy.sendPacketToServer(
+                PacketHandler.getPacket(RequestTableShiftClickPacket.class).setClicks(container.windowId, slots, view));
+    }
+
     @Override
     protected void keyTyped(char typed, int keyCode) {
-        if (requestOverlay.keyTyped(typed, keyCode, this::submitOverlayRequest)) {
+        if (requestOverlay.keyTyped(
+                typed,
+                keyCode,
+                this::submitOverlayRequest,
+                settings -> applyDisplaySettings(displaySettings.withOrderSettings(settings)))) {
             return;
         }
         if (view != RequestTableView.CRAFTING_MONITOR && ingredientAmountField != null
-            && ingredientAmountField.isFocused()) {
+                && ingredientAmountField.isFocused()) {
             switch (keyCode) {
                 case Keyboard.KEY_ESCAPE -> ingredientAmountField.setFocused(false);
                 case Keyboard.KEY_RETURN, Keyboard.KEY_NUMPADENTER -> requestCraftingIngredients();
@@ -796,7 +810,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
      * Opens the normal request-result popup for this GUI.
      */
     public void handleRequestAnswer(Collection<IResource> items, boolean error, ISubGuiControler control,
-                                    EntityPlayer player) {
+            EntityPlayer player) {
         while (control.hasSubGui()) {
             control = control.getSubGui();
         }
@@ -813,9 +827,9 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         }
         RequestTableNetworkEntry entry = requestOverlay.getEntry();
         MainProxy.sendPacketToServer(
-            PacketHandler.getPacket(RequestTableSubmitPacket.class).setFluid(entry.fluid()).setDimension(dimension)
-                .setStack(entry.stack().getItem().makeStack(requestOverlay.getAmount()))
-                .setTilePos(table.container));
+                PacketHandler.getPacket(RequestTableSubmitPacket.class).setFluid(entry.fluid()).setDimension(dimension)
+                        .setStack(entry.stack().getItem().makeStack(requestOverlay.getAmount()))
+                        .setTilePos(table.container));
         requestOverlay.close();
         refreshNetwork();
     }
@@ -825,7 +839,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             return;
         }
         if (newView == RequestTableView.CRAFTING_MONITOR
-            && (!container.isInventoryReady() || !table.hasMonitoringUpgrade())) {
+                && (!container.isInventoryReady() || !table.hasMonitoringUpgrade())) {
             return;
         }
         if (newView == RequestTableView.FLUID_STORAGE && (!container.isInventoryReady() || !table.isFluidEnabled())) {
@@ -858,8 +872,8 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
 
     private void refreshNetwork() {
         MainProxy.sendPacketToServer(
-            PacketHandler.getPacket(RequestTableRefreshPacket.class).setInteger(dimension)
-                .setTilePos(table.container));
+                PacketHandler.getPacket(RequestTableRefreshPacket.class).setInteger(dimension)
+                        .setTilePos(table.container));
     }
 
     private void applyDisplaySettings(RequestTableDisplaySettings newSettings) {
@@ -880,8 +894,8 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
 
     private void sendDisplaySettings() {
         MainProxy.sendPacketToServer(
-            PacketHandler.getPacket(RequestTableDisplaySettingsPacket.class).setSettings(displaySettings)
-                .setTilePos(table.container));
+                PacketHandler.getPacket(RequestTableDisplaySettingsPacket.class).setSettings(displaySettings)
+                        .setTilePos(table.container));
     }
 
     private void initializeSearch() {
@@ -922,7 +936,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
     /** Only terminal edits are sent to NEI; changes made in NEI never replace terminal text. */
     private void syncNeiSearch() {
         if (displaySettings.getSearchBoxMode().isNeiSynced() && LayoutManager.searchField != null
-            && !getSearchText().equals(LayoutManager.searchField.text())) {
+                && !getSearchText().equals(LayoutManager.searchField.text())) {
             LayoutManager.searchField.setText(getSearchText());
         }
     }
@@ -950,7 +964,7 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
             return;
         }
         requestMessagesButton
-            .setIcon(displaySettings.isRequestMessagesEnabled() ? Icon.MESSAGES_ON : Icon.MESSAGES_OFF);
+                .setIcon(displaySettings.isRequestMessagesEnabled() ? Icon.MESSAGES_ON : Icon.MESSAGES_OFF);
         requestMessagesButton.setSelected(displaySettings.isRequestMessagesEnabled());
         searchModeButton.setIcon(switch (displaySettings.getSearchBoxMode()) {
             case AUTO -> Icon.SEARCH_AUTO;
@@ -968,11 +982,11 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         showFluidsButton.setIcon(displaySettings.isShowFluids() ? Icon.FLUIDS_ON : Icon.FLUIDS_OFF);
         showFluidsButton.setSelected(displaySettings.isShowFluids());
         sortModeButton.setIcon(
-            displaySettings.getSortMode() == RequestTableDisplaySettings.SortMode.NAME ? Icon.NAME : Icon.AMOUNT);
+                displaySettings.getSortMode() == RequestTableDisplaySettings.SortMode.NAME ? Icon.NAME : Icon.AMOUNT);
         sortDirectionButton.setIcon(
-            displaySettings.getSortDirection() == RequestTableDisplaySettings.SortDirection.ASCENDING
-                ? Icon.ASCENDING
-                : Icon.DESCENDING);
+                displaySettings.getSortDirection() == RequestTableDisplaySettings.SortDirection.ASCENDING
+                        ? Icon.ASCENDING
+                        : Icon.DESCENDING);
         filterModeButton.setIcon(switch (displaySettings.getFilterMode()) {
             case STORED -> Icon.STORED;
             case CRAFTABLE -> Icon.CRAFTABLE;
@@ -998,17 +1012,17 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         monitorGridButton.setSelected(!monitorPanel.isTree());
         monitorTreeButton.setSelected(monitorPanel.isTree());
         layoutSidebarColumn(
-            layout.displayButtonX,
-            monitorGridButton,
-            monitorTreeButton,
-            sendButton,
-            sortModeButton,
-            sortDirectionButton,
-            searchModeButton,
-            saveSearchButton,
-            terminalStyleButton,
-            requestMessagesButton,
-            itemUpgradesButton);
+                layout.displayButtonX,
+                monitorGridButton,
+                monitorTreeButton,
+                sendButton,
+                sortModeButton,
+                sortDirectionButton,
+                searchModeButton,
+                saveSearchButton,
+                terminalStyleButton,
+                requestMessagesButton,
+                itemUpgradesButton);
         layoutSidebarColumn(layout.visibilityButtonX, filterModeButton, showItemsButton, showFluidsButton);
     }
 
@@ -1030,33 +1044,33 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         GuiButton button = getHoveredDisplayButton(mouseX, mouseY);
         if (button == null) {
             if (view != RequestTableView.CRAFTING_MONITOR && inside(
-                mouseX,
-                mouseY,
-                layout.getCraftableLabelX(),
-                layout.getCraftableLabelY(),
-                layout.centralLeft + layout.centralWidth - layout.getCraftableLabelX(),
-                10)) {
-                GuiGraphics.drawToolTip(
                     mouseX,
                     mouseY,
-                    Arrays.asList(
-                        "Craftable items",
-                        container.getCraftableAmount() + " output items",
-                        "Table storage and your inventory.",
-                        "Before reusing returned containers or tools."),
-                    EnumChatFormatting.WHITE);
+                    layout.getCraftableLabelX(),
+                    layout.getCraftableLabelY(),
+                    layout.centralLeft + layout.centralWidth - layout.getCraftableLabelX(),
+                    10)) {
+                GuiGraphics.drawToolTip(
+                        mouseX,
+                        mouseY,
+                        Arrays.asList(
+                                "Craftable items",
+                                container.getCraftableAmount() + " output items",
+                                "Table storage and your inventory.",
+                                "Before reusing returned containers or tools."),
+                        EnumChatFormatting.WHITE);
             }
             return;
         }
         List<String> tooltip = switch (button.id) {
             case SORT_MODE_BUTTON -> {
                 String mode = displaySettings.getSortMode() == RequestTableDisplaySettings.SortMode.NAME ? "Item name"
-                    : "Item amount";
+                        : "Item amount";
                 yield Arrays.asList("Sort by", mode);
             }
             case SORT_DIRECTION_BUTTON -> {
                 String direction = displaySettings.getSortDirection()
-                    == RequestTableDisplaySettings.SortDirection.ASCENDING ? "Ascending" : "Descending";
+                        == RequestTableDisplaySettings.SortDirection.ASCENDING ? "Ascending" : "Descending";
                 yield Arrays.asList("Sort direction", direction);
             }
             case FILTER_MODE_BUTTON -> {
@@ -1068,73 +1082,79 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
                 yield Arrays.asList("Show entries", filter);
             }
             case REQUEST_MESSAGES_BUTTON -> Arrays.asList(
-                "Request messages: " + (displaySettings.isRequestMessagesEnabled() ? "On" : "Off"),
-                "Toggle request-result popups and chat.",
-                "Items, fluids and crafting ingredients.");
+                    "Request messages: " + (displaySettings.isRequestMessagesEnabled() ? "On" : "Off"),
+                    "Toggle request-result popups and chat.",
+                    "Items, fluids and crafting ingredients.");
             case SEARCH_MODE_BUTTON -> {
                 RequestTableDisplaySettings.SearchBoxMode mode = displaySettings.getSearchBoxMode();
                 yield Arrays.asList(
-                    "Search box mode: " + mode.getLabel(),
-                    "Focus on opening: " + (mode.isAutoFocus() ? "Yes" : "No"),
-                    "Sync to NEI: " + (mode.isNeiSynced() ? "Yes (one way)" : "No"),
-                    "Click to cycle search mode.");
+                        "Search box mode: " + mode.getLabel(),
+                        "Focus on opening: " + (mode.isAutoFocus() ? "Yes" : "No"),
+                        "Sync to NEI: " + (mode.isNeiSynced() ? "Yes (one way)" : "No"),
+                        "Click to cycle search mode.");
             }
             case SAVE_SEARCH_BUTTON -> Arrays.asList(
-                "Save search text: " + (displaySettings.isSaveSearch() ? "Yes" : "No"),
-                "Remember the search when reopening this table.");
+                    "Save search text: " + (displaySettings.isSaveSearch() ? "Yes" : "No"),
+                    "Remember the search when reopening this table.");
             case TERMINAL_STYLE_BUTTON -> {
                 boolean tall = displaySettings.getTerminalStyle() == RequestTableDisplaySettings.TerminalStyle.TALL;
                 yield Arrays.asList(
-                    "Terminal size: " + (tall ? "Tall" : "Small"),
-                    tall ? "Use the available window height."
-                        : "Up to " + RequestTableLayout.SMALL_ROWS + " content rows.");
+                        "Terminal size: " + (tall ? "Tall" : "Small"),
+                        tall ? "Use the available window height."
+                                : "Up to " + RequestTableLayout.SMALL_ROWS + " content rows.");
             }
             case SHOW_ITEMS_BUTTON -> Arrays.asList(
-                "Show items: " + (displaySettings.isShowItems() ? "Yes" : "No"),
-                "Toggle items in the Main list.");
+                    "Show items: " + (displaySettings.isShowItems() ? "Yes" : "No"),
+                    "Toggle items in the Main list.");
             case MONITOR_GRID_BUTTON -> Arrays.asList("Grid view", "Combines identical resources across all branches.");
             case MONITOR_TREE_BUTTON -> Arrays
-                .asList("Tree view", "Show crafting dependencies.", "Drag to move. Mouse wheel changes zoom.");
+                    .asList("Tree view", "Show crafting dependencies.", "Drag to move. Mouse wheel changes zoom.");
             case SHOW_FLUIDS_BUTTON -> Arrays.asList(
-                "Show fluids: " + (displaySettings.isShowFluids() ? "Yes" : "No"),
-                "Toggle fluids in the Main list.");
+                    "Show fluids: " + (displaySettings.isShowFluids() ? "Yes" : "No"),
+                    "Toggle fluids in the Main list.");
             case ITEM_UPGRADES_BUTTON -> Arrays.asList(
-                "Table upgrades",
-                "Item slots: " + RequestTableStorageUpgradeConfig.getTierName(table.getItemSlotTier()),
-                "Item capacity: " + RequestTableStorageUpgradeConfig.getTierName(table.getItemSizeTier()),
-                "Fluid tanks: " + RequestTableStorageUpgradeConfig.getTierName(table.getFluidSlotTier()),
-                "Fluid capacity: " + RequestTableStorageUpgradeConfig.getTierName(table.getFluidSizeTier()),
-                "Consume components for permanent improvements.");
+                    "Table upgrades",
+                    "Item slots: " + RequestTableStorageUpgradeConfig.getTierName(table.getItemSlotTier()),
+                    "Item capacity: " + RequestTableStorageUpgradeConfig.getTierName(table.getItemSizeTier()),
+                    "Fluid tanks: " + RequestTableStorageUpgradeConfig.getTierName(table.getFluidSlotTier()),
+                    "Fluid capacity: " + RequestTableStorageUpgradeConfig.getTierName(table.getFluidSizeTier()),
+                    "Consume components for permanent improvements.");
             case ITEM_VIEW_BUTTON -> Arrays.asList(
-                "Internal item storage",
-                "Used slots: " + usedItemSlots() + "/" + table.inv.getSizeInventory(),
-                table.inv.getInventoryStackLimit() + " items per slot");
+                    "Internal item storage",
+                    "Used slots: " + usedItemSlots() + "/" + table.inv.getSizeInventory(),
+                    table.inv.getInventoryStackLimit() + " items per slot");
             case FLUID_VIEW_BUTTON -> Arrays.asList(
-                "Internal fluid storage",
-                "Used tanks: " + usedFluidTanks() + "/" + table.getFluidStorage().getSizeInventory(),
-                table.getFluidStorage().getSlotCapacity() + " mB per tank");
+                    "Internal fluid storage",
+                    "Used tanks: " + usedFluidTanks() + "/" + table.getFluidStorage().getSizeInventory(),
+                    table.getFluidStorage().getSlotCapacity() + " mB per tank");
             case CRAFTING_MONITOR_BUTTON -> table.hasMonitoringUpgrade()
-                ? Arrays.asList(
-                "Crafting monitor",
-                !monitorButton.enabled ? "Updating upgrades..."
-                    : view == RequestTableView.CRAFTING_MONITOR ? "Close the crafting monitor view."
-                    : "Open the crafting monitor view.")
-                : Arrays.asList(
-                "Crafting monitor",
-                "Requires the monitoring upgrade.",
-                "Unlock it on the upgrade board.");
+                    ? Arrays.asList(
+                            "Crafting monitor",
+                            !monitorButton.enabled ? "Updating upgrades..."
+                                    : view == RequestTableView.CRAFTING_MONITOR ? "Close the crafting monitor view."
+                                            : "Open the crafting monitor view.")
+                    : Arrays.asList(
+                            "Crafting monitor",
+                            "Requires the monitoring upgrade.",
+                            "Unlock it on the upgrade board.");
             case REQUEST_INGREDIENTS_BUTTON -> Arrays.asList(
-                "Request missing ingredients",
-                getIngredientRequestAmount() + " craft sets",
-                "Uses ingredients already in the table first.");
+                    "Request ingredient sets",
+                    getIngredientRequestAmount() + " craft sets",
+                    "Request full sets without subtracting existing ingredients.",
+                    "Returned tools are requested once per tool slot.");
             case CLEAR_CRAFTING_BUTTON -> Arrays.asList("Clear crafting grid");
+            case ALL_INGREDIENTS_BUTTON -> Arrays.asList(
+                    "All network sets",
+                    getNetworkCraftingSets() + " complete sets from network stock.",
+                    "Returned tools are requested once per tool slot.",
+                    "Fill the amount, then request the ingredient sets.");
             case SEND_BUTTON -> Arrays.asList(
-                "Send all " + (view == RequestTableView.FLUID_STORAGE ? "fluids" : "items"),
-                "Return stored contents to the network.");
+                    "Send all " + (view == RequestTableView.FLUID_STORAGE ? "fluids" : "items"),
+                    "Return stored contents to the network.");
             default -> Arrays.asList(
-                "Network",
-                table.isFluidEnabled() ? "Browse stored and craftable items and fluids."
-                    : "Browse stored and craftable items.");
+                    "Network",
+                    table.isFluidEnabled() ? "Browse stored and craftable items and fluids."
+                            : "Browse stored and craftable items.");
         };
         GuiGraphics.drawToolTip(mouseX, mouseY, tooltip, EnumChatFormatting.WHITE);
     }
@@ -1171,14 +1191,14 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         String text = ingredientAmountField == null ? "1" : ingredientAmountField.getText();
         boolean focused = ingredientAmountField != null && ingredientAmountField.isFocused();
         ingredientAmountField = new RequestTableNumberField(
-            mc.fontRenderer,
-            layout.craftingAmountX,
-            layout.craftingAmountY,
-            layout.craftingAmountWidth,
-            layout.craftingAmountHeight,
-            5,
-            1,
-            9999);
+                mc.fontRenderer,
+                layout.craftingAmountX,
+                layout.craftingAmountY,
+                layout.craftingAmountWidth,
+                layout.craftingAmountHeight,
+                10,
+                1,
+                Integer.MAX_VALUE);
         ingredientAmountField.setText(text);
         ingredientAmountField.setFocused(focused);
     }
@@ -1187,10 +1207,15 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         return ingredientAmountField == null ? 1 : ingredientAmountField.getValue();
     }
 
+    /** Uses the same ingredient identities and reusable-tool rules as server-side requests. */
+    private int getNetworkCraftingSets() {
+        return table.getNetworkCraftingSets(networkStock);
+    }
+
     private void requestCraftingIngredients() {
         MainProxy.sendPacketToServer(
-            PacketHandler.getPacket(RequestTableRequestIngredientsPacket.class)
-                .setInteger(getIngredientRequestAmount()).setTilePos(table.container));
+                PacketHandler.getPacket(RequestTableRequestIngredientsPacket.class)
+                        .setInteger(getIngredientRequestAmount()).setTilePos(table.container));
         refreshNetwork();
     }
 
@@ -1238,10 +1263,53 @@ public class RequestTableGui extends LogisticsBaseGuiScreen {
         }
         int columns = RequestTableLayout.INVENTORY_COLUMNS;
         int size = view == RequestTableView.FLUID_STORAGE ? table.getFluidStorage().getSizeInventory()
-            : table.inv.getSizeInventory();
+                : table.inv.getSizeInventory();
         int rows = (size + columns - 1) / columns;
         int visibleRows = layout.getVisibleStorageRows();
         return Math.max(0, rows - visibleRows);
     }
 
+    private class RequestTableSearchBar extends GuiSearchBar {
+
+        public RequestTableSearchBar() {
+            super("new_request_table_search");
+        }
+
+        @Override
+        public void reposition(int left, int top, int width, int height) {
+            super.reposition(left, top, width, height);
+            setDimensionsAndColor();
+        }
+
+        @Override
+        protected void setDimensionsAndColor() {
+            field.setEnableBackgroundDrawing(false);
+            field.setCanLoseFocus(false);
+            field.xPosition = x + 3;
+            field.yPosition = y + Math.max(1, (h - 8) / 2);
+            field.width = w - 6;
+            field.height = 8;
+            field.setTextColor(0xffe0e0e0);
+        }
+
+        @Override
+        public void draw(int mouseX, int mouseY) {
+            RequestTableGuiStyle.inset(x, y, w, h);
+            if (isFocused()) {
+                Gui.drawRect(x + 1, y + 1, x + w - 1, y + h - 1, 0xff555555);
+            }
+            super.draw(mouseX, mouseY);
+        }
+
+        @Override
+        public void setText(String text) {
+            super.setText(text);
+            field.setCursorPositionEnd();
+        }
+
+        @Override
+        public void onTextChange(String oldText) {
+            handleSearchTextChange(oldText);
+        }
+    }
 }

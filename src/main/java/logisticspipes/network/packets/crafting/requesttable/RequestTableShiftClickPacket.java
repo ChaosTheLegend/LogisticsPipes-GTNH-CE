@@ -1,6 +1,8 @@
 package logisticspipes.network.packets.crafting.requesttable;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import net.minecraft.entity.player.EntityPlayer;
 
@@ -11,20 +13,24 @@ import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketGuards;
 import logisticspipes.network.abstractpackets.ModernPacket;
 
-/** Carries the active view with a player inventory slot, independent of the table's storage slot count. */
+/** Carries a bounded batch of player inventory slots and the active view, independent of storage slot indexes. */
 public class RequestTableShiftClickPacket extends ModernPacket {
 
+    private static final int MAX_SLOTS = 36;
     private int windowId;
-    private int inventorySlot;
+    private List<Integer> inventorySlots = new ArrayList<>();
     private RequestTableView view = RequestTableView.NETWORK;
 
     public RequestTableShiftClickPacket(int id) {
         super(id);
     }
 
-    public RequestTableShiftClickPacket setClick(int windowId, int inventorySlot, RequestTableView view) {
+    public RequestTableShiftClickPacket setClicks(int windowId, List<Integer> inventorySlots, RequestTableView view) {
+        if (inventorySlots.isEmpty() || inventorySlots.size() > MAX_SLOTS) {
+            throw new IllegalArgumentException("Invalid player shift-click batch size.");
+        }
         this.windowId = windowId;
-        this.inventorySlot = inventorySlot;
+        this.inventorySlots = new ArrayList<>(inventorySlots);
         this.view = view;
         return this;
     }
@@ -41,20 +47,24 @@ public class RequestTableShiftClickPacket extends ModernPacket {
                 || container.windowId != windowId) {
             return;
         }
-        container.shiftPlayerStack(player, inventorySlot, view);
+        container.shiftPlayerStacks(player, inventorySlots, view);
     }
 
     @Override
     public void writeData(LPDataOutputStream data) throws IOException {
         data.writeInt(windowId);
-        data.writeInt(inventorySlot);
+        data.writeByte(inventorySlots.size());
+        for (int slot : inventorySlots) data.writeByte(slot);
         data.writeEnum(view);
     }
 
     @Override
     public void readData(LPDataInputStream data) throws IOException {
         windowId = data.readInt();
-        inventorySlot = data.readInt();
+        int count = data.readUnsignedByte();
+        if (count == 0 || count > MAX_SLOTS) throw new IOException("Invalid player shift-click batch size.");
+        inventorySlots = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) inventorySlots.add(data.readUnsignedByte());
         view = data.readEnum(RequestTableView.class);
     }
 }

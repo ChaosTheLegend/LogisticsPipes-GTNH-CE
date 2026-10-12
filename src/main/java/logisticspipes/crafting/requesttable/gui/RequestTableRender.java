@@ -3,6 +3,7 @@ package logisticspipes.crafting.requesttable.gui;
 import java.nio.IntBuffer;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.Tessellator;
@@ -27,8 +28,7 @@ public final class RequestTableRender {
     // GUI drawing happens on the client render thread.
     private static final IntBuffer SCISSOR_BOX = BufferUtils.createIntBuffer(4);
 
-    private RequestTableRender() {
-    }
+    private RequestTableRender() {}
 
     public static ResourceLocation texture(String path) {
         return new ResourceLocation("logisticspipes", "textures/gui/requesttable/" + path + ".png");
@@ -44,7 +44,23 @@ public final class RequestTableRender {
 
     public static boolean hovered(GuiButton button, int mouseX, int mouseY) {
         return button != null && button.visible
-            && inside(mouseX, mouseY, button.xPosition, button.yPosition, button.width, button.height);
+                && inside(mouseX, mouseY, button.xPosition, button.yPosition, button.width, button.height);
+    }
+
+    /** Shared popup button with hover feedback and a centered, fully visible label. */
+    public static void textButton(FontRenderer font, String label, int x, int y, int width, int height, boolean enabled,
+            int mouseX, int mouseY) {
+        RequestTableGuiStyle.requestButton(x, y, width, height, enabled, mouseX, mouseY);
+        int textWidth = font.getStringWidth(label);
+        float scale = Math.min(1.0F, (width - 4) / (float) Math.max(1, textWidth));
+        try (var ignored = guiState()) {
+            GL11.glTranslatef(
+                    x + (width - textWidth * scale) / 2.0F,
+                    y + (height - font.FONT_HEIGHT * scale) / 2.0F,
+                    0);
+            GL11.glScalef(scale, scale, 1);
+            font.drawString(label, 0, 0, enabled ? RequestTableGuiStyle.TEXT : 0xc0c0c0);
+        }
     }
 
     public static void slotGrid(Minecraft mc, int x, int y, int columns, int rows) {
@@ -56,9 +72,9 @@ public final class RequestTableRender {
         int count = Math.min(slots, columns * rows);
         for (int i = 0; i < count; i++) {
             GuiGraphics.drawSlotBackground(
-                mc,
-                x + (i % columns) * RequestTableLayout.SLOT,
-                y + (i / columns) * RequestTableLayout.SLOT);
+                    mc,
+                    x + (i % columns) * RequestTableLayout.SLOT,
+                    y + (i / columns) * RequestTableLayout.SLOT);
         }
     }
 
@@ -74,8 +90,8 @@ public final class RequestTableRender {
             // Native chest models need writes to the depth buffer for the lid to occlude the base.
             GL11.glDepthMask(true);
             new ItemStackRenderer(x, y, z, true, ignoreDepth, colored)
-                .setItemIdentifierStack(ItemIdentifierStack.getFromStack(stack))
-                .setDisplayAmount(DisplayAmount.NEVER).renderInGui();
+                    .setItemIdentifierStack(ItemIdentifierStack.getFromStack(stack))
+                    .setDisplayAmount(DisplayAmount.NEVER).renderInGui();
         }
     }
 
@@ -85,28 +101,28 @@ public final class RequestTableRender {
 
     /** Reveals native rows, including within a vertical animation strip, without stretching the visible part. */
     public static void textureRows(ResourceLocation texture, int x, int y, int width, int height, int visibleRows,
-                                   int frame, int frames) {
+            int frame, int frames) {
         int rows = Math.min(height, visibleRows);
         if (rows <= 0) return;
         textureRegion(
-            texture,
-            x,
-            y,
-            width,
-            rows,
-            0,
-            (double) frame / frames,
-            1,
-            (frame + (double) rows / height) / frames);
+                texture,
+                x,
+                y,
+                width,
+                rows,
+                0,
+                (double) frame / frames,
+                1,
+                (frame + (double) rows / height) / frames);
     }
 
     public static void textureRegion(ResourceLocation texture, int x, int y, int width, int height, double u0,
-                                     double v0, double u1, double v1) {
+            double v0, double u1, double v1) {
         textureRegion(texture, x, y, width, height, u0, v0, u1, v1, 1.0F);
     }
 
     public static void textureRegion(ResourceLocation texture, int x, int y, int width, int height, double u0,
-                                     double v0, double u1, double v1, float brightness) {
+            double v0, double u1, double v1, float brightness) {
         Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glEnable(GL11.GL_BLEND);

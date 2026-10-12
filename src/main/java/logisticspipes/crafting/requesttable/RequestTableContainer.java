@@ -422,17 +422,25 @@ public class RequestTableContainer extends DummyContainer {
         syncRequired = false;
     }
 
-    /** Applies a player-inventory shift-click with the view sent in the same request. */
-    public void shiftPlayerStack(EntityPlayer player, int inventorySlot, RequestTableView view) {
-        if (MainProxy.isClient(player.worldObj) || this.player != player || view == null) {
+    /** Applies a player-inventory shift-click batch, then sends one authoritative inventory snapshot. */
+    public void shiftPlayerStacks(EntityPlayer player, List<Integer> inventorySlots, RequestTableView view) {
+        if (MainProxy.isClient(player.worldObj) || this.player != player
+                || view == null
+                || inventorySlots.isEmpty()
+                || inventorySlots.size() > playerSlots.size()) {
             return;
         }
         this.view = view;
         table.updateStorageUpgrades();
-        for (Slot slot : playerSlots) {
-            if (slot.getSlotIndex() == inventorySlot && slot.getHasStack()) {
-                transferPlayerStack(player, slot, view);
-                break;
+        boolean[] processed = new boolean[player.inventory.mainInventory.length];
+        for (int inventorySlot : inventorySlots) {
+            if (inventorySlot < 0 || inventorySlot >= processed.length || processed[inventorySlot]) continue;
+            processed[inventorySlot] = true;
+            for (Slot slot : playerSlots) {
+                if (slot.getSlotIndex() == inventorySlot) {
+                    if (slot.getHasStack() && slot.canTakeStack(player)) transferPlayerStack(player, slot, view);
+                    break;
+                }
             }
         }
         syncRequired = true;
