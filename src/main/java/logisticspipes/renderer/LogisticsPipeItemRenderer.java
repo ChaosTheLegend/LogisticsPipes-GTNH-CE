@@ -13,6 +13,7 @@ import org.lwjgl.opengl.GL11;
 
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.PlayerConfig;
+import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.renderer.newpipe.LogisticsNewPipeItemRenderer;
@@ -23,6 +24,8 @@ public class LogisticsPipeItemRenderer implements IItemRenderer {
     private final LogisticsNewPipeItemRenderer newRenderer;
 
     private final boolean renderAsBlock;
+    // the pipe whose item is drawn as a block, null for the items drawn as pipes
+    private final IBlockShapedPipe blockPipe;
 
     private static final float PIPE_MIN_POS = 0.25F;
     private static final float PIPE_MAX_POS = 0.75F;
@@ -30,6 +33,16 @@ public class LogisticsPipeItemRenderer implements IItemRenderer {
     public LogisticsPipeItemRenderer(boolean flag) {
         newRenderer = new LogisticsNewPipeItemRenderer(flag);
         renderAsBlock = flag;
+        blockPipe = null;
+    }
+
+    /**
+     * For the item of a pipe that stands in the world as a block, it is drawn as that block.
+     */
+    public LogisticsPipeItemRenderer(IBlockShapedPipe blockPipe) {
+        newRenderer = new LogisticsNewPipeItemRenderer(blockPipe);
+        renderAsBlock = true;
+        this.blockPipe = blockPipe;
     }
 
     private void renderPipeItem(RenderBlocks render, ItemStack item, float translateX, float translateY,
@@ -105,27 +118,27 @@ public class LogisticsPipeItemRenderer implements IItemRenderer {
         GL11.glTranslatef(translateX, translateY, translateZ);
         tessellator.startDrawingQuads();
         tessellator.setNormal(0.0F, -1F, 0.0F);
-        render.renderFaceYNeg(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getRequestTableTextureFromSide(0));
+        render.renderFaceYNeg(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getBlockShapedItemTexture(blockPipe, 0));
         tessellator.draw();
         tessellator.startDrawingQuads();
         tessellator.setNormal(0.0F, 1.0F, 0.0F);
-        render.renderFaceYPos(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getRequestTableTextureFromSide(1));
+        render.renderFaceYPos(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getBlockShapedItemTexture(blockPipe, 1));
         tessellator.draw();
         tessellator.startDrawingQuads();
         tessellator.setNormal(0.0F, 0.0F, -1F);
-        render.renderFaceZNeg(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getRequestTableTextureFromSide(2));
+        render.renderFaceZNeg(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getBlockShapedItemTexture(blockPipe, 2));
         tessellator.draw();
         tessellator.startDrawingQuads();
         tessellator.setNormal(0.0F, 0.0F, 1.0F);
-        render.renderFaceZPos(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getRequestTableTextureFromSide(3));
+        render.renderFaceZPos(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getBlockShapedItemTexture(blockPipe, 3));
         tessellator.draw();
         tessellator.startDrawingQuads();
         tessellator.setNormal(-1F, 0.0F, 0.0F);
-        render.renderFaceXNeg(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getRequestTableTextureFromSide(4));
+        render.renderFaceXNeg(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getBlockShapedItemTexture(blockPipe, 4));
         tessellator.draw();
         tessellator.startDrawingQuads();
         tessellator.setNormal(1.0F, 0.0F, 0.0F);
-        render.renderFaceXPos(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getRequestTableTextureFromSide(5));
+        render.renderFaceXPos(block, 0.0D, 0.0D, 0.0D, LogisticsBlockGenericPipe.getBlockShapedItemTexture(blockPipe, 5));
         tessellator.draw();
         GL11.glTranslatef(0.5F, 0.5F, 0.5F);
         block.setBlockBounds(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
