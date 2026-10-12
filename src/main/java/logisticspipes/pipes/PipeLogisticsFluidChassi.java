@@ -34,7 +34,6 @@ import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.modules.IFluidReserver;
-import logisticspipes.modules.ModuleFluidContainerCrafter;
 import logisticspipes.modules.ModuleFluidContainerSink;
 import logisticspipes.modules.ModuleFluidProvider;
 import logisticspipes.modules.ModuleFluidSink;
@@ -265,12 +264,6 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
                 || getRouter().getSimpleID() != arrivingItem.getDestination()) {
             return false;
         }
-        // empty containers a crafter module asked for
-        if (arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation target
-                && getModules().getSubModule(target.getModuleSlot()) instanceof ModuleFluidContainerCrafter crafter
-                && crafter.takeContainers(stack.makeNormalStack())) {
-            return true;
-        }
         ItemStack single = stack.getItem().makeNormalStack(1);
         FluidStack fluid = FluidContainerUtil.getFluid(single);
         if (fluid == null) {
@@ -417,11 +410,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     @Override
     public void canProvide(RequestTreeNode tree, RequestTree root, List<IFilter> filters) {
-        if (!isEnabled() || !(tree.getRequestType() instanceof FluidResource resource)) {
-            return;
-        }
-        // a module of this chassis that asks for the fluid of its own recipe answers for it itself out of the tank
-        if (resource.getTarget() instanceof LogisticsFluidModule && isOwnModule(resource.getTarget())) {
+        if (!isEnabled() || !(tree.getRequestType() instanceof FluidResource)) {
             return;
         }
         for (IFilter filter : filters) {
@@ -432,15 +421,6 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         for (ModuleFluidProvider provider : getProviders()) {
             provider.canProvide(tree, root, filters);
         }
-    }
-
-    private boolean isOwnModule(Object module) {
-        for (int i = 0; i < getChassiSize(); i++) {
-            if (getModules().getSubModule(i) == module) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override

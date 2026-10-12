@@ -112,6 +112,8 @@ public class Textures {
     public static IIcon LOGISTICS_REQUEST_TABLE_NEW_ROUTED = null;
     public static IIcon LOGISTICS_REQUEST_TABLE_NEW_UNROUTED = null;
     public static IIcon LOGISTICS_REQUEST_TABLE_NEW_EMPTY = null;
+    public static IIcon[] LOGISTICS_FLUID_FILLER = new IIcon[0];
+    public static IIcon LOGISTICS_FLUID_FILLER_NEW = null;
 
     public static int LOGISTICSPIPE_LIQUID_CONNECTOR = 0;
     public static IIcon LOGISTICSACTIONTRIGGERS_DISABLED;
@@ -401,6 +403,12 @@ public class Textures {
             Textures.LOGISTICS_REQUEST_TABLE_NEW_UNROUTED = par1IIconRegister
                     .registerIcon("logisticspipes:requesttable/unrouted");
             Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY = par1IIconRegister.registerIcon("logisticspipes:empty");
+            Textures.LOGISTICS_FLUID_FILLER = new IIcon[5];
+            for (int i = 0; i < 5; i++) {
+                Textures.LOGISTICS_FLUID_FILLER[i] = par1IIconRegister.registerIcon("logisticspipes:fluidfiller/" + i);
+            }
+            Textures.LOGISTICS_FLUID_FILLER_NEW = par1IIconRegister
+                    .registerIcon("logisticspipes:fluidfiller/fillerTexture");
         }
 
         if (LPConstants.DEBUG) {

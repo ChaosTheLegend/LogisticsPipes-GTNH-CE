@@ -3064,8 +3064,6 @@ public class RecipeManager {
         addFluidModuleAssemblerRecipe(ItemModule.ACTIVE_SUPPLIER, ItemModule.FLUID_SUPPLIER, true, true);
         // the container sink is a fluid sink that opens containers itself
         addFluidModuleAssemblerRecipe(ItemModule.FLUID_SINK, ItemModule.FLUID_CONTAINER_SINK, true, false);
-        // the container crafter hands the tank out in containers, like a provider hands it out as fluid
-        addFluidModuleAssemblerRecipe(ItemModule.FLUID_PROVIDER, ItemModule.FLUID_CONTAINER_CRAFTER, true, true);
     }
 
     private static void addFluidModuleAssemblerRecipe(int module, int fluidModule, boolean withPump, boolean mv) {
@@ -3095,8 +3093,7 @@ public class RecipeManager {
                 { ItemModule.FLUID_EXTRACTOR, ItemModule.EXTRACTOR },
                 { ItemModule.FLUID_PROVIDER, ItemModule.PROVIDER },
                 { ItemModule.FLUID_SUPPLIER, ItemModule.ACTIVE_SUPPLIER },
-                { ItemModule.FLUID_CONTAINER_SINK, ItemModule.FLUID_SINK },
-                { ItemModule.FLUID_CONTAINER_CRAFTER, ItemModule.FLUID_PROVIDER } };
+                { ItemModule.FLUID_CONTAINER_SINK, ItemModule.FLUID_SINK } };
         for (int[] module : modules) {
             RecipeManager.craftingManager.addShapelessRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, module[0]),

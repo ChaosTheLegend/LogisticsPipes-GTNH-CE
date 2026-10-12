@@ -368,6 +368,14 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
                 LogisticsModule current = _module.getModule(i);
                 LogisticsModule next = ((ItemModule) stack.getItem())
                         .getModuleForItem(stack, _module.getModule(i), this, this);
+                if (next == null) {
+                    // a module that no longer exists, the item of it stays in the slot and does nothing
+                    if (_module.hasModule(i)) {
+                        _module.removeModule(i);
+                        reInitGui = true;
+                    }
+                    continue;
+                }
                 next.registerPosition(ModulePositionType.SLOT, i);
                 next.registerCCEventQueuer(this);
                 if (current != next) {

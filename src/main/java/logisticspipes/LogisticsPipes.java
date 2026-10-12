@@ -53,6 +53,7 @@ import logisticspipes.crafting.PipeItemsPatternSatelliteLogistics;
 import logisticspipes.crafting.pattern.ItemPattern;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.items.*;
+import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.items.ItemDisk;
 import logisticspipes.items.ItemHUDArmor;
 import logisticspipes.items.ItemLogisticsPipe;
@@ -72,6 +73,7 @@ import logisticspipes.logistics.LogisticsManager;
 import logisticspipes.network.GuiHandler;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
+import logisticspipes.pipes.PipeBlockFluidContainerFiller;
 import logisticspipes.pipes.PipeBlockRequestTable;
 import logisticspipes.pipes.PipeFluidBasic;
 import logisticspipes.pipes.PipeFluidExtractor;
@@ -267,6 +269,7 @@ public class LogisticsPipes {
     public static Item LogisticsFirewallPipe;
     public static Item logisticsRequestTable;
     public static Item logisticsNewRequestTable;
+    public static Item LogisticsFluidContainerFiller;
 
     // Logistics Apiarist's Pipes
     public static Item LogisticsApiaristAnalyzerPipe;
@@ -778,6 +781,10 @@ public class LogisticsPipes {
 
         LogisticsPipes.logisticsRequestTable = createPipe(PipeBlockRequestTable.class, "Request Table", side);
         LogisticsPipes.logisticsNewRequestTable = createPipe(RequestTablePipe.class, "New Request Table", side);
+        LogisticsPipes.LogisticsFluidContainerFiller = createPipe(
+                PipeBlockFluidContainerFiller.class,
+                "Fluid Container Filler",
+                side);
 
         LogisticsPipes.BasicTransportPipe = createPipe(PipeItemsBasicTransport.class, "Basic Transport Pipe", side);
     }
@@ -795,8 +802,8 @@ public class LogisticsPipes {
         }
 
         if (side.isClient()) {
-            if (pipe instanceof PipeBlockRequestTable) {
-                MinecraftForgeClient.registerItemRenderer(res, new LogisticsPipeItemRenderer(true));
+            if (pipe instanceof IBlockShapedPipe) {
+                MinecraftForgeClient.registerItemRenderer(res, new LogisticsPipeItemRenderer((IBlockShapedPipe) pipe));
             } else {
                 MinecraftForgeClient.registerItemRenderer(res, MainProxy.proxy.getPipeItemRenderer());
             }

@@ -31,7 +31,6 @@ import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree.ActiveRequestType;
 import logisticspipes.request.RequestTree.workWeightedSorter;
 import logisticspipes.request.resources.DictResource;
-import logisticspipes.request.resources.FluidResource;
 import logisticspipes.request.resources.IResource;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
@@ -417,11 +416,6 @@ public class RequestTreeNode {
             return false;
         }
         beginSameItemPromiseCollection();
-        // a requester that holds the fluid it asks for itself answers first: a module that crafts from the tank of
-        // its own pipe has no route to itself, so the search below would never ask it
-        if (requestType instanceof FluidResource fluidRequest && fluidRequest.getTarget() instanceof IProvide self) {
-            self.canProvide(this, root, new LinkedList<>());
-        }
         for (Pair<IProvide, List<IFilter>> provider : RequestTreeNode
                 .getProviders(requestType.getRouter(), getRequestType())) {
             if (isDone()) {
