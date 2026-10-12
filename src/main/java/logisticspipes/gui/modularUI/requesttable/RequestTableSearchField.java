@@ -1,5 +1,7 @@
 package logisticspipes.gui.modularUI.requesttable;
 
+import java.util.regex.Matcher;
+
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.fluids.FluidContainerRegistry;
@@ -9,9 +11,12 @@ import org.jetbrains.annotations.NotNull;
 
 import com.cleanroommc.modularui.api.UpOrDown;
 import com.cleanroommc.modularui.integration.recipeviewer.RecipeViewerGhostIngredientSlot;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldHandler;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldRenderer;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 
 import cpw.mods.fml.common.Loader;
+import logisticspipes.crafting.requesttable.RequestTableNetworkList;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -20,6 +25,58 @@ import logisticspipes.utils.item.ItemIdentifierStack;
  * the item into it.
  */
 public class RequestTableSearchField extends TextFieldWidget implements RecipeViewerGhostIngredientSlot<ItemStack> {
+
+    // the color NEI shows a word that searches the mod in
+    private static final int MOD_WORD_COLOR = 0xffff55ff;
+
+    public RequestTableSearchField() {
+        renderer = new Renderer(handler);
+        handler.setRenderer(renderer);
+    }
+
+    /**
+     * Draws the words that search the mod, the ones that start with {@code @}, in a color of their own.
+     */
+    private static final class Renderer extends TextFieldRenderer {
+
+        private Renderer(TextFieldHandler handler) {
+            super(handler);
+        }
+
+        @Override
+        protected void draw(String text, float x, float y) {
+            if (simulate || text.indexOf('@') < 0) {
+                super.draw(text, x, y);
+                return;
+            }
+            int textColor = color;
+            int drawn = 0;
+            Matcher words = RequestTableNetworkList.SEARCH_WORD.matcher(text);
+            while (words.find()) {
+                if (!words.group().startsWith("@")) {
+                    continue;
+                }
+                drawPart(text, drawn, words.start(), x, y);
+                color = MOD_WORD_COLOR;
+                drawPart(text, words.start(), words.end(), x, y);
+                color = textColor;
+                drawn = words.end();
+            }
+            drawPart(text, drawn, text.length(), x, y);
+        }
+
+        /**
+         * Draws a part of the text where it stands in the whole of it.
+         */
+        private void drawPart(String text, int start, int end, float x, float y) {
+            if (start < end) {
+                super.draw(
+                        text.substring(start, end),
+                        x + getFontRenderer().getStringWidth(text.substring(0, start)) * scale,
+                        y);
+            }
+        }
+    }
 
     @Override
     public @NotNull Result onMousePressed(int mouseButton) {

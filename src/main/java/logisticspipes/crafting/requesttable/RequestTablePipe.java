@@ -1215,13 +1215,13 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         for (Pair<ItemStack, Integer> entry : craftGrid) {
             present.add(entry.getValue1());
         }
+        // and neither does what the player carries: crafting takes its ingredients from there as well
+        if (player != null) {
+            present.addAll(Arrays.asList(player.inventory.mainInventory));
+        }
         // the tools at hand: crafting takes them from the grid, the storage or the player and gives them back
         List<ItemIdentifier> toolsAtHand = new ArrayList<>();
-        List<ItemStack> atHand = new ArrayList<>(present);
-        if (player != null) {
-            atHand.addAll(Arrays.asList(player.inventory.mainInventory));
-        }
-        for (ItemStack stack : atHand) {
+        for (ItemStack stack : present) {
             if (stack != null && isTool(stack)) {
                 toolsAtHand.add(ItemIdentifier.get(stack));
             }
@@ -1301,6 +1301,54 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             result.add(tool.makeStack(1));
         }
         return result;
+    }
+
+    /**
+     * Crafts a recipe a number of times from what is at hand: the crafting grid, the storage of the table and the
+     * inventory of the player. The results go to the player, into the storage once the player has no room. The recipe
+     * the table remembers stays as it is.
+     *
+     * @param grid   the recipe, nine stacks row by row
+     * @param crafts how often to craft it
+     * @return how often it was crafted
+     */
+    public int autoCraft(EntityPlayer player, ItemStack[] grid, int crafts) {
+        ItemStack[] remembered = new ItemStack[9];
+        for (int i = 0; i < 9; i++) {
+            remembered[i] = matrix.getStackInSlot(i);
+        }
+        handleNEIRecipePacket(grid);
+        int made = 0;
+        try {
+            while (made < crafts && resultInv.getStackInSlot(0) != null) {
+                CraftingPreview preview = getCraftingPreview(player);
+                if (preview == null) {
+                    break;
+                }
+                ItemStack result = consumeCraftingPreview(player, preview);
+                if (result == null) {
+                    break;
+                }
+                made++;
+                if (player.inventory.addItemStackToInventory(result) || result.stackSize <= 0) {
+                    continue;
+                }
+                result.stackSize = addToStorage(result);
+                if (result.stackSize > 0) {
+                    // no room anywhere: what is made is not lost, but nothing more is made
+                    ItemIdentifierInventory.dropItems(getWorld(), result, getX(), getY(), getZ());
+                    break;
+                }
+            }
+        } finally {
+            handleNEIRecipePacket(remembered);
+        }
+        if (made > 0) {
+            inv.markDirty();
+            craftGrid.markDirty();
+            player.inventory.markDirty();
+        }
+        return made;
     }
 
     private CraftingPreview getCraftingPreview(EntityPlayer player) {
@@ -1418,6 +1466,32 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             uses[i] = use;
         }
         return uses;
+    }
+
+    /**
+     * @return the slots of the crafting grid whose ingredient is nowhere at hand, a bit for each of them
+     */
+    public int getMissingIngredientSlots(EntityPlayer player) {
+        if (resultInv.getStackInSlot(0) == null) {
+            return 0;
+        }
+        int[] usedGrid = new int[craftGrid.getSizeInventory()];
+        int[] usedInternal = new int[inv.getSizeInventory()];
+        int[] usedPlayer = new int[player.inventory.mainInventory.length];
+        int missing = 0;
+        for (int i = 0; i < 9; i++) {
+            ItemStack ingredient = matrix.getStackInSlot(i);
+            if (ingredient == null) {
+                continue;
+            }
+            ItemIdentifier expected = ItemIdentifier.get(ingredient);
+            if (findIngredientInInventory(expected, craftGrid, usedGrid, true) == null
+                    && findIngredientInInventory(expected, inv, usedInternal, true) == null
+                    && findIngredientInInventory(expected, player.inventory, usedPlayer, true) == null) {
+                missing |= 1 << i;
+            }
+        }
+        return missing;
     }
 
     private IngredientUse findIngredientInInventory(ItemIdentifier expected, IInventory inventory, int[] used,

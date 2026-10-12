@@ -8,10 +8,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 
+import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.common.ModContainer;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifier;
 
@@ -26,9 +30,11 @@ public class RequestTableNetworkList {
     private final List<CachedEntry> sourceEntries = new ArrayList<>();
     private final List<CachedEntry> sortedEntries = new ArrayList<>();
     private final Map<ItemIdentifier, RequestTableNetworkEntry> knownItems = new HashMap<>();
-    // sort name, mod name and searchable name of the items seen so far; working them out is slow for some items
+    // sort name, mod name, searchable name and searchable mod of the items seen so far; working them out is slow for some items
     private final Map<ItemIdentifier, String[]> names = new HashMap<>();
     private static final int MAX_CACHED_NAMES = 50000;
+    // a word of the search: it ends at a space, but not at one between quotes. The last quote may be left open.
+    public static final Pattern SEARCH_WORD = Pattern.compile("(?:\"[^\"]*\"?|[^ \"])+");
     private final List<RequestTableNetworkEntry> visibleEntries = new ArrayList<>();
     private final List<RequestTableNetworkEntry> visibleEntriesView = Collections.unmodifiableList(visibleEntries);
 
@@ -36,6 +42,8 @@ public class RequestTableNetworkList {
     private String rawSearch = "";
     private String search = "";
     private String[] searchTokens = new String[0];
+    // the words of the search that start with @, they search the mod
+    private String[] modTokens = new String[0];
 
     public void setEntries(List<RequestTableNetworkEntry> entries) {
         sourceEntries.clear();
@@ -89,9 +97,29 @@ public class RequestTableNetworkList {
             return false;
         }
         search = normalized;
-        searchTokens = search.isEmpty() ? new String[0] : search.split(" +");
+        parseSearch(search);
         rebuildVisibleEntries();
         return true;
+    }
+
+    /**
+     * Splits the search text into words. A word that starts with {@code @} searches the mod of an entry, the others
+     * its name. Quotes keep the spaces between them in the word: {@code @"applied energistics"}.
+     */
+    private void parseSearch(String text) {
+        List<String> nameWords = new ArrayList<>();
+        List<String> modWords = new ArrayList<>();
+        Matcher words = SEARCH_WORD.matcher(text);
+        while (words.find()) {
+            String word = words.group();
+            boolean mod = word.startsWith("@");
+            word = word.substring(mod ? 1 : 0).replace("\"", "");
+            if (!word.isEmpty()) {
+                (mod ? modWords : nameWords).add(word);
+            }
+        }
+        searchTokens = nameWords.toArray(new String[0]);
+        modTokens = modWords.toArray(new String[0]);
     }
 
     /**
@@ -134,7 +162,7 @@ public class RequestTableNetworkList {
     private void rebuildVisibleEntries() {
         visibleEntries.clear();
         for (CachedEntry entry : sortedEntries) {
-            if (isVisibleForFilter(entry.entry) && entry.matches(searchTokens)) {
+            if (isVisibleForFilter(entry.entry) && entry.matches(searchTokens, modTokens)) {
                 visibleEntries.add(entry.entry);
             }
         }
@@ -172,16 +200,19 @@ public class RequestTableNetworkList {
         private final String sortName;
         private final String modName;
         private final String searchableName;
+        // the id and the name of the mod
+        private final String searchableMod;
 
         private CachedEntry(RequestTableNetworkEntry entry, String[] names) {
             this.entry = entry;
             sortName = names[0];
             modName = names[1];
             searchableName = names[2];
+            searchableMod = names[3];
         }
 
         /**
-         * @return sort name, mod name and searchable name of the entry
+         * @return sort name, mod name, searchable name and searchable mod of the entry
          */
         private static String[] resolveNames(RequestTableNetworkEntry entry) {
             ItemStack stack = entry.getStack().unsafeMakeNormalStack();
@@ -200,12 +231,24 @@ public class RequestTableNetworkList {
                     + stack.getDisplayName()
                     + " "
                     + entry.getStack().getItem().getFriendlyName()).toLowerCase(Locale.US);
-            return new String[] { sortName, modName, searchableName };
+            // a fluid belongs to no mod the search could find it by
+            String searchableMod = "";
+            if (!entry.isFluid()) {
+                String modId = entry.getStack().getItem().getModName();
+                ModContainer mod = Loader.instance().getIndexedModList().get(modId);
+                searchableMod = (mod == null ? modId : modId + " " + mod.getName()).toLowerCase(Locale.US);
+            }
+            return new String[] { sortName, modName, searchableName, searchableMod };
         }
 
-        private boolean matches(String[] tokens) {
+        private boolean matches(String[] tokens, String[] modTokens) {
             for (String token : tokens) {
                 if (!searchableName.contains(token)) {
+                    return false;
+                }
+            }
+            for (String token : modTokens) {
+                if (!searchableMod.contains(token)) {
                     return false;
                 }
             }

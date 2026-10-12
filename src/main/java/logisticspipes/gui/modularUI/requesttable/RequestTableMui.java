@@ -450,7 +450,9 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         }
                     });
             area.child(
-                    new RequestTableCraftSlot(() -> table.matrix.getStackInSlot(slotIndex)).slot(slot)
+                    new RequestTableCraftSlot(
+                            () -> table.matrix.getStackInSlot(slotIndex),
+                            () -> handler.isIngredientMissing(slotIndex)).slot(slot)
                             .pos(cell + (i % 3) * cell, (i / 3) * cell));
         }
         area.child(

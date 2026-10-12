@@ -7,6 +7,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -51,6 +57,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private static final int C_SET_RECIPE = 9;
     private static final int C_SAVE_SEARCH = 10;
     private static final int C_VIEW = 11;
+    private static final int C_AUTOCRAFT = 12;
 
     private static final int SHIFT_CRAFT_LIMIT = 64;
     private static final int MAX_INGREDIENT_SETS = 999;
@@ -63,6 +70,11 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private static final int S_RECIPE = 101;
     private static final int S_CONTENT_CHANGES = 102;
     private static final int S_UNSENT = 103;
+    private static final int S_AUTOCRAFT_DONE = 104;
+    private static final int S_MISSING = 105;
+    private static final int MAX_AUTOCRAFTS = 64;
+    // how long the slots of the missing ingredients stay marked
+    private static final long MISSING_SHOWN_MILLIS = 2000;
 
     // the least ticks between two updates of the list
     private static final int MIN_SEND_INTERVAL = 10;
@@ -85,6 +97,13 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private Consumer<ItemStack[][]> recipeOffer;
     // client: is told what the network had no place for
     private Consumer<List<ItemIdentifierStack>> unsentListener;
+    // client: the slots of the crafting grid the last craft had no ingredient for, a bit for each, and until when
+    // they are marked
+    private int missingSlots;
+    private long missingShownUntil;
+    // client: the auto crafts the server hasn't answered yet, by their number. They are waited for by another thread.
+    private final Map<Integer, CompletableFuture<Integer>> pendingAutoCrafts = new ConcurrentHashMap<>();
+    private final AtomicInteger nextAutoCraft = new AtomicInteger();
 
     // client: every entry the server sent, at the position the server knows it by. Entries that are gone stay here
     // with nothing in them.
@@ -160,6 +179,55 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     /**
      * Tells the server what the player looks at, a shift click depends on it.
      */
+    /**
+     * Announces an auto craft, so its answer can be waited for.
+     *
+     * @return the number of the request, for {@link #sendAutoCraft} and {@link #awaitAutoCraft}
+     */
+    public int newAutoCraft() {
+        int request = nextAutoCraft.incrementAndGet();
+        pendingAutoCrafts.put(request, new CompletableFuture<>());
+        return request;
+    }
+
+    /**
+     * Asks the server to craft a recipe from what is at hand. To be called on the client thread.
+     *
+     * @param grid   the recipe, nine stacks row by row
+     * @param crafts how often to craft it
+     */
+    public void sendAutoCraft(int request, ItemStack[] grid, int crafts) {
+        syncToServer(C_AUTOCRAFT, buf -> {
+            buf.writeVarIntToBuffer(request);
+            for (int i = 0; i < 9; i++) {
+                buf.writeItemStackToBuffer(grid[i]);
+            }
+            buf.writeVarIntToBuffer(crafts);
+        });
+    }
+
+    /**
+     * Waits for the answer of the server. Blocks, so it must not be called on the client thread.
+     *
+     * @return how often the server crafted the recipe, 0 if it didn't answer in time
+     */
+    public int awaitAutoCraft(int request, long timeoutMillis) {
+        CompletableFuture<Integer> answer = pendingAutoCrafts.get(request);
+        if (answer == null) {
+            return 0;
+        }
+        try {
+            return answer.get(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return 0;
+        } catch (ExecutionException | TimeoutException e) {
+            return 0;
+        } finally {
+            pendingAutoCrafts.remove(request);
+        }
+    }
+
     public void setShownView(RequestTableView view) {
         shownView = view;
         syncToServer(C_VIEW, buf -> buf.writeByte(view.ordinal()));
@@ -213,7 +281,15 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
      * Crafts what the crafting grid shows: one onto the cursor, or with shift a stack into the inventory.
      */
     public void craft(boolean shift) {
+        missingSlots = 0;
         syncToServer(C_CRAFT, buf -> buf.writeBoolean(shift));
+    }
+
+    /**
+     * @return whether the last craft failed for want of the ingredient of that slot of the crafting grid
+     */
+    public boolean isIngredientMissing(int slot) {
+        return (missingSlots & 1 << slot) != 0 && System.currentTimeMillis() < missingShownUntil;
     }
 
     public void setUnsentListener(Consumer<List<ItemIdentifierStack>> unsentListener) {
@@ -299,6 +375,19 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
 
     @Override
     public void readOnClient(int id, PacketBuffer buf) throws IOException {
+        if (id == S_AUTOCRAFT_DONE) {
+            CompletableFuture<Integer> answer = pendingAutoCrafts.get(buf.readVarIntFromBuffer());
+            int made = buf.readVarIntFromBuffer();
+            if (answer != null) {
+                answer.complete(made);
+            }
+            return;
+        }
+        if (id == S_MISSING) {
+            missingSlots = buf.readVarIntFromBuffer();
+            missingShownUntil = System.currentTimeMillis() + MISSING_SHOWN_MILLIS;
+            return;
+        }
         if (id == S_UNSENT) {
             LPDataInputStream data = new LPDataInputStream(buf);
             int count = buf.readVarIntFromBuffer();
@@ -523,6 +612,31 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 String text = buf.readStringFromBuffer(RequestTableDisplaySettings.MAX_SEARCH_LENGTH);
                 table.setDisplaySettings(player, table.getDisplaySettings(player).withSavedSearch(text));
             }
+            case C_AUTOCRAFT -> {
+                int request = buf.readVarIntFromBuffer();
+                ItemStack[] grid = new ItemStack[9];
+                for (int i = 0; i < 9; i++) {
+                    ItemStack stack = buf.readItemStackFromBuffer();
+                    if (stack != null && stack.getItem() != null) {
+                        stack.stackSize = 1;
+                        grid[i] = stack;
+                    }
+                }
+                int crafts = Math.max(1, Math.min(MAX_AUTOCRAFTS, buf.readVarIntFromBuffer()));
+                EntityPlayer player = getSyncManager().getPlayer();
+                int made = table.autoCraft(player, grid, crafts);
+                // the slots go out before the answer, so the client counts what is left when it gets it
+                if (player.openContainer != null) {
+                    player.openContainer.detectAndSendChanges();
+                }
+                syncToClient(S_AUTOCRAFT_DONE, answer -> {
+                    answer.writeVarIntToBuffer(request);
+                    answer.writeVarIntToBuffer(made);
+                });
+                if (made > 0) {
+                    table.sendNetworkContentToWatchers();
+                }
+            }
             case C_VIEW -> {
                 int ordinal = buf.readByte();
                 RequestTableView[] views = RequestTableView.values();
@@ -586,12 +700,20 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
 
     private void craftOnServer(boolean shift) {
         EntityPlayer player = getSyncManager().getPlayer();
+        boolean made;
         if (shift) {
-            table.craftIntoPlayerInventory(player, SHIFT_CRAFT_LIMIT);
+            made = table.craftIntoPlayerInventory(player, SHIFT_CRAFT_LIMIT) > 0;
         } else {
             ItemStack crafted = table.getResultForClick(player, player.inventory.getItemStack(), 1);
-            if (crafted != null) {
+            made = crafted != null;
+            if (made) {
                 player.inventory.setItemStack(crafted);
+            }
+        }
+        if (!made) {
+            int missing = table.getMissingIngredientSlots(player);
+            if (missing != 0) {
+                syncToClient(S_MISSING, buf -> buf.writeVarIntToBuffer(missing));
             }
         }
         table.inv.markDirty();
