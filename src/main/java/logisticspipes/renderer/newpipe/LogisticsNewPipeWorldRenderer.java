@@ -27,7 +27,6 @@ import logisticspipes.renderer.LogisticsRenderPipe;
 import logisticspipes.renderer.newpipe.LogisticsNewSolidBlockWorldRenderer.BlockRotation;
 import logisticspipes.renderer.newpipe.LogisticsNewSolidBlockWorldRenderer.CoverSides;
 import logisticspipes.renderer.state.PipeRenderState;
-import logisticspipes.textures.Textures;
 import logisticspipes.utils.tuples.LPPosition;
 
 public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandler {

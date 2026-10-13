@@ -15,6 +15,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.IIcon;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import logisticspipes.LogisticsPipes;
@@ -213,6 +214,16 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
     @Override
     public TextureType getNonRoutedTexture(ForgeDirection connection) {
         return Textures.empty_2;
+    }
+
+    @Override
+    public BlockTextures getBlockTextures() {
+        return BlockTextures.of(Textures.LOGISTICS_REQUEST_TABLE);
+    }
+
+    @Override
+    public IIcon getBlockModelTexture() {
+        return Textures.LOGISTICS_REQUEST_TABLE_NEW;
     }
 
     @Override

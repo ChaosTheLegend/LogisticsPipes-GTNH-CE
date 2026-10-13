@@ -11,21 +11,20 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.IIcon;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.api.IMUICompatibleModule;
 import logisticspipes.interfaces.IFluidModuleHost;
-import logisticspipes.interfaces.ISpecialTankAccessHandler;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
-import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidSendUtil;
+import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 
@@ -34,9 +33,6 @@ import logisticspipes.utils.item.ItemIdentifier;
  * container item; the module fills and drains the tank directly, the pipe itself holds no fluid.
  */
 public abstract class LogisticsFluidModule extends LogisticsGuiModule implements IMUICompatibleModule {
-
-    // a bucket, some tanks only take whole ones
-    private static final int ROOM_PROBE_AMOUNT = 1000;
 
     /**
      * @return the pipe this module sits in, or null while it is held in hand or sits in a pipe without fluid support
@@ -69,40 +65,19 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
     }
 
     protected int fillTank(FluidStack stack, int max) {
-        TileEntity tile = getTankTile();
-        if (tile == null || max <= 0) {
+        if (max <= 0) {
             return 0;
         }
         FluidStack toFill = stack.copy();
         toFill.amount = Math.min(stack.amount, max);
-        ISpecialTankAccessHandler special = getSpecialAccessHandler(tile);
-        if (special != null) {
-            return special.fillInto(tile, toFill, true);
-        }
-        return tile instanceof IFluidHandler tank ? tank.fill(getTankSide(), toFill, true) : 0;
+        return FluidTankUtil.fill(getTankTile(), getTankSide(), toFill, true);
     }
 
     /**
      * @return how much of that fluid the tank still takes
      */
     protected long getTankRoom(FluidIdentifier fluid) {
-        TileEntity tile = getTankTile();
-        if (tile == null) {
-            return 0;
-        }
-        ISpecialTankAccessHandler special = getSpecialAccessHandler(tile);
-        if (special != null) {
-            return special.fillInto(tile, fluid.makeFluidStack(Integer.MAX_VALUE), false);
-        }
-        if (!(tile instanceof IFluidHandler tank)) {
-            return 0;
-        }
-        ForgeDirection side = getTankSide();
-        // make sure this side can be filled at all, it may be an output tank
-        if (tank.fill(side, fluid.makeFluidStack(ROOM_PROBE_AMOUNT), false) <= 0) {
-            return 0;
-        }
-        return fluid.getFreeSpaceInsideTank(tank, side);
+        return FluidTankUtil.getRoom(getTankTile(), getTankSide(), fluid);
     }
 
     /**
@@ -110,32 +85,9 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
      */
     protected Map<FluidIdentifier, Integer> getTankContents() {
         Map<FluidIdentifier, Integer> map = new HashMap<>();
-        TileEntity tile = getTankTile();
-        if (tile == null) {
-            return map;
-        }
-        ISpecialTankAccessHandler special = getSpecialAccessHandler(tile);
-        if (special != null) {
-            for (Entry<FluidIdentifier, Long> entry : special.getAvailableLiquid(tile).entrySet()) {
-                addClamped(map, entry.getKey(), entry.getValue());
-            }
-            return map;
-        }
-        if (!(tile instanceof IFluidHandler handler)) {
-            return map;
-        }
-        ForgeDirection side = getTankSide();
-        FluidTankInfo[] tanks = handler.getTankInfo(side);
-        if (tanks == null) {
-            return map;
-        }
-        for (FluidTankInfo tank : tanks) {
-            if (tank == null || tank.fluid == null || tank.fluid.getFluidID() == 0) {
-                continue;
-            }
-            if (handler.canDrain(side, tank.fluid.getFluid())) {
-                addClamped(map, FluidIdentifier.get(tank.fluid), tank.fluid.amount);
-            }
+        for (Entry<FluidIdentifier, Long> entry : FluidTankUtil.getContents(getTankTile(), getTankSide(), true)
+                .entrySet()) {
+            map.put(entry.getKey(), (int) Math.min(entry.getValue(), Integer.MAX_VALUE));
         }
         return map;
     }
@@ -144,27 +96,7 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
      * @return the amount of that fluid in the tank, drainable or not
      */
     protected int getStoredAmount(FluidIdentifier fluid) {
-        TileEntity tile = getTankTile();
-        ISpecialTankAccessHandler special = getSpecialAccessHandler(tile);
-        if (special != null) {
-            Long stored = special.getAvailableLiquid(tile).get(fluid);
-            return stored == null ? 0 : (int) Math.min(stored, Integer.MAX_VALUE);
-        }
-        IFluidHandler tank = getTank();
-        if (tank == null) {
-            return 0;
-        }
-        FluidTankInfo[] tanks = tank.getTankInfo(getTankSide());
-        if (tanks == null) {
-            return 0;
-        }
-        long stored = 0;
-        for (FluidTankInfo info : tanks) {
-            if (info != null && info.fluid != null && fluid.equals(FluidIdentifier.get(info.fluid))) {
-                stored += info.fluid.amount;
-            }
-        }
-        return (int) Math.min(stored, Integer.MAX_VALUE);
+        return (int) Math.min(FluidTankUtil.getStored(getTankTile(), getTankSide(), fluid), Integer.MAX_VALUE);
     }
 
     /**
@@ -173,32 +105,7 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
      * @return what was drained, or null
      */
     protected FluidStack drainTank(FluidIdentifier fluid, int amount) {
-        TileEntity tile = getTankTile();
-        if (tile == null || amount <= 0) {
-            return null;
-        }
-        ISpecialTankAccessHandler special = getSpecialAccessHandler(tile);
-        if (special != null) {
-            FluidStack simulated = special.drainFrom(tile, fluid, amount, false);
-            if (simulated == null || simulated.amount <= 0 || !fluid.equals(FluidIdentifier.get(simulated))) {
-                return null;
-            }
-            return special.drainFrom(tile, fluid, amount, true);
-        }
-        if (!(tile instanceof IFluidHandler handler)) {
-            return null;
-        }
-        ForgeDirection side = getTankSide();
-        FluidStack simulated = handler.drain(side, fluid.makeFluidStack(amount), false);
-        if (simulated != null && simulated.amount > 0 && fluid.equals(FluidIdentifier.get(simulated))) {
-            return handler.drain(side, fluid.makeFluidStack(simulated.amount), true);
-        }
-        // tanks that only answer the untyped drain
-        simulated = handler.drain(side, amount, false);
-        if (simulated == null || simulated.amount <= 0 || !fluid.equals(FluidIdentifier.get(simulated))) {
-            return null;
-        }
-        return handler.drain(side, simulated.amount, true);
+        return FluidTankUtil.drain(getTankTile(), getTankSide(), fluid, amount);
     }
 
     /**
@@ -206,31 +113,21 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
      */
     protected IRoutedItem sendFluid(FluidStack stack, int destination, TransportMode mode,
             IAdditionalTargetInformation info) {
-        IFluidModuleHost host = getHost();
-        IRoutedItem item = SimpleServiceLocator.routedItemHelper
-                .createNewTravelItem(SimpleServiceLocator.logisticsFluidManager.getFluidContainer(stack));
-        item.setDestination(destination);
-        item.setTransportMode(mode);
-        if (info != null) {
-            item.setAdditionalTargetInformation(info);
-        }
-        host.queueRoutedItem(item, host.getPointedOrientation());
+        IRoutedItem item = FluidSendUtil.createItem(stack, destination, mode, info);
+        queue(item);
         return item;
     }
 
+    private void queue(IRoutedItem item) {
+        IFluidModuleHost host = getHost();
+        ForgeDirection from = host.getPointedOrientation();
+        host.queueRoutedItem(item, from == null || from == ForgeDirection.UNKNOWN ? ForgeDirection.UP : from);
+    }
+
     /**
-     * Called before the pipe holding this module is removed.
+     * Called on the server before the module leaves its pipe: it is taken out or replaced, or the pipe is removed.
      */
-    public void onHostRemoved() {}
-
-    private static ISpecialTankAccessHandler getSpecialAccessHandler(TileEntity tile) {
-        return SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile);
-    }
-
-    private static void addClamped(Map<FluidIdentifier, Integer> map, FluidIdentifier fluid, long amount) {
-        long total = amount + map.getOrDefault(fluid, 0);
-        map.put(fluid, (int) Math.min(total, Integer.MAX_VALUE));
-    }
+    public void onRemoved() {}
 
     @Override
     public SinkReply sinksItem(ItemIdentifier stack, int bestPriority, int bestCustomPriority, boolean allowDefault,

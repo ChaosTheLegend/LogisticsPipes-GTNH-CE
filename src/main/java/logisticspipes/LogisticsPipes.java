@@ -52,8 +52,8 @@ import logisticspipes.crafting.PipeFluidPatternSatelliteLogistics;
 import logisticspipes.crafting.PipeItemsPatternSatelliteLogistics;
 import logisticspipes.crafting.pattern.ItemPattern;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
-import logisticspipes.items.*;
 import logisticspipes.interfaces.IBlockShapedPipe;
+import logisticspipes.items.*;
 import logisticspipes.items.ItemDisk;
 import logisticspipes.items.ItemHUDArmor;
 import logisticspipes.items.ItemLogisticsPipe;
@@ -70,6 +70,7 @@ import logisticspipes.items.LogisticsSolidBlockItem;
 import logisticspipes.items.RemoteOrderer;
 import logisticspipes.logistics.LogisticsFluidManager;
 import logisticspipes.logistics.LogisticsManager;
+import logisticspipes.modules.ModuleFluidContainerSink;
 import logisticspipes.network.GuiHandler;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.PacketHandler;
@@ -624,6 +625,7 @@ public class LogisticsPipes {
         PipeFluidPatternSatelliteLogistics.cleanup();
         PatternCraftingMonitorRegistry.clear();
         PipeFluidSatellite.cleanup();
+        PipeBlockFluidContainerFiller.cleanup();
         ServerRouter.cleanup();
         LPJunctionNetwork.cleanup();
         ClumpTransit.clear();
@@ -638,6 +640,7 @@ public class LogisticsPipes {
     @EventHandler
     public void registerCommands(FMLServerStartingEvent event) {
         event.registerServerCommand(new LogisticsPipesCommand());
+        ModuleFluidContainerSink.loadFluidHoldingItems();
     }
 
     public static Object getComputerLP() {

@@ -34,6 +34,7 @@ import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IBufferItems;
+import logisticspipes.interfaces.IFluidContainerReceiver;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IItemAdvancedExistance;
 import logisticspipes.interfaces.IModuleInventory;
@@ -56,11 +57,9 @@ import logisticspipes.pipes.PipeItemsFluidSupplier;
 import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
-import logisticspipes.pipes.PipeLogisticsFluidChassi;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
-import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.buildcraft.LPRoutedBCTravelingItem;
@@ -982,15 +981,12 @@ public class PipeTransportLogistics {
         if (MainProxy.isServer(getWorld()) && arrivingItem.getInfo() != null && arrivingItem.getArrived() && isRouted) {
             getRoutedPipe().notifyOfItemArival(arrivingItem.getInfo());
         }
-        if (getPipe() instanceof FluidRoutedPipe) {
-            if (((FluidRoutedPipe) getPipe()).endReached(arrivingItem, tile)) {
-                return;
-            }
-        }
-        if (getPipe() instanceof PipeLogisticsFluidChassi fluidChassi && MainProxy.isServer(getWorld())) {
-            if (fluidChassi.endReached(arrivingItem, tile)) {
-                return;
-            }
+        // every item that leaves the pipe comes by here, also the ones on their way to another router and the fluid
+        // the pipe sends out itself: only what was sent to this pipe is taken
+        if (getPipe() instanceof IFluidContainerReceiver receiver && MainProxy.isServer(getWorld())
+                && getRoutedPipe().getRouter().getSimpleID() == arrivingItem.getDestination()
+                && receiver.endReached(arrivingItem, tile)) {
+            return;
         }
         boolean isSpecialConnectionInformationTransition = false;
         if (MainProxy.isServer(getWorld())) {

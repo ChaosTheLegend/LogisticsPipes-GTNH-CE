@@ -10,6 +10,7 @@ import gregtech.api.enums.ItemList;
 import gregtech.api.enums.TierEU;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.util.GTUtility;
+import logisticspipes.items.ItemModule;
 
 /**
  * GregTech recipes for converting legacy items into their pattern crafting counterparts, for the fluid chassis and its
@@ -37,25 +38,41 @@ final class GregTechConversionRecipes {
     }
 
     /**
-     * Assembler: the fluid variant of {@code base}, made like the fluid pipes of the pack: the item variant plus a
+     * Assembler: a fluid chassis, made like the fluid pipes of the pack: the item variant and a basic fluid pipe plus a
      * large steel fluid cell, programmed circuit 18.
-     *
-     * @param extra    a further ingredient, or null
-     * @param withPump true for the parts that move the fluid themselves
-     * @param mv       true for an MV recipe, false for LV
      */
-    static void addFluidVariant(ItemStack base, ItemStack extra, boolean withPump, boolean mv, ItemStack output) {
+    static void addFluidChassis(ItemStack chassis, ItemStack fluidPipe, ItemStack output) {
+        addFluidVariant(output, TierEU.RECIPE_MV, chassis, fluidPipe);
+    }
+
+    /**
+     * Assembler: a fluid module, made of the item module it stands for. The modules that move the fluid themselves take
+     * a pump, and the ones that answer or make requests are MV.
+     */
+    static void addFluidModule(ItemStack module, ItemStack output) {
+        int fluidModule = output.getItemDamage();
+        boolean movesFluid = fluidModule != ItemModule.FLUID_SINK;
+        boolean requests = fluidModule == ItemModule.FLUID_PROVIDER || fluidModule == ItemModule.FLUID_SUPPLIER;
+        addFluidVariant(
+                output,
+                requests ? TierEU.RECIPE_MV : TierEU.RECIPE_LV,
+                module,
+                movesFluid ? ItemList.Electric_Pump_LV.get(1L) : null);
+    }
+
+    /**
+     * @param parts what the recipe takes besides the cell and the circuit, a part that is null is left out
+     */
+    private static void addFluidVariant(ItemStack output, long eut, ItemStack... parts) {
         List<ItemStack> inputs = new ArrayList<>();
-        inputs.add(base);
-        if (extra != null) {
-            inputs.add(extra);
-        }
-        if (withPump) {
-            inputs.add(ItemList.Electric_Pump_LV.get(1L));
+        for (ItemStack part : parts) {
+            if (part != null) {
+                inputs.add(part);
+            }
         }
         inputs.add(ItemList.Large_Fluid_Cell_Steel.get(1L));
         inputs.add(GTUtility.getIntegratedCircuit(PACK_CIRCUIT));
         GTValues.RA.stdBuilder().itemInputs(inputs.toArray(new ItemStack[0])).itemOutputs(output).duration(30 * 20)
-                .eut(mv ? TierEU.RECIPE_MV : TierEU.RECIPE_LV).addTo(RecipeMaps.assemblerRecipes);
+                .eut(eut).addTo(RecipeMaps.assemblerRecipes);
     }
 }

@@ -47,7 +47,7 @@ public class ModuleFluidExtractor extends LogisticsFluidModule {
         }
         Pair<Integer, Integer> reply = SimpleServiceLocator.logisticsFluidManager
                 .getBestReply(available, host.getRouter(), new ArrayList<>());
-        if (reply == null || reply.getValue1() == null || reply.getValue1() == 0 || reply.getValue2() <= 0) {
+        if (reply.getValue1() == 0 || reply.getValue2() <= 0) {
             idle = IDLE_EXTRACTIONS;
             return;
         }

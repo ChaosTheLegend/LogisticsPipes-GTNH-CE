@@ -112,11 +112,13 @@ public class AETankHandler implements ISpecialTankAccessHandler {
 
     @Override
     public int fillInto(TileEntity tile, FluidStack stack, boolean fill) {
-        if (!(tile instanceof ITileStorageMonitorable mon) || stack == null || stack.amount <= 0) {
+        if (!(tile instanceof ITileStorageMonitorable mon) || !(tile instanceof IGridHost host)
+                || stack == null
+                || stack.amount <= 0) {
             return 0;
         }
         for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
-            MachineSource source = new MachineSource(new LPActionHost(((IGridHost) tile).getGridNode(dir)));
+            MachineSource source = new MachineSource(new LPActionHost(host.getGridNode(dir)));
             IStorageMonitorable monitor = mon.getMonitorable(dir, source);
             if (monitor == null || monitor.getFluidInventory() == null) {
                 continue;

@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -15,7 +16,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidContainerRegistry.FluidContainerData;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.IFluidContainerItem;
 
 import logisticspipes.gui.modularUI.LogisticsModularUI;
@@ -26,6 +26,7 @@ import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.utils.FluidContainerUtil;
+import logisticspipes.utils.FluidFilter;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.FluidRoomCache;
 import logisticspipes.utils.SinkReply;
@@ -38,8 +39,6 @@ import logisticspipes.utils.item.ItemIdentifier;
  */
 public class ModuleFluidContainerSink extends LogisticsFluidModule implements IInventorylessSink {
 
-    public static final int FILTER_SLOTS = 9;
-
     // the items that hold fluid themselves, whatever they hold: they are told apart only by their data
     private static Set<ItemIdentifier> fluidHoldingItems;
     private static final int MAX_DAMAGE_PROBED = Short.MAX_VALUE - 1;
@@ -47,26 +46,11 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
     private static final Map<FluidIdentifier, List<ItemIdentifier>> registeredContainers = new HashMap<>();
     private static int registrySize = -1;
 
-    private final FluidTank[] filter = new FluidTank[FILTER_SLOTS];
+    private final FluidFilter filter = new FluidFilter();
     private final FluidRoomCache roomCache = new FluidRoomCache();
 
-    public ModuleFluidContainerSink() {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            filter[i] = new FluidTank(1);
-        }
-    }
-
-    public FluidTank getFilterTank(int slot) {
-        return filter[slot];
-    }
-
-    public boolean isFiltered(FluidStack stack) {
-        for (FluidTank tank : filter) {
-            if (tank.getFluid() != null && tank.getFluid().isFluidEqual(stack)) {
-                return true;
-            }
-        }
-        return false;
+    public FluidFilter getFilter() {
+        return filter;
     }
 
     private long getRoom(FluidIdentifier fluid) {
@@ -102,7 +86,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
             return null;
         }
         FluidStack fluid = FluidContainerUtil.getFluid(item.unsafeMakeNormalStack(1));
-        if (fluid == null || !isFiltered(fluid)) {
+        if (fluid == null || !filter.contains(fluid)) {
             return null;
         }
         int containers = containersWithRoom(item, fluid);
@@ -122,11 +106,12 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
     /**
      * Empties one arrived container into the tank.
      *
-     * @param fluid what the container holds
+     * @param fluid    what the container holds
+     * @param overflow is given what the tank didn't take after all, although it had promised the room
      * @return false if the tank doesn't take all of it; nothing is filled then
      */
-    public boolean acceptContainer(FluidStack fluid) {
-        if (getTankTile() == null || !isFiltered(fluid)) {
+    public boolean acceptContainer(FluidStack fluid, Consumer<FluidStack> overflow) {
+        if (getTankTile() == null || !filter.contains(fluid)) {
             return false;
         }
         roomCache.clear();
@@ -135,23 +120,12 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
         }
         int filled = fillTank(fluid, fluid.amount);
         if (filled < fluid.amount) {
-            // the tank promised more room than it had: the rest must not vanish, the host sends it on
+            // the rest must not vanish, the host sends it on
             FluidStack rest = fluid.copy();
             rest.amount = fluid.amount - filled;
-            lastOverflow = rest;
+            overflow.accept(rest);
         }
         return true;
-    }
-
-    private FluidStack lastOverflow;
-
-    /**
-     * @return what the tank didn't take of the last accepted container after all, or null; asking clears it
-     */
-    public FluidStack takeOverflow() {
-        FluidStack overflow = lastOverflow;
-        lastOverflow = null;
-        return overflow;
     }
 
     /**
@@ -165,13 +139,12 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
             return interests;
         }
         boolean any = false;
-        for (FluidTank tank : filter) {
-            FluidStack wanted = tank.getFluid();
-            if (wanted == null || getRoom(FluidIdentifier.get(wanted)) <= 0) {
+        for (FluidIdentifier wanted : filter.getFluids()) {
+            if (getRoom(wanted) <= 0) {
                 continue;
             }
             any = true;
-            interests.addAll(getRegisteredContainers(FluidIdentifier.get(wanted)));
+            interests.addAll(getRegisteredContainers(wanted));
         }
         if (any) {
             interests.addAll(getFluidHoldingItems());
@@ -209,6 +182,15 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
      * else would make this module a candidate for nearly every item that looks for a place.
      */
     private static Set<ItemIdentifier> getFluidHoldingItems() {
+        loadFluidHoldingItems();
+        return fluidHoldingItems;
+    }
+
+    /**
+     * Looks through the items for the ones that hold fluid. That takes a moment in a big pack, so it is done while the
+     * server starts and not in the tick the first module asks in.
+     */
+    public static void loadFluidHoldingItems() {
         if (fluidHoldingItems == null) {
             Set<ItemIdentifier> items = new HashSet<>();
             for (Object registered : Item.itemRegistry) {
@@ -230,7 +212,6 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
             }
             fluidHoldingItems = items;
         }
-        return fluidHoldingItems;
     }
 
     /**
@@ -243,21 +224,12 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            filter[i].setFluid(null);
-            if (nbttagcompound.hasKey("filter" + i)) {
-                filter[i].readFromNBT(nbttagcompound.getCompoundTag("filter" + i));
-            }
-        }
+        filter.readFromNBT(nbttagcompound);
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (filter[i].getFluid() != null) {
-                nbttagcompound.setTag("filter" + i, filter[i].writeToNBT(new NBTTagCompound()));
-            }
-        }
+        filter.writeToNBT(nbttagcompound);
     }
 
     @Override

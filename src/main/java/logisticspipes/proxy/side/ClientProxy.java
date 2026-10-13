@@ -288,7 +288,7 @@ public class ClientProxy implements IProxy {
     @Override
     public IItemRenderer getPipeItemRenderer() {
         if (pipeRenderer == null) {
-            pipeRenderer = new LogisticsPipeItemRenderer(false);
+            pipeRenderer = new LogisticsPipeItemRenderer();
         }
         return pipeRenderer;
     }

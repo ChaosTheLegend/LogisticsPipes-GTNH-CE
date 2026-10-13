@@ -59,10 +59,10 @@ import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.utils.FluidContainerUtil;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidSendUtil;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
-import logisticspipes.utils.tuples.Pair;
 
 /**
  * A block that fills containers on request: with empty cells set, the network can craft a cell of any fluid here. The
@@ -83,7 +83,7 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
     private static final int FLUID_SEND_CHUNK = 5000;
 
     // set while a filler lists what the network can craft: the other fillers answer with the list they have then,
-    // or they would ask each other without end
+    // or they would ask each other without end. Only the server thread lists and asks.
     private static boolean listingCraftables;
     // the fluids of the networks that were looked through lately. The fillers of a network share one: looking
     // through a network asks every tank and every crafter of it.
@@ -116,9 +116,19 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
     }
 
     /**
+     * Forgets what the fillers found in the networks of a server that stops.
+     */
+    public static void cleanup() {
+        SNAPSHOTS.clear();
+        listingCraftables = false;
+    }
+
+    /**
+     * Reads the kind of the empty container and drops what was remembered for another kind.
+     *
      * @return the kind of the empty container, or null if none is set
      */
-    private ItemIdentifier getContainerType() {
+    private ItemIdentifier updateContainerType() {
         ItemIdentifierStack stack = containerInventory.getIDStackInSlot(0);
         ItemIdentifier type = stack == null ? null : stack.getItem();
         if (type != cachedContainer) {
@@ -135,7 +145,7 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
      *         brim
      */
     private Recipe getRecipe(ItemIdentifier item) {
-        ItemIdentifier containerType = getContainerType();
+        ItemIdentifier containerType = updateContainerType();
         if (containerType == null || item == null) {
             return null;
         }
@@ -215,7 +225,7 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
      */
     @Override
     public List<ItemIdentifierStack> getConfiguredCraftResults() {
-        ItemIdentifier containerType = getContainerType();
+        ItemIdentifier containerType = updateContainerType();
         if (containerType == null || getWorld() == null || getRouter() == null) {
             return Collections.emptyList();
         }
@@ -386,7 +396,7 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
         if (itemBuffer.isEmpty() && fluidBuffer.isEmpty()) {
             return;
         }
-        ItemIdentifier containerType = getContainerType();
+        ItemIdentifier containerType = updateContainerType();
         int neededContainers = _orderItemManager.totalAmountCountInAllOrders();
         Iterator<Entry<ItemIdentifier, Integer>> items = itemBuffer.entrySet().iterator();
         while (items.hasNext()) {
@@ -447,22 +457,14 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
         int sent = 0;
         while (sent < amount) {
             FluidStack toSend = fluid.makeFluidStack(Math.min(amount - sent, FLUID_SEND_CHUNK));
-            Pair<Integer, Integer> destination = SimpleServiceLocator.logisticsFluidManager
-                    .getBestReply(toSend, getRouter(), new ArrayList<>());
-            if (destination == null || destination.getValue1() == null
-                    || destination.getValue1() == 0
-                    || destination.getValue2() == null
-                    || destination.getValue2() <= 0) {
+            int offered = toSend.amount;
+            IRoutedItem item = FluidSendUtil.createItemForSink(toSend, getRouter());
+            if (item == null) {
                 break;
             }
-            toSend.amount = Math.min(toSend.amount, destination.getValue2());
-            IRoutedItem item = SimpleServiceLocator.routedItemHelper
-                    .createNewTravelItem(SimpleServiceLocator.logisticsFluidManager.getFluidContainer(toSend));
-            item.setDestination(destination.getValue1());
-            item.setTransportMode(TransportMode.Passive);
             ForgeDirection dir = getRouteLayer().getOrientationForItem(item, null);
             queueRoutedItem(item, dir.getOpposite());
-            sent += toSend.amount;
+            sent += offered - toSend.amount;
         }
         return sent;
     }
@@ -615,8 +617,8 @@ public class PipeBlockFluidContainerFiller extends CoreRoutedPipe
     }
 
     @Override
-    public IIcon[] getBlockTextures() {
-        return Textures.LOGISTICS_FLUID_FILLER;
+    public BlockTextures getBlockTextures() {
+        return BlockTextures.of(Textures.LOGISTICS_FLUID_FILLER);
     }
 
     @Override
