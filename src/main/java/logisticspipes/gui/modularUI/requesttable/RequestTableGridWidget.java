@@ -51,7 +51,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
     public static final int WIDTH = COLUMNS * CELL + SCROLLBAR_GAP + SCROLLBAR_WIDTH;
 
     private static final int SCROLLBAR_X = COLUMNS * CELL + SCROLLBAR_GAP;
-    private static final int HANDLE_HEIGHT = 15;
+    static final int HANDLE_HEIGHT = 15;
 
     private static final int AMOUNT_COLOR = 0xffffff;
     private static final int CRAFT_COLOR = 0xffff55;
@@ -275,18 +275,28 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
     }
 
     private void drawScrollbar(int trackHeight, int maxScroll) {
-        // a track that looks like a slot
-        GuiDraw.drawRect(SCROLLBAR_X, 0, SCROLLBAR_WIDTH, trackHeight, 0xff8b8b8b);
-        GuiDraw.drawRect(SCROLLBAR_X, 0, SCROLLBAR_WIDTH - 1, 1, 0xff373737);
-        GuiDraw.drawRect(SCROLLBAR_X, 0, 1, trackHeight - 1, 0xff373737);
-        GuiDraw.drawRect(SCROLLBAR_X + 1, trackHeight - 1, SCROLLBAR_WIDTH - 1, 1, 0xffffffff);
-        GuiDraw.drawRect(SCROLLBAR_X + SCROLLBAR_WIDTH - 1, 1, 1, trackHeight - 1, 0xffffffff);
-
-        int x = SCROLLBAR_X + 1;
         // while it is dragged the handle stays under the mouse, the list itself moves by whole rows
         int y = draggingScrollbar && dragHandleTop >= 0 ? dragHandleTop : handleTop(trackHeight, maxScroll);
+        drawScrollbar(SCROLLBAR_X, trackHeight, y, maxScroll > 0);
+    }
+
+    /**
+     * Draws the scrollbar of the list, the storage tabs use the same one.
+     *
+     * @param handleTop where the handle starts, one pixel below the top of the track at least
+     * @param active    false if there is nothing to scroll
+     */
+    static void drawScrollbar(int trackX, int trackHeight, int handleTop, boolean active) {
+        // a track that looks like a slot
+        GuiDraw.drawRect(trackX, 0, SCROLLBAR_WIDTH, trackHeight, 0xff8b8b8b);
+        GuiDraw.drawRect(trackX, 0, SCROLLBAR_WIDTH - 1, 1, 0xff373737);
+        GuiDraw.drawRect(trackX, 0, 1, trackHeight - 1, 0xff373737);
+        GuiDraw.drawRect(trackX + 1, trackHeight - 1, SCROLLBAR_WIDTH - 1, 1, 0xffffffff);
+        GuiDraw.drawRect(trackX + SCROLLBAR_WIDTH - 1, 1, 1, trackHeight - 1, 0xffffffff);
+
+        int x = trackX + 1;
+        int y = handleTop;
         int w = SCROLLBAR_WIDTH - 2;
-        boolean active = maxScroll > 0;
         GuiDraw.drawRect(x, y, w, HANDLE_HEIGHT, active ? 0xffc6c6c6 : 0xff9a9a9a);
         GuiDraw.drawRect(x, y, w - 1, 1, active ? 0xffffffff : 0xffb0b0b0);
         GuiDraw.drawRect(x, y, 1, HANDLE_HEIGHT - 1, active ? 0xffffffff : 0xffb0b0b0);

@@ -23,6 +23,7 @@ import com.cleanroommc.modularui.factory.GuiData;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.screen.viewport.GuiContext;
+import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetTheme;
 import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
@@ -31,6 +32,7 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.ScrollWidget;
 import com.cleanroommc.modularui.widget.Widget;
+import com.cleanroommc.modularui.widget.scroll.ScrollArea;
 import com.cleanroommc.modularui.widget.scroll.VerticalScrollData;
 import com.cleanroommc.modularui.widget.sizer.Unit;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
@@ -41,6 +43,8 @@ import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.cleanroommc.modularui.widgets.slot.SlotGroup;
 
 import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.compat.ModularUIHelper;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.SearchMemory;
@@ -269,6 +273,59 @@ public class RequestTableMui extends LogisticsPipeMUI {
     }
 
     /**
+     * Scrolls a storage tab with the scrollbar of the network list instead of the thin one of ModularUI, a row with
+     * each step of the wheel.
+     */
+    private static class StorageScroll extends VerticalScrollData {
+
+        // the handle of the list with the pixel of the track above and below it
+        private static final int HANDLE_LENGTH = RequestTableGridWidget.HANDLE_HEIGHT + 2;
+
+        StorageScroll() {
+            super(false, RequestTableGridWidget.SCROLLBAR_WIDTH);
+            setScrollSpeed(RequestTableGridWidget.CELL);
+        }
+
+        @Override
+        public int getScrollBarLength(ScrollArea area) {
+            return HANDLE_LENGTH;
+        }
+
+        @Override
+        public boolean scrollTo(ScrollArea area, int x) {
+            if (dragging) {
+                // the wheel steps by rows already and passes through the positions between them while it animates
+                int cell = RequestTableGridWidget.CELL;
+                x = Math.round((float) x / cell) * cell;
+            }
+            return super.scrollTo(area, x);
+        }
+
+        @SideOnly(Side.CLIENT)
+        @Override
+        public void drawScrollbar(ScrollArea area, ModularGuiContext context, WidgetTheme widgetTheme,
+                IDrawable texture) {
+            int handleTop = 1 + getScrollBarStart(area, HANDLE_LENGTH, false);
+            if (dragging) {
+                // the handle stays under the mouse, the slots move by whole rows
+                int travel = area.h() - HANDLE_LENGTH;
+                handleTop = 1 + Math.max(0, Math.min(travel, context.getMouseY() - clickOffset));
+            }
+            RequestTableGridWidget.drawScrollbar(
+                    area.w() - RequestTableGridWidget.SCROLLBAR_WIDTH,
+                    area.h(),
+                    handleTop,
+                    true);
+        }
+
+        @SideOnly(Side.CLIENT)
+        @Override
+        public void drawScrollShadow(ScrollArea area, ModularGuiContext context) {
+            // the slots are a grid like the list, a shadow over its last row looks like a cut off one
+        }
+    }
+
+    /**
      * A slot of the item storage: it holds more than a normal stack, but an item that doesn't stack stays alone.
      */
     private static class StorageSlot extends ModularSlot {
@@ -303,7 +360,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
     }
 
     private StorageTab storageTab(PanelSyncManager syncManager, RequestTableView shownIn, int slots) {
-        VerticalScrollData scroll = new VerticalScrollData();
+        VerticalScrollData scroll = new StorageScroll();
         int rows = rows(slots);
         scroll.setScrollSize(rows * RequestTableGridWidget.CELL);
         StorageTab tab = new StorageTab(scroll).top(GRID_Y).width(RequestTableGridWidget.WIDTH);
