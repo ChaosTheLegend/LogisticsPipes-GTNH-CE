@@ -235,6 +235,13 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
         }
     }
 
+    /**
+     * @return the recipe {@link #cacheRecipe} found for the crafting matrix, or null
+     */
+    protected IRecipe getCachedRecipe() {
+        return cache;
+    }
+
     public void cacheRecipe() {
         ItemIdentifier oldTargetType = targetType;
         cache = null;

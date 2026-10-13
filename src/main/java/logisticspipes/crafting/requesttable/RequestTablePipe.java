@@ -1,5 +1,6 @@
 package logisticspipes.crafting.requesttable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,23 +31,19 @@ import logisticspipes.config.Configs;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.requesttable.RequestTableMui;
 import logisticspipes.interfaces.routing.IRequestFluid;
-import logisticspipes.items.ItemLegacyWrench;
 import logisticspipes.items.ItemUpgrade;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.logisticspipes.TransportLayer;
-import logisticspipes.network.GuiIDs;
+import logisticspipes.network.LPDataInputStream;
+import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketHandler;
-import logisticspipes.network.packets.crafting.requesttable.RequestTableContentPacket;
-import logisticspipes.network.packets.crafting.requesttable.RequestTableRefreshPacket;
 import logisticspipes.network.packets.crafting.requesttable.RequestTableSetCursorPacket;
 import logisticspipes.pipes.PipeBlockRequestTable;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestHandler;
-import logisticspipes.utils.CraftingUtil;
 import logisticspipes.utils.FluidIdentifier;
-import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
@@ -75,7 +72,6 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     private static final String NBT_DISPLAY_SETTINGS = "newRequestTableDisplaySettings";
     private final RequestTableFluidStorage fluidStorage = RequestTableFluidStorage.createDefault();
     private final RequestTableDisplaySettingsStore displaySettingsStore = new RequestTableDisplaySettingsStore();
-    private final PlayerCollectionList requestTableGuiWatchers = new PlayerCollectionList();
     private int contentRevision;
     private static final int NETWORK_REFRESH_TICKS = 300;
     private long networkRefreshUntil;
@@ -87,6 +83,8 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     private static final String NBT_CRAFT_GRID = "newRequestTableCraftGrid";
     // the players that have the ModularUI GUI of this table open
     private final Map<UUID, EntityPlayer> guiViewers = new HashMap<>();
+    // the size of the storage changed while a GUI was open
+    private boolean storageResized;
 
     /**
      * Creates the new request table pipe item.
@@ -98,24 +96,40 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         updateStorageUpgrades();
     }
 
-    /**
-     * Opens the ModularUI GUI. The legacy GUI is still there for the legacy wrench.
-     */
     @Override
     public void openGui(EntityPlayer player) {
         updateStorageUpgrades();
-        ItemStack held = player.getCurrentEquippedItem();
-        if (held != null && held.getItem() instanceof ItemLegacyWrench) {
-            player.openGui(
-                    LogisticsPipes.instance,
-                    GuiIDs.GUI_New_Request_Table_ID,
-                    getWorld(),
-                    getX(),
-                    getY(),
-                    getZ());
-            return;
+        if (container != null && MainProxy.isServer(getWorld())) {
+            // both sides build the slots of the storage, the client has to know its size before the window opens
+            MainProxy.sendPacketToPlayer(container.getLPDescriptionPacket(), player);
         }
         ModularUIHelper.openPipeUI(player, this);
+    }
+
+    /**
+     * The size of the storage goes to the client with the state of the pipe: the client doesn't know the upgrades.
+     */
+    @Override
+    public void writeData(LPDataOutputStream data) throws IOException {
+        super.writeData(data);
+        updateStorageUpgrades();
+        data.writeInt(inv.getSizeInventory());
+        data.writeInt(inv.getInventoryStackLimit());
+        data.writeInt(fluidStorage.getSizeInventory());
+        data.writeInt(fluidStorage.getSlotCapacity());
+    }
+
+    @Override
+    public void readData(LPDataInputStream data) throws IOException {
+        super.readData(data);
+        int itemSlotCount = data.readInt();
+        int itemStackLimit = data.readInt();
+        int fluidSlotCount = data.readInt();
+        int fluidSlotCapacity = data.readInt();
+        // only the sizes: what the storage holds comes with the slots of the open window
+        inv.setSizeInventory(itemSlotCount);
+        inv.setInventoryStackLimit(itemStackLimit);
+        fluidStorage.resize(fluidSlotCount, fluidSlotCapacity, null, 0, 0, 0);
     }
 
     @Override
@@ -198,7 +212,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         player.inventory.setItemStack(cursor.stackSize <= 0 ? null : cursor);
         player.inventory.markDirty();
         syncCursor(player);
-        sendNetworkContentToWatchers();
+        markContentChanged();
         return true;
     }
 
@@ -228,50 +242,14 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         return contentRevision;
     }
 
-    @Override
-    public void guiOpenedByPlayer(EntityPlayer player) {
-        super.guiOpenedByPlayer(player);
-        if (!requestTableGuiWatchers.contains(player)) {
-            requestTableGuiWatchers.add(player);
-        }
-        sendNetworkContentToPlayer(player);
-    }
-
-    @Override
-    public void guiClosedByPlayer(EntityPlayer player) {
-        super.guiClosedByPlayer(player);
-        requestTableGuiWatchers.remove(player);
-    }
-
     /**
-     * Sends a fresh combined network/internal list to all players currently watching this table.
+     * Reports that what the table holds has changed: the open GUIs send the network list again and the table is saved.
      */
-    public void sendNetworkContentToWatchers() {
-        // the ModularUI GUI picks the change up from here
+    public void markContentChanged() {
         contentRevision++;
-        if (MainProxy.isClient(getWorld()) || requestTableGuiWatchers.isEmpty()) {
-            return;
+        if (container != null) {
+            container.markDirty();
         }
-        List<RequestTableNetworkEntry> entries = RequestTableRefreshPacket.buildEntries(this);
-        for (EntityPlayer player : requestTableGuiWatchers.players()) {
-            if (player != null) {
-                sendNetworkContentToPlayer(player, entries);
-            }
-        }
-    }
-
-    private void sendNetworkContentToPlayer(EntityPlayer player) {
-        if (MainProxy.isClient(getWorld())) {
-            return;
-        }
-        sendNetworkContentToPlayer(player, RequestTableRefreshPacket.buildEntries(this));
-    }
-
-    private void sendNetworkContentToPlayer(EntityPlayer player, List<RequestTableNetworkEntry> entries) {
-        MainProxy.sendPacketToPlayer(
-                PacketHandler.getPacket(RequestTableContentPacket.class).setEntries(entries)
-                        .setDisplaySettings(getDisplaySettings(player)).setTilePos(container),
-                player);
     }
 
     /**
@@ -295,6 +273,8 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
      */
     public void updateStorageUpgrades() {
         if (container == null) return;
+        // the client takes the size the server works out, see readData
+        if (getWorld() != null && getWorld().isRemote) return;
 
         int itemSlotCount = BASE_ITEM_SLOTS
                 + countUpgrade(ItemUpgrade.REQUEST_TABLE_ITEM_INVENTORY) * ITEM_SLOT_UPGRADE_SIZE;
@@ -311,7 +291,27 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         if (getWorld() != null)
             fluidStorage.resize(fluidSlotCount, fluidSlotCapacity, getWorld(), getX(), getY(), getZ());
         if (fluidStorageChanged) {
-            sendNetworkContentToWatchers();
+            markContentChanged();
+            container.sendUpdateToClient();
+            storageResized |= !guiViewers.isEmpty();
+        }
+    }
+
+    /**
+     * A window that is open was built for the old size of the storage, its slots don't fit the new one. It is closed
+     * and opened again by the player. Not at once: the size may change while that window is being worked on.
+     */
+    @Override
+    public void ignoreDisableUpdateEntity() {
+        super.ignoreDisableUpdateEntity();
+        if (!storageResized || MainProxy.isClient(getWorld())) {
+            return;
+        }
+        storageResized = false;
+        for (EntityPlayer player : new ArrayList<>(guiViewers.values())) {
+            if (player instanceof EntityPlayerMP) {
+                ((EntityPlayerMP) player).closeScreen();
+            }
         }
     }
 
@@ -344,7 +344,11 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             }
         }
         inv.markDirty();
-        sendNetworkContentToWatchers();
+        markContentChanged();
+        if (container != null && MainProxy.isServer(getWorld())) {
+            container.sendUpdateToClient();
+            storageResized |= !guiViewers.isEmpty();
+        }
     }
 
     private boolean needsItemStorageAdjustment(int slotCount, int stackLimit) {
@@ -472,7 +476,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             player.openContainer.detectAndSendChanges();
         }
         syncCursor(player);
-        sendNetworkContentToWatchers();
+        markContentChanged();
     }
 
     private boolean handleNetworkItemInteraction(EntityPlayer player, ItemIdentifier item, int mouseButton,
@@ -648,6 +652,21 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     }
 
     /**
+     * @return whether the stack is something fluid can be put into or taken out of, filled or empty
+     */
+    public static boolean isFluidContainer(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return false;
+        }
+        if (stack.getItem() == LogisticsPipes.LogisticsFluidContainer || FluidContainerRegistry.isContainer(stack)) {
+            return true;
+        }
+        // all the items of GregTech share a class that can hold fluid, only some of them do
+        return stack.getItem() instanceof IFluidContainerItem
+                && ((IFluidContainerItem) stack.getItem()).getCapacity(stack) > 0;
+    }
+
+    /**
      * @return whether the stack is a container with fluid in it
      */
     public boolean isFilledFluidContainer(ItemStack stack) {
@@ -711,7 +730,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         if (player.openContainer != null) {
             player.openContainer.detectAndSendChanges();
         }
-        sendNetworkContentToWatchers();
+        markContentChanged();
         return true;
     }
 
@@ -1065,7 +1084,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         if (changed) {
             craftGrid.markDirty();
             inv.markDirty();
-            sendNetworkContentToWatchers();
+            markContentChanged();
         }
     }
 
@@ -1075,12 +1094,19 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     }
 
     /**
-     * Called after a player changed a slot of the crafting grid. An item that isn't what the remembered recipe wants
-     * there starts a new recipe: the one that lies in the grid now.
+     * Called after a slot of the crafting grid changed. An item that isn't what the remembered recipe wants there
+     * starts a new recipe: the one that lies in the grid now.
+     *
+     * @param onlyAmountChanged true if the slot holds the item it held before. That starts no recipe: the table itself
+     *                          takes items out of the grid, and what it leaves there must not replace the recipe that
+     *                          was just set.
      */
-    public void onCraftGridChanged(int slot) {
+    public void onCraftGridChanged(int slot, boolean onlyAmountChanged) {
+        if (container != null) {
+            container.markDirty();
+        }
         ItemStack stack = craftGrid.getStackInSlot(slot);
-        if (stack == null || matchesRecipeSlot(slot, stack)) {
+        if (onlyAmountChanged || stack == null || matchesRecipeSlot(slot, stack)) {
             return;
         }
         for (int i = 0; i < matrix.getSizeInventory(); i++) {
@@ -1415,30 +1441,14 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         return room;
     }
 
+    /**
+     * @return the recipe of the crafting matrix. The list of all recipes is only searched when the matrix changed.
+     */
     private IRecipe getCurrentRecipe() {
-        cacheRecipe();
-        if (resultInv.getStackInSlot(0) == null) {
-            return null;
+        if (getCachedRecipe() == null) {
+            cacheRecipe();
         }
-        AutoCraftingInventory craftInv = new AutoCraftingInventory(null);
-        for (int i = 0; i < 9; i++) {
-            craftInv.setInventorySlotContents(i, matrix.getStackInSlot(i));
-        }
-        ItemIdentifier resultType = ItemIdentifier.get(resultInv.getStackInSlot(0));
-        for (IRecipe recipe : CraftingUtil.getRecipeList()) {
-            if (!recipe.matches(craftInv, getWorld())) {
-                continue;
-            }
-            AutoCraftingInventory resultInvForRecipe = new AutoCraftingInventory(null);
-            for (int i = 0; i < 9; i++) {
-                resultInvForRecipe.setInventorySlotContents(i, matrix.getStackInSlot(i));
-            }
-            ItemStack result = recipe.getCraftingResult(resultInvForRecipe);
-            if (result != null && resultType.equalsWithoutNBT(ItemIdentifier.get(result))) {
-                return recipe;
-            }
-        }
-        return null;
+        return resultInv.getStackInSlot(0) == null ? null : getCachedRecipe();
     }
 
     private IngredientUse[] findIngredients(EntityPlayer player, boolean oreDict) {
@@ -1593,7 +1603,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         }
         if (changed) {
             inv.markDirty();
-            sendNetworkContentToWatchers();
+            markContentChanged();
             expectNetworkChange();
         }
     }
@@ -1669,7 +1679,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             }
         }
         if (changed) {
-            sendNetworkContentToWatchers();
+            markContentChanged();
             expectNetworkChange();
         }
     }
@@ -1700,7 +1710,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                             }
                         }
                         routedStack.setStackSize(0);
-                        sendNetworkContentToWatchers();
+                        markContentChanged();
                     } else {
                         updateStorageUpgrades();
                         ItemStack stack = routedStack.makeNormalStack();
@@ -1715,7 +1725,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
                             ItemIdentifierInventory.dropItems(getWorld(), stack, getX(), getY(), getZ());
                         }
                         routedStack.setStackSize(0);
-                        sendNetworkContentToWatchers();
+                        markContentChanged();
                     }
                 }
 

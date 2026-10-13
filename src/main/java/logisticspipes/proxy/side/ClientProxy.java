@@ -37,7 +37,6 @@ import logisticspipes.blocks.stats.LogisticsStatisticsTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.crafting.CraftingMonitorTileEntity;
 import logisticspipes.crafting.PatternLogisticsCraftingTableTileEntity;
-import logisticspipes.crafting.requesttable.RequestTableGui;
 import logisticspipes.gui.GuiCraftingPipe;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.GuiSupplierPipe;
@@ -431,30 +430,21 @@ public class ClientProxy implements IProxy {
                             (GuiRequestTable) FMLClientHandler.instance().getClient().currentScreen,
                             player);
                 } else
-            if (Configs.DISPLAY_POPUP
-                    && FMLClientHandler.instance().getClient().currentScreen instanceof RequestTableGui) {
-                        ((RequestTableGui) FMLClientHandler.instance().getClient().currentScreen).handleRequestAnswer(
-                                packet.getItems(),
-                                packet.isFlag(),
-                                (RequestTableGui) FMLClientHandler.instance().getClient().currentScreen,
-                                player);
-                    } else
-                if (packet.isFlag()) {
-                    for (IResource item : packet.getItems()) {
-                        player.addChatComponentMessage(
-                                new ChatComponentText(
-                                        ChatColor.RED + "Missing: "
-                                                + item.getDisplayText(IResource.ColorCode.MISSING)));
-                    }
-                } else {
-                    for (IResource item : packet.getItems()) {
-                        player.addChatComponentMessage(
-                                new ChatComponentText(
-                                        ChatColor.GREEN + "Requested: "
-                                                + item.getDisplayText(IResource.ColorCode.SUCCESS)));
-                    }
-                    player.addChatComponentMessage(new ChatComponentText(ChatColor.GREEN + "Request successful!"));
+            if (packet.isFlag()) {
+                for (IResource item : packet.getItems()) {
+                    player.addChatComponentMessage(
+                            new ChatComponentText(
+                                    ChatColor.RED + "Missing: " + item.getDisplayText(IResource.ColorCode.MISSING)));
                 }
+            } else {
+                for (IResource item : packet.getItems()) {
+                    player.addChatComponentMessage(
+                            new ChatComponentText(
+                                    ChatColor.GREEN + "Requested: "
+                                            + item.getDisplayText(IResource.ColorCode.SUCCESS)));
+                }
+                player.addChatComponentMessage(new ChatComponentText(ChatColor.GREEN + "Request successful!"));
+            }
     }
 
     @Override
@@ -467,8 +457,6 @@ public class ClientProxy implements IProxy {
             gui = (GuiRequestTable) firstGui;
         } else if (firstGui instanceof GuiCraftingPipe) {
             gui = (GuiCraftingPipe) firstGui;
-        } else if (firstGui instanceof RequestTableGui) {
-            gui = (RequestTableGui) firstGui;
         } else {
             return;
         }

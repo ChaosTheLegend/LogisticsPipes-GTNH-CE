@@ -9,6 +9,7 @@ import java.util.function.UnaryOperator;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
@@ -311,17 +312,51 @@ public class RequestTableMui extends LogisticsPipeMUI {
                 int travel = area.h() - HANDLE_LENGTH;
                 handleTop = 1 + Math.max(0, Math.min(travel, context.getMouseY() - clickOffset));
             }
-            RequestTableGridWidget.drawScrollbar(
-                    area.w() - RequestTableGridWidget.SCROLLBAR_WIDTH,
-                    area.h(),
-                    handleTop,
-                    true);
+            RequestTableGridWidget
+                    .drawScrollbar(area.w() - RequestTableGridWidget.SCROLLBAR_WIDTH, area.h(), handleTop, true);
         }
 
         @SideOnly(Side.CLIENT)
         @Override
         public void drawScrollShadow(ScrollArea area, ModularGuiContext context) {
             // the slots are a grid like the list, a shadow over its last row looks like a cut off one
+        }
+    }
+
+    /**
+     * The item storage for the slots of the window. The storage shrinks when an upgrade is taken out, also while the
+     * window is open: a slot that is gone holds nothing and takes nothing until the window is closed.
+     */
+    private static class StorageHandler extends InvWrapper {
+
+        StorageHandler(IInventory inventory) {
+            super(inventory);
+        }
+
+        private boolean isGone(int slot) {
+            return slot < 0 || slot >= getSlots();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return isGone(slot) ? null : super.getStackInSlot(slot);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return isGone(slot) ? stack : super.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return isGone(slot) ? null : super.extractItem(slot, amount, simulate);
+        }
+
+        @Override
+        public void setStackInSlot(int slot, ItemStack stack) {
+            if (!isGone(slot)) {
+                super.setStackInSlot(slot, stack);
+            }
         }
     }
 
@@ -380,7 +415,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
         // the slots have to be the same on both sides, like in the legacy GUI the client works out the size as well
         table.updateStorageUpgrades();
 
-        IItemHandlerModifiable items = new InvWrapper(table.inv);
+        IItemHandlerModifiable items = new StorageHandler(table.inv);
         int itemSlots = table.inv.getSizeInventory();
         syncManager.registerSlotGroup(new SlotGroup(STORAGE_SLOT_GROUP, RequestTableGridWidget.COLUMNS, 100, true));
         itemStorageRows = rows(itemSlots);
@@ -390,7 +425,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                     .changeListener((stack, onlyAmountChanged, isClient, init) -> {
                         if (!isClient && !init) {
                             // the amounts in the network list changed
-                            table.sendNetworkContentToWatchers();
+                            table.markContentChanged();
                         }
                     });
             itemTab.child(
@@ -406,10 +441,8 @@ public class RequestTableMui extends LogisticsPipeMUI {
         StorageTab fluidTab = storageTab(syncManager, RequestTableView.FLUID_STORAGE, fluidSlots);
         for (int i = 0; i < fluidSlots; i++) {
             fluidTab.child(
-                    new FluidSlot()
-                            .syncHandler(
-                                    new FluidSlotSyncHandler(
-                                            new RequestTableSlotTank(fluids, i, table::sendNetworkContentToWatchers)))
+                    new FluidSlot().syncHandler(
+                            new FluidSlotSyncHandler(new RequestTableSlotTank(fluids, i, table::markContentChanged)))
                             .pos(
                                     (i % RequestTableGridWidget.COLUMNS) * RequestTableGridWidget.CELL,
                                     (i / RequestTableGridWidget.COLUMNS) * RequestTableGridWidget.CELL));
@@ -503,14 +536,14 @@ public class RequestTableMui extends LogisticsPipeMUI {
             ModularSlot slot = new ModularSlot(craftGrid, i)
                     .changeListener((stack, onlyAmountChanged, isClient, init) -> {
                         if (!isClient && !init) {
-                            table.onCraftGridChanged(slotIndex);
+                            table.onCraftGridChanged(slotIndex, onlyAmountChanged);
                         }
                     });
             area.child(
                     new RequestTableCraftSlot(
                             () -> table.matrix.getStackInSlot(slotIndex),
                             () -> handler.isIngredientMissing(slotIndex)).slot(slot)
-                            .pos(cell + (i % 3) * cell, (i / 3) * cell));
+                                    .pos(cell + (i % 3) * cell, (i / 3) * cell));
         }
         area.child(
                 new ButtonWidget<>().pos(4 * cell + 2, 0).size(10).overlay(RequestTableMui::drawClearIcon)
@@ -583,9 +616,6 @@ public class RequestTableMui extends LogisticsPipeMUI {
     // region setting buttons
 
     /**
-     * The column of buttons left of the window. Each one steps through the values of one setting of the player.
-     */
-    /**
      * Brings the remembered search text back when the window opens, gives the field the keyboard if the player wants
      * that, and passes what is typed on to NEI and to the memory of the table.
      */
@@ -633,6 +663,9 @@ public class RequestTableMui extends LogisticsPipeMUI {
         }));
     }
 
+    /**
+     * The column of buttons left of the window. Each one steps through the values of one setting of the player.
+     */
     private void addSettingButtons(ModularPanel panel, RequestTableSyncHandler handler, UISettings settings) {
         List<IWidget> buttons = new ArrayList<>();
         buttons.add(

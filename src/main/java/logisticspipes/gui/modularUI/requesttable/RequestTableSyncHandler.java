@@ -23,6 +23,7 @@ import net.minecraft.network.PacketBuffer;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.value.sync.SyncHandler;
 
+import logisticspipes.crafting.requesttable.RequestTableContent;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.DeliveryMode;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.DropMode;
@@ -33,7 +34,6 @@ import logisticspipes.crafting.requesttable.RequestTablePlayerTarget;
 import logisticspipes.crafting.requesttable.RequestTableView;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
-import logisticspipes.network.packets.crafting.requesttable.RequestTableRefreshPacket;
 import logisticspipes.request.RequestHandler;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
@@ -177,9 +177,6 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     }
 
     /**
-     * Tells the server what the player looks at, a shift click depends on it.
-     */
-    /**
      * Announces an auto craft, so its answer can be waited for.
      *
      * @return the number of the request, for {@link #sendAutoCraft} and {@link #awaitAutoCraft}
@@ -228,6 +225,9 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
         }
     }
 
+    /**
+     * Tells the server what the player looks at, a shift click depends on it.
+     */
     public void setShownView(RequestTableView view) {
         shownView = view;
         syncToServer(C_VIEW, buf -> buf.writeByte(view.ordinal()));
@@ -443,8 +443,9 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
             boolean craftable = buf.readBoolean();
             received.add(new RequestTableNetworkEntry(stack, fluid, networkAmount, internalAmount, craftable));
         }
-        settings = readSettings(buf);
         if (id == S_CONTENT) {
+            // only with the list the window opens with: a later copy could undo what the player just set
+            settings = readSettings(buf);
             savedSearch = buf.readStringFromBuffer(RequestTableDisplaySettings.MAX_SEARCH_LENGTH);
         }
         List<RequestTableNetworkEntry> present = new ArrayList<>(received.size());
@@ -505,7 +506,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private void sendContent(boolean full) {
         sentRevision = table.getContentRevision();
         lastSendTime = table.getWorld().getTotalWorldTime();
-        List<RequestTableNetworkEntry> entries = RequestTableRefreshPacket.buildEntries(table);
+        List<RequestTableNetworkEntry> entries = RequestTableContent.buildEntries(table);
         RequestTableDisplaySettings playerSettings = table.getDisplaySettings(getSyncManager().getPlayer());
         if (full) {
             sentIndex.clear();
@@ -558,8 +559,8 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 buf.writeInt(entry.getInternalAmount());
                 buf.writeBoolean(entry.isCraftable());
             }
-            writeSettings(buf, playerSettings);
             if (full) {
+                writeSettings(buf, playerSettings);
                 buf.writeStringToBuffer(playerSettings.getSavedSearch());
             }
         });
@@ -634,7 +635,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                     answer.writeVarIntToBuffer(made);
                 });
                 if (made > 0) {
-                    table.sendNetworkContentToWatchers();
+                    table.markContentChanged();
                 }
             }
             case C_VIEW -> {
@@ -722,7 +723,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
             playerMP.updateHeldItem();
         }
         // the amounts in the storage of the table changed
-        table.sendNetworkContentToWatchers();
+        table.markContentChanged();
     }
 
     // endregion

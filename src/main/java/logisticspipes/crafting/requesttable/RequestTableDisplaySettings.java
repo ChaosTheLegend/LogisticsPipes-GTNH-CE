@@ -85,13 +85,6 @@ public class RequestTableDisplaySettings {
     }
 
     /**
-     * The settings of the legacy GUI, the others stay at their default.
-     */
-    public static RequestTableDisplaySettings fromOrdinals(int sortMode, int sortDirection, int filterMode) {
-        return fromOrdinals(new int[] { sortMode, sortDirection, filterMode });
-    }
-
-    /**
      * @param ordinals the ordinals of the settings in the order of {@link #toOrdinals}, missing ones are 0; the search
      *                 text isn't one of them and stays empty
      */

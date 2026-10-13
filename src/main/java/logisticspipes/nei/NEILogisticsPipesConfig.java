@@ -11,7 +11,6 @@ import codechicken.nei.guihook.GuiContainerManager;
 import cpw.mods.fml.common.Mod;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.Configs;
-import logisticspipes.crafting.requesttable.RequestTableGui;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.GuiSolderingStation;
 import logisticspipes.gui.orderer.GuiRequestTable;
@@ -55,7 +54,6 @@ public class NEILogisticsPipesConfig implements IConfigureNEI {
                 LogisticsCraftingOverlayHandler.INSTANCE,
                 "crafting");
         API.registerGuiOverlayHandler(GuiRequestTable.class, LogisticsCraftingOverlayHandler.INSTANCE, "crafting");
-        API.registerGuiOverlayHandler(RequestTableGui.class, LogisticsCraftingOverlayHandler.INSTANCE, "crafting");
 
         // pattern editors (pipe and handheld) get NEI transfer from PatternCraftingContainer
 

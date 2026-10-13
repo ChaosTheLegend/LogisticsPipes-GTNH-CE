@@ -33,6 +33,7 @@ import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.ClickMod
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.FilterMode;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.FluidUnit;
 import logisticspipes.crafting.requesttable.RequestTableNetworkEntry;
+import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -388,7 +389,8 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         // an item on the cursor goes into the storage of the table wherever it is dropped on the list; a fluid
         // container dropped on a fluid entry is filled from or emptied into the storage instead
         ItemStack held = Minecraft.getMinecraft().thePlayer.inventory.getItemStack();
-        if (held != null && (mouseButton == 0 || mouseButton == 1) && (entry == null || !entry.isFluid())) {
+        boolean onFluid = entry != null && entry.isFluid() && RequestTablePipe.isFluidContainer(held);
+        if (held != null && (mouseButton == 0 || mouseButton == 1) && !onFluid) {
             handler.interact(ItemIdentifierStack.getFromStack(held), false, mouseButton, false);
             return Result.SUCCESS;
         }

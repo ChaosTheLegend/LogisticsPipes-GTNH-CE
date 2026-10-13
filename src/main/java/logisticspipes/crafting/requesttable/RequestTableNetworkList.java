@@ -30,7 +30,8 @@ public class RequestTableNetworkList {
     private final List<CachedEntry> sourceEntries = new ArrayList<>();
     private final List<CachedEntry> sortedEntries = new ArrayList<>();
     private final Map<ItemIdentifier, RequestTableNetworkEntry> knownItems = new HashMap<>();
-    // sort name, mod name, searchable name and searchable mod of the items seen so far; working them out is slow for some items
+    // sort name, mod name, searchable name and searchable mod of the items seen so far; working them out is slow for
+    // some items
     private final Map<ItemIdentifier, String[]> names = new HashMap<>();
     private static final int MAX_CACHED_NAMES = 50000;
     // a word of the search: it ends at a space, but not at one between quotes. The last quote may be left open.
@@ -103,8 +104,8 @@ public class RequestTableNetworkList {
     }
 
     /**
-     * Splits the search text into words. A word that starts with {@code @} searches the mod of an entry, the others
-     * its name. Quotes keep the spaces between them in the word: {@code @"applied energistics"}.
+     * Splits the search text into words. A word that starts with {@code @} searches the mod of an entry, the others its
+     * name. Quotes keep the spaces between them in the word: {@code @"applied energistics"}.
      */
     private void parseSearch(String text) {
         List<String> nameWords = new ArrayList<>();
@@ -120,14 +121,6 @@ public class RequestTableNetworkList {
         }
         searchTokens = nameWords.toArray(new String[0]);
         modTokens = modWords.toArray(new String[0]);
-    }
-
-    /**
-     * @return true if the item is in the list, whatever the filters show: stored in the network or the table, or
-     *         craftable
-     */
-    public boolean isKnown(ItemIdentifier item) {
-        return knownItems.containsKey(item);
     }
 
     /**

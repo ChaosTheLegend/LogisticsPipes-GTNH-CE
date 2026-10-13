@@ -5,8 +5,6 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
-import logisticspipes.crafting.requesttable.RequestTableContainer;
-import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -57,22 +55,6 @@ public final class PacketGuards {
         }
         SecuritySettings settings = station.getSecuritySettingsForPlayer(player, true);
         return settings == null || settings.openGui;
-    }
-
-    /**
-     * Returns the request table whose GUI the player currently has open, or null.
-     * <p>
-     * Request table packets resolve their table through this instead of trusting client-sent coordinates or dimensions.
-     */
-    public static RequestTablePipe getOpenRequestTable(EntityPlayer player) {
-        if (player == null || !(player.openContainer instanceof RequestTableContainer container)) {
-            return null;
-        }
-        RequestTablePipe table = container.getTable();
-        if (table == null || table.container == null || table.container.isInvalid()) {
-            return null;
-        }
-        return table;
     }
 
     /**
