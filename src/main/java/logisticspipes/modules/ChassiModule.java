@@ -13,6 +13,7 @@ import logisticspipes.interfaces.IModuleInventory;
 import logisticspipes.interfaces.IModuleInventoryOverride;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
+import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
@@ -21,6 +22,7 @@ import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.pipe.ChassiGuiProvider;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.computers.objects.CCSinkResponder;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -39,11 +41,21 @@ public class ChassiModule extends LogisticsGuiModule {
     }
 
     public void installModule(int slot, LogisticsModule module) {
+        if (_modules[slot] != module) {
+            notifyRemoved(_modules[slot]);
+        }
         _modules[slot] = module;
     }
 
     public void removeModule(int slot) {
+        notifyRemoved(_modules[slot]);
         _modules[slot] = null;
+    }
+
+    private void notifyRemoved(LogisticsModule module) {
+        if (module instanceof LogisticsFluidModule fluidModule && MainProxy.isServer(_parentPipe.getWorld())) {
+            fluidModule.onRemoved();
+        }
     }
 
     public LogisticsModule getModule(int slot) {

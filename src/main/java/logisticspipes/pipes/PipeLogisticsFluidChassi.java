@@ -13,13 +13,13 @@ import java.util.TreeSet;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
+import logisticspipes.interfaces.IFluidContainerReceiver;
 import logisticspipes.interfaces.IFluidModuleHost;
 import logisticspipes.interfaces.ISlotUpgradeManager;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
@@ -31,7 +31,6 @@ import logisticspipes.items.ItemModule;
 import logisticspipes.items.LogisticsFluidContainer;
 import logisticspipes.logisticspipes.FluidChassiTransportLayer;
 import logisticspipes.logisticspipes.IRoutedItem;
-import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.modules.IFluidReserver;
 import logisticspipes.modules.ModuleFluidContainerSink;
@@ -41,6 +40,7 @@ import logisticspipes.modules.ModuleFluidTankSupplier;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
+import logisticspipes.pipes.basic.fluid.PendingFluids;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
@@ -53,10 +53,10 @@ import logisticspipes.transport.LPTravelingItem.LPTravelingItemServer;
 import logisticspipes.utils.CacheHolder.CacheTypes;
 import logisticspipes.utils.FluidContainerUtil;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidSendUtil;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
-import logisticspipes.utils.tuples.Pair;
 
 /**
  * A chassis for fluid modules. It points at a tank instead of an inventory. Fluid arrives and leaves as fluid container
@@ -64,12 +64,12 @@ import logisticspipes.utils.tuples.Pair;
  * its own.
  */
 public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
-        implements IFluidModuleHost, IFluidSink, IProvideFluids {
+        implements IFluidModuleHost, IFluidSink, IProvideFluids, IFluidContainerReceiver {
 
     private static final int TICKS_PER_PENDING_RETRY = 20;
 
     // fluid that arrived but didn't fit into the tank, waiting for the tank or another sink in the network
-    private final List<FluidStack> pendingFluids = new ArrayList<>();
+    private final PendingFluids pendingFluids = new PendingFluids();
 
     public PipeLogisticsFluidChassi(Item item) {
         super(item);
@@ -179,7 +179,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         }
         List<ModuleFluidSink> sinks = getModules(ModuleFluidSink.class);
         for (ModuleFluidSink sink : sinks) {
-            if (sink.isFiltered(liquid)) {
+            if (sink.getFilter().contains(liquid)) {
                 return sink;
             }
         }
@@ -201,7 +201,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     public void onAllowedRemoval() {
         if (MainProxy.isServer(getWorld())) {
             for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
-                module.onHostRemoved();
+                module.onRemoved();
             }
         }
         super.onAllowedRemoval();
@@ -211,9 +211,8 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     /**
      * Puts an arriving fluid container into the tank. What doesn't fit is sent to another sink in the network.
-     *
-     * @return true if the item was a fluid container and is handled
      */
+    @Override
     public boolean endReached(LPTravelingItemServer arrivingItem, TileEntity tile) {
         ItemIdentifierStack stack = arrivingItem.getItemIdentifierStack();
         if (stack == null) {
@@ -225,26 +224,26 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         if (!stack.getItem().isFluidContainer()) {
             return false;
         }
-        FluidStack liquid = SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(stack);
+        // fluid on its way through the network, or a real item that holds fluid, like a large cell
+        boolean realContainer = !(stack.getItem().item instanceof LogisticsFluidContainer);
+        ItemStack single = stack.getItem().makeNormalStack(1);
+        FluidStack liquid = realContainer ? FluidContainerUtil.getFluid(single)
+                : SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(stack);
         if (liquid == null) {
             return false;
         }
-        // a real item that holds fluid, like a large cell: every one of the stack holds that much, and the empty
-        // ones are given back to the network
-        boolean realContainer = !(stack.getItem().item instanceof LogisticsFluidContainer);
         if (realContainer) {
+            // every one of the stack holds that much, and the empty ones are given back to the network
             liquid.amount = (int) Math.min(Integer.MAX_VALUE, (long) liquid.amount * stack.getStackSize());
-            ItemStack empty = FluidContainerUtil.getEmptied(stack.getItem().makeNormalStack(1));
+            ItemStack empty = FluidContainerUtil.getEmptied(single);
             if (empty != null) {
                 sendStacks(empty, stack.getStackSize());
             }
         }
         getCacheHolder().trigger(CacheTypes.Inventory);
-        if (getRouter().getSimpleID() == arrivingItem.getDestination()) {
-            LogisticsFluidModule module = getModuleFor(arrivingItem.getInfo().targetInfo, liquid);
-            if (module != null) {
-                liquid.amount -= module.acceptFluid(liquid);
-            }
+        LogisticsFluidModule module = getModuleFor(arrivingItem.getInfo().targetInfo, liquid);
+        if (module != null) {
+            liquid.amount -= module.acceptFluid(liquid);
         }
         if (liquid.amount > 0) {
             addPendingFluid(liquid);
@@ -260,8 +259,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
      * @return true if the item was for such a module and is handled
      */
     private boolean emptyArrivingContainers(LPTravelingItemServer arrivingItem, ItemIdentifierStack stack) {
-        if (stack.getItem().item instanceof LogisticsFluidContainer
-                || getRouter().getSimpleID() != arrivingItem.getDestination()) {
+        if (stack.getItem().item instanceof LogisticsFluidContainer) {
             return false;
         }
         ItemStack single = stack.getItem().makeNormalStack(1);
@@ -276,12 +274,8 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         getCacheHolder().trigger(CacheTypes.Inventory);
         int count = stack.getStackSize();
         int emptied = 0;
-        while (emptied < count && module.acceptContainer(fluid)) {
+        while (emptied < count && module.acceptContainer(fluid, this::addPendingFluid)) {
             emptied++;
-            FluidStack overflow = module.takeOverflow();
-            if (overflow != null) {
-                addPendingFluid(overflow);
-            }
         }
         if (emptied > 0) {
             ItemStack empty = FluidContainerUtil.getEmptied(single);
@@ -304,7 +298,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
             return module;
         }
         for (ModuleFluidContainerSink sink : getModules(ModuleFluidContainerSink.class)) {
-            if (sink.isFiltered(fluid)) {
+            if (sink.getFilter().contains(fluid)) {
                 return sink;
             }
         }
@@ -324,34 +318,17 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     }
 
     private void addPendingFluid(FluidStack liquid) {
-        for (FluidStack pending : pendingFluids) {
-            if (pending.isFluidEqual(liquid) && pending.amount <= Integer.MAX_VALUE - liquid.amount) {
-                pending.amount += liquid.amount;
-                return;
-            }
-        }
-        pendingFluids.add(liquid.copy());
+        pendingFluids.add(liquid, ForgeDirection.UNKNOWN);
     }
 
     private void sendPendingFluids() {
-        for (Iterator<FluidStack> iterator = pendingFluids.iterator(); iterator.hasNext();) {
-            FluidStack pending = iterator.next();
-            if (pending.amount <= 0) {
-                iterator.remove();
-                continue;
-            }
-            Pair<Integer, Integer> reply = SimpleServiceLocator.logisticsFluidManager
-                    .getBestReply(pending, getRouter(), new ArrayList<>());
-            if (reply.getValue1() != 0 && reply.getValue2() > 0) {
-                FluidStack toSend = pending.copy();
-                toSend.amount = Math.min(pending.amount, reply.getValue2());
-                IRoutedItem routedItem = SimpleServiceLocator.routedItemHelper
-                        .createNewTravelItem(SimpleServiceLocator.logisticsFluidManager.getFluidContainer(toSend));
-                routedItem.setDestination(reply.getValue1());
-                routedItem.setTransportMode(TransportMode.Passive);
-                ForgeDirection from = getPointedOrientation();
-                queueRoutedItem(routedItem, from == null || from == ForgeDirection.UNKNOWN ? ForgeDirection.UP : from);
-                pending.amount -= toSend.amount;
+        ForgeDirection pointed = getPointedOrientation();
+        ForgeDirection from = pointed == null || pointed == ForgeDirection.UNKNOWN ? ForgeDirection.UP : pointed;
+        for (Iterator<PendingFluids.Entry> iterator = pendingFluids.iterator(); iterator.hasNext();) {
+            FluidStack pending = iterator.next().fluid;
+            IRoutedItem routedItem = FluidSendUtil.createItemForSink(pending, getRouter());
+            if (routedItem != null) {
+                queueRoutedItem(routedItem, from);
             }
             if (pending.amount <= 0) {
                 iterator.remove();
@@ -366,10 +343,10 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
             return;
         }
         // the tank may have room again
-        for (FluidStack pending : pendingFluids) {
-            LogisticsFluidModule module = getModuleFor(null, pending);
+        for (PendingFluids.Entry pending : pendingFluids) {
+            LogisticsFluidModule module = getModuleFor(null, pending.fluid);
             if (module != null) {
-                pending.amount -= module.acceptFluid(pending);
+                pending.fluid.amount -= module.acceptFluid(pending.fluid);
             }
         }
         sendPendingFluids();
@@ -380,7 +357,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     private int getSinkAmount(FluidStack stack, boolean filtered) {
         int amount = 0;
         for (ModuleFluidSink sink : getModules(ModuleFluidSink.class)) {
-            if (sink.isFiltered(stack) == filtered) {
+            if (sink.getFilter().contains(stack) == filtered) {
                 amount = Math.max(amount, sink.sinkAmount(stack));
             }
         }
@@ -399,7 +376,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     @Override
     public FixedPriority getFluidSinkPriority(FluidStack stack) {
         for (ModuleFluidSink sink : getModules(ModuleFluidSink.class)) {
-            if (sink.isFiltered(stack)) {
+            if (sink.getFilter().contains(stack)) {
                 return FixedPriority.ItemSink;
             }
         }
@@ -493,23 +470,12 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {
         super.readFromNBT(nbttagcompound);
-        pendingFluids.clear();
-        NBTTagList list = nbttagcompound.getTagList("pendingFluids", 10);
-        for (int i = 0; i < list.tagCount(); i++) {
-            FluidStack fluid = FluidStack.loadFluidStackFromNBT(list.getCompoundTagAt(i));
-            if (fluid != null) {
-                pendingFluids.add(fluid);
-            }
-        }
+        pendingFluids.readFromNBT(nbttagcompound, "pendingFluids");
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
         super.writeToNBT(nbttagcompound);
-        NBTTagList list = new NBTTagList();
-        for (FluidStack fluid : pendingFluids) {
-            list.appendTag(fluid.writeToNBT(new NBTTagCompound()));
-        }
-        nbttagcompound.setTag("pendingFluids", list);
+        pendingFluids.writeToNBT(nbttagcompound, "pendingFluids");
     }
 }

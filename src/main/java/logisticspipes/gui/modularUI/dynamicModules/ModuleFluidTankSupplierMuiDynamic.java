@@ -77,6 +77,7 @@ public class ModuleFluidTankSupplierMuiDynamic extends GenericModuleMUI<ModuleFl
                                                                                 ? "gui.fluidsuppliermk2.partial.yes"
                                                                                 : "gui.fluidsuppliermk2.partial.no"))
                                                         .tooltipBuilder(tooltip -> {
+                                                            tooltip.setAutoUpdate(true);
                                                             tooltip.addLine(
                                                                     IKey.lang("gui.fluidsuppliermk2.partial.tip"));
                                                             tooltip.addLine(

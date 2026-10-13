@@ -13,10 +13,9 @@ import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import logisticspipes.config.Configs;
-import logisticspipes.interfaces.ISpecialTankAccessHandler;
+import logisticspipes.interfaces.IFluidContainerReceiver;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.logisticspipes.IRoutedItem;
-import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
@@ -30,10 +29,12 @@ import logisticspipes.transport.LPTravelingItem.LPTravelingItemServer;
 import logisticspipes.transport.PipeFluidTransportLogistics;
 import logisticspipes.utils.CacheHolder.CacheTypes;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidSendUtil;
+import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.WorldUtil;
 import logisticspipes.utils.tuples.Pair;
 
-public abstract class FluidRoutedPipe extends CoreRoutedPipe {
+public abstract class FluidRoutedPipe extends CoreRoutedPipe implements IFluidContainerReceiver {
 
     private static final int TICKS_PER_PENDING_RETRY = 5;
 
@@ -288,14 +289,12 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
 
     public abstract boolean canReceiveFluid();
 
+    @Override
     public boolean endReached(LPTravelingItemServer arrivingItem, TileEntity tile) {
-        if (canInsertToTanks() && MainProxy.isServer(getWorld())) {
+        if (canInsertToTanks()) {
             getCacheHolder().trigger(CacheTypes.Inventory);
             if (arrivingItem.getItemIdentifierStack() == null
                     || !(arrivingItem.getItemIdentifierStack().getItem().isFluidContainer())) {
-                return false;
-            }
-            if (getRouter().getSimpleID() != arrivingItem.getDestination()) {
                 return false;
             }
             ForgeDirection waitingSide = ForgeDirection.UNKNOWN;
@@ -345,55 +344,35 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe {
             }
             // the rest waits for room in the tank
             int room = (int) Math.max(0, getPendingCapacity() - pendingFluids.getTotalAmount());
-            if (room >= liquid.amount) {
-                pendingFluids.add(liquid, waitingSide);
-                return true;
+            if (room < liquid.amount) {
+                // too much is waiting already, another sink gets what goes beyond that
+                FluidStack surplus = liquid.copy();
+                surplus.amount = liquid.amount - room;
+                IRoutedItem routedItem = FluidSendUtil.createItemForSink(surplus, getRouter());
+                if (routedItem != null) {
+                    int sent = liquid.amount - room - surplus.amount;
+                    liquid.amount -= sent;
+                    // TODO: FIX THIS
+                    if (this instanceof IRequireReliableFluidTransport) {
+                        ((IRequireReliableFluidTransport) this).liquidNotInserted(FluidIdentifier.get(liquid), sent);
+                    }
+                    queueRoutedItem(routedItem, arrivingItem.output.getOpposite());
+                }
             }
-            FluidStack waiting = liquid.copy();
-            waiting.amount = room;
-            pendingFluids.add(waiting, waitingSide);
-            liquid.amount -= room;
-
-            // too much is waiting already, find another sink
-            Pair<Integer, Integer> replies = SimpleServiceLocator.logisticsFluidManager
-                    .getBestReply(liquid, getRouter(), new ArrayList<>());
-            int dest = replies.getValue1();
-            if (dest == 0 || replies.getValue2() <= 0) {
-                // nobody else takes it, keep it rather than send it nowhere
-                pendingFluids.add(liquid, waitingSide);
-                return true;
-            }
-            FluidStack toSend = liquid.copy();
-            toSend.amount = Math.min(liquid.amount, replies.getValue2());
-            liquid.amount -= toSend.amount;
+            // what nobody else takes is kept rather than sent nowhere
             pendingFluids.add(liquid, waitingSide);
-
-            // TODO: FIX THIS
-            if (this instanceof IRequireReliableFluidTransport) {
-                ((IRequireReliableFluidTransport) this).liquidNotInserted(FluidIdentifier.get(toSend), toSend.amount);
-            }
-            IRoutedItem routedItem = SimpleServiceLocator.routedItemHelper
-                    .createNewTravelItem(SimpleServiceLocator.logisticsFluidManager.getFluidContainer(toSend));
-            routedItem.setDestination(dest);
-            routedItem.setTransportMode(TransportMode.Passive);
-            this.queueRoutedItem(routedItem, arrivingItem.output.getOpposite());
             return true;
         }
         return false;
     }
 
     /**
-     * Puts fluid into the tile on that side of the pipe. A tile without a fluid handler is filled through its special
-     * tank handler, like an ME interface.
+     * Puts fluid into the tile on that side of the pipe.
      *
      * @return the amount that was taken
      */
     protected int fillTank(TileEntity tile, ForgeDirection tankLocation, FluidStack stack, boolean fill) {
-        if (tile instanceof IFluidHandler handler) {
-            return handler.fill(tankLocation.getOpposite(), stack.copy(), fill);
-        }
-        ISpecialTankAccessHandler special = SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile);
-        return special == null ? 0 : special.fillInto(tile, stack.copy(), fill);
+        return FluidTankUtil.fill(tile, tankLocation.getOpposite(), stack, fill);
     }
 
     protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, TileEntity tile) {

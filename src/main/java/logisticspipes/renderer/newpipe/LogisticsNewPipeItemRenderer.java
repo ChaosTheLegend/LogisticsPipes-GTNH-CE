@@ -32,17 +32,14 @@ import logisticspipes.utils.tuples.Pair;
 
 public class LogisticsNewPipeItemRenderer implements IItemRenderer {
 
-    private final boolean renderAsBlock;
     // the pipe whose item is drawn as a block, null for the items drawn as pipes
     private final IBlockShapedPipe blockPipe;
 
-    public LogisticsNewPipeItemRenderer(boolean flag) {
-        renderAsBlock = flag;
+    public LogisticsNewPipeItemRenderer() {
         blockPipe = null;
     }
 
     public LogisticsNewPipeItemRenderer(IBlockShapedPipe blockPipe) {
-        renderAsBlock = true;
         this.blockPipe = blockPipe;
     }
 
@@ -151,7 +148,7 @@ public class LogisticsNewPipeItemRenderer implements IItemRenderer {
     }
 
     private void renderItem(RenderBlocks render, ItemStack item, float translateX, float translateY, float translateZ) {
-        if (renderAsBlock) {
+        if (blockPipe != null) {
             renderBlockItem(render, item, translateX, translateY, translateZ);
         } else {
             renderPipeItem(render, item, translateX, translateY, translateZ);
@@ -187,14 +184,14 @@ public class LogisticsNewPipeItemRenderer implements IItemRenderer {
                 renderItem((RenderBlocks) data[0], item, -0.5f, -0.5f, -0.5f);
                 break;
             case EQUIPPED:
-                if (renderAsBlock) {
+                if (blockPipe != null) {
                     renderItem((RenderBlocks) data[0], item, 0f, 0f, 0f);
                 } else {
                     renderItem((RenderBlocks) data[0], item, -0.4f, 0.50f, 0.35f);
                 }
                 break;
             case EQUIPPED_FIRST_PERSON:
-                if (renderAsBlock) {
+                if (blockPipe != null) {
                     renderItem((RenderBlocks) data[0], item, 0f, 0.0f, 0.0f);
                 } else {
                     renderItem((RenderBlocks) data[0], item, -0.4f, 0.50f, 0.35f);

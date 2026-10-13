@@ -16,7 +16,6 @@ import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.PipeGuiFactory;
 import logisticspipes.gui.modularUI.pipes.PipeFluidSupplierMk2Mui;
-import logisticspipes.interfaces.ISpecialTankAccessHandler;
 import logisticspipes.interfaces.routing.IRequestFluid;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.migration.LegacyHelper;
@@ -29,6 +28,7 @@ import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.utils.AdjacentTile;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.WorldUtil;
 import lombok.extern.log4j.Log4j2;
 
@@ -94,23 +94,7 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
      *         is what the handler reports, so for an ME network the content of the whole network.
      */
     private long getStoredAmount(TileEntity tile, FluidIdentifier fluid) {
-        ISpecialTankAccessHandler special = SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile);
-        if (special != null) {
-            Long stored = special.getAvailableLiquid(tile).get(fluid);
-            return stored == null ? 0 : stored;
-        }
-        long stored = 0;
-        if (tile instanceof IFluidHandler handler) {
-            FluidTankInfo[] tanks = handler.getTankInfo(ForgeDirection.UNKNOWN);
-            if (tanks != null) {
-                for (FluidTankInfo info : tanks) {
-                    if (info != null && info.fluid != null && fluid.equals(FluidIdentifier.get(info.fluid))) {
-                        stored += info.fluid.amount;
-                    }
-                }
-            }
-        }
-        return stored;
+        return FluidTankUtil.getStored(tile, ForgeDirection.UNKNOWN, fluid);
     }
 
     /**

@@ -82,6 +82,7 @@ public class PipeFluidSupplierMk2Mui extends LogisticsPipeMUI {
                                                                                 ? "gui.fluidsuppliermk2.partial.yes"
                                                                                 : "gui.fluidsuppliermk2.partial.no"))
                                                         .tooltipBuilder((tooltip -> {
+                                                            tooltip.setAutoUpdate(true);
                                                             tooltip.addLine(
                                                                     IKey.lang("gui.fluidsuppliermk2.partial.tip"));
 

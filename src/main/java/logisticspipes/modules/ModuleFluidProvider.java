@@ -73,7 +73,7 @@ public class ModuleFluidProvider extends LogisticsFluidModule implements IProvid
     }
 
     @Override
-    public void onHostRemoved() {
+    public void onRemoved() {
         if (orderManager == null) {
             return;
         }

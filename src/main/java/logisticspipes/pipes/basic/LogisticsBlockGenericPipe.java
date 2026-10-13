@@ -40,6 +40,7 @@ import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IBlockShapedPipe;
+import logisticspipes.interfaces.IBlockShapedPipe.BlockTextures;
 import logisticspipes.interfaces.IRotationProvider;
 import logisticspipes.items.ItemLogisticsPipe;
 import logisticspipes.proxy.MainProxy;
@@ -522,17 +523,17 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
             }
             return routed ? Textures.LOGISTICS_REQUEST_TABLE_NEW_ROUTED : Textures.LOGISTICS_REQUEST_TABLE_NEW_UNROUTED;
         }
-        IIcon[] textures = ((IBlockShapedPipe) tile.pipe).getBlockTextures();
+        BlockTextures textures = ((IBlockShapedPipe) tile.pipe).getBlockTextures();
         switch (dir) {
             case UP:
-                return textures[0];
+                return textures.top;
             case DOWN:
-                return textures[1];
+                return textures.bottom;
             default:
                 if (!connected) {
-                    return textures[4];
+                    return textures.emptySide;
                 }
-                return routed ? textures[2] : textures[3];
+                return routed ? textures.routedSide : textures.unroutedSide;
         }
     }
 
@@ -540,15 +541,14 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
      * @return the texture of that side of the item of a pipe that stands in the world as a block
      */
     public static IIcon getBlockShapedItemTexture(IBlockShapedPipe pipe, int l) {
-        IIcon[] textures = pipe.getBlockTextures();
-        ForgeDirection dir = ForgeDirection.getOrientation(l);
-        switch (dir) {
+        BlockTextures textures = pipe.getBlockTextures();
+        switch (ForgeDirection.getOrientation(l)) {
             case UP:
-                return textures[0];
+                return textures.top;
             case DOWN:
-                return textures[1];
+                return textures.bottom;
             default:
-                return textures[4];
+                return textures.emptySide;
         }
     }
 

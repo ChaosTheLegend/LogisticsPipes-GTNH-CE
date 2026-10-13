@@ -6,13 +6,14 @@ import java.util.List;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTank;
 
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.dynamicModules.ModuleFluidSinkMuiDynamic;
 import logisticspipes.interfaces.IFluidModuleHost;
+import logisticspipes.interfaces.IFluidSinkSettings;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.utils.FluidFilter;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.FluidRoomCache;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -20,39 +21,25 @@ import logisticspipes.utils.item.ItemIdentifier;
 /**
  * Takes fluids from the network into the tank, like the basic fluid pipe.
  */
-public class ModuleFluidSink extends LogisticsFluidModule {
+public class ModuleFluidSink extends LogisticsFluidModule implements IFluidSinkSettings {
 
-    public static final int FILTER_SLOTS = 9;
-
-    private final FluidTank[] filter = new FluidTank[FILTER_SLOTS];
+    private final FluidFilter filter = new FluidFilter();
     private boolean defaultRoute = false;
     private final FluidRoomCache roomCache = new FluidRoomCache();
 
-    public ModuleFluidSink() {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            filter[i] = new FluidTank(1);
-        }
+    @Override
+    public FluidFilter getFilter() {
+        return filter;
     }
 
-    public FluidTank getFilterTank(int slot) {
-        return filter[slot];
-    }
-
+    @Override
     public boolean isDefaultRoute() {
         return defaultRoute;
     }
 
+    @Override
     public void setDefaultRoute(boolean defaultRoute) {
         this.defaultRoute = defaultRoute;
-    }
-
-    public boolean isFiltered(FluidStack stack) {
-        for (FluidTank tank : filter) {
-            if (tank.getFluid() != null && tank.getFluid().isFluidEqual(stack)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -63,7 +50,7 @@ public class ModuleFluidSink extends LogisticsFluidModule {
         if (host == null) {
             return 0;
         }
-        if (!isFiltered(stack) && !defaultRoute) {
+        if (!filter.contains(stack) && !defaultRoute) {
             return 0;
         }
         FluidIdentifier fluid = FluidIdentifier.get(stack);
@@ -93,11 +80,7 @@ public class ModuleFluidSink extends LogisticsFluidModule {
         if (getHost() == null || getTankTile() == null) {
             return interests;
         }
-        for (FluidTank tank : filter) {
-            if (tank.getFluid() == null) {
-                continue;
-            }
-            FluidIdentifier fluid = FluidIdentifier.get(tank.getFluid());
+        for (FluidIdentifier fluid : filter.getFluids()) {
             if (getRoom(fluid) > 0) {
                 interests.add(fluid.getItemIdentifier());
             }
@@ -110,43 +93,23 @@ public class ModuleFluidSink extends LogisticsFluidModule {
         return defaultRoute && getHost() != null && getTankTile() != null;
     }
 
-    /**
-     * Sets the filter to the fluids that are in the tank.
-     */
+    @Override
     public void importFromTank() {
         if (getTankTile() == null || MainProxy.isClient(getWorld())) {
             return;
         }
-        int slot = 0;
-        for (FluidTank tank : filter) {
-            tank.setFluid(null);
-        }
-        for (FluidIdentifier fluid : getTankContents().keySet()) {
-            if (slot >= FILTER_SLOTS) {
-                break;
-            }
-            filter[slot++].setFluid(fluid.makeFluidStack(1));
-        }
+        filter.setFluids(getTankContents().keySet());
     }
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            filter[i].setFluid(null);
-            if (nbttagcompound.hasKey("filter" + i)) {
-                filter[i].readFromNBT(nbttagcompound.getCompoundTag("filter" + i));
-            }
-        }
+        filter.readFromNBT(nbttagcompound);
         defaultRoute = nbttagcompound.getBoolean("defaultRoute");
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (filter[i].getFluid() != null) {
-                nbttagcompound.setTag("filter" + i, filter[i].writeToNBT(new NBTTagCompound()));
-            }
-        }
+        filter.writeToNBT(nbttagcompound);
         nbttagcompound.setBoolean("defaultRoute", defaultRoute);
     }
 
