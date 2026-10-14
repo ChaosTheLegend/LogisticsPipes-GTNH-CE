@@ -14,4 +14,11 @@ See [this repo](https://github.com/RS485/LogisticsPipes-Language) for translatio
 
 ## Contact
 
-This is a community rework the GTNH Fork
+This is a community rework of the GTNH Fork
+
+## Structure
+
+Master - branch closely matching GTNH fork, main source for new features
+Dev - branch with all upcomming, in development features
+
+everything else is feature branches
