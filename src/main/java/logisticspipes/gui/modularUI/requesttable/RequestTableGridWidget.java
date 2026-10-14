@@ -243,7 +243,14 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
      * Formats the amount of an entry for its slot, a fluid in the unit the player chose.
      */
     private String formatAmount(RequestTableNetworkEntry entry, int amount) {
-        if (!inBuckets(entry)) {
+        return entry.isFluid() ? formatFluidAmount(amount, inBuckets(entry)) : formatAmount(amount);
+    }
+
+    /**
+     * Formats an amount of fluid for a slot, in buckets or in mB.
+     */
+    static String formatFluidAmount(int amount, boolean inBuckets) {
+        if (!inBuckets) {
             return formatAmount(amount);
         }
         if (amount < 10_000) {

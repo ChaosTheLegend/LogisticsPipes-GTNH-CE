@@ -14,6 +14,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
+import net.minecraftforge.fluids.FluidStack;
 
 import org.lwjgl.opengl.GL11;
 
@@ -28,6 +29,7 @@ import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.screen.viewport.GuiContext;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetTheme;
+import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.FluidSlotSyncHandler;
@@ -50,6 +52,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.compat.ModularUIHelper;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
+import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.FluidUnit;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.SearchMemory;
 import logisticspipes.crafting.requesttable.RequestTableFluidStorage;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
@@ -251,7 +254,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
             grid.height(DEFAULT_ROWS * RequestTableGridWidget.CELL);
         }
         panel.child(grid);
-        addStorageTabs(panel, syncManager);
+        addStorageTabs(panel, syncManager, handler);
         addSettingButtons(panel, handler, settings);
         // a loaded table has its recipe but not yet what it makes
         if (table.resultInv.getStackInSlot(0) == null) {
@@ -400,6 +403,40 @@ public class RequestTableMui extends LogisticsPipeMUI {
         }
     }
 
+    /**
+     * Shows the amount in a tank of the fluid storage as small as the network list does, in the unit the player chose.
+     */
+    private static class StorageFluidSlot extends FluidSlot {
+
+        private final RequestTableSyncHandler handler;
+
+        StorageFluidSlot(RequestTableSyncHandler handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        protected boolean displayAmountText() {
+            // the amount is drawn below instead
+            return false;
+        }
+
+        @Override
+        public void drawOverlay(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
+            super.drawOverlay(context, widgetTheme);
+            FluidStack fluid = getFluidStack();
+            if (fluid == null || fluid.amount <= 0) {
+                return;
+            }
+            boolean buckets = handler.getSettings().getFluidUnit() == FluidUnit.BUCKETS;
+            GL11.glPushAttrib(GL11.GL_ENABLE_BIT);
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            RequestTableGridWidget
+                    .drawCornerText(RequestTableGridWidget.formatFluidAmount(fluid.amount, buckets), 0, 0, false);
+            GL11.glPopAttrib();
+        }
+    }
+
     private static int rows(int slots) {
         return Math.max(1, (slots + RequestTableGridWidget.COLUMNS - 1) / RequestTableGridWidget.COLUMNS);
     }
@@ -436,7 +473,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
     /**
      * The item storage of the table as a chest and its fluid storage as a row of tanks.
      */
-    private void addStorageTabs(ModularPanel panel, PanelSyncManager syncManager) {
+    private void addStorageTabs(ModularPanel panel, PanelSyncManager syncManager, RequestTableSyncHandler handler) {
         // the slots have to be the same on both sides, like in the legacy GUI the client works out the size as well
         table.updateStorageUpgrades();
 
@@ -466,7 +503,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
         StorageTab fluidTab = storageTab(syncManager, RequestTableView.FLUID_STORAGE, fluidSlots);
         for (int i = 0; i < fluidSlots; i++) {
             fluidTab.child(
-                    new FluidSlot().syncHandler(
+                    new StorageFluidSlot(handler).syncHandler(
                             new FluidSlotSyncHandler(new RequestTableSlotTank(fluids, i, table::markContentChanged)))
                             .pos(
                                     (i % RequestTableGridWidget.COLUMNS) * RequestTableGridWidget.CELL,

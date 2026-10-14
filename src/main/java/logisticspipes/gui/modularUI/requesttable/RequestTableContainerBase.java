@@ -37,20 +37,28 @@ public class RequestTableContainerBase extends ModularContainer {
 
     /**
      * A shift click on containers with fluid in them empties them into the fluid storage, unless the player chose to
-     * treat them as items. While the item storage is shown they are always put away like any other item.
+     * treat them as items. Each storage tab works only with its own storage: the fluid storage empties the containers
+     * and leaves every other item where it is, the item storage puts the containers away like any other item.
      */
     @Override
     public ItemStack transferStackInSlot(EntityPlayer player, int index) {
         ModularSlot slot = getModularSlot(index);
         RequestTableDisplaySettings settings = isClient() ? handler.getSettings() : table.getDisplaySettings(player);
-        if (ModularSlot.isPlayerSlot(slot) && handler.getShownView() != RequestTableView.ITEM_STORAGE
-                && settings.getContainerMode() == ContainerMode.EMPTY
+        RequestTableView view = handler.getShownView();
+        boolean fluidShown = view == RequestTableView.FLUID_STORAGE;
+        boolean empty = fluidShown
+                || (view != RequestTableView.ITEM_STORAGE && settings.getContainerMode() == ContainerMode.EMPTY);
+        if (ModularSlot.isPlayerSlot(slot) && empty
                 && slot.getSlotIndex() < player.inventory.mainInventory.length
                 && table.isFilledFluidContainer(slot.getStack())) {
             if (!isClient()) {
                 // changes the inventory of the player itself, the slots are reported back
                 table.emptyFluidContainers(player, slot.getSlotIndex());
             }
+            return null;
+        }
+        if (ModularSlot.isPlayerSlot(slot) && fluidShown) {
+            // the fluid storage has no place for items, nor sends them into the network
             return null;
         }
         return super.transferStackInSlot(player, index);
