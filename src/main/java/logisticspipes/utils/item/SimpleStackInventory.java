@@ -147,6 +147,9 @@ public class SimpleStackInventory implements IInventory, ISaveState, Iterable<Pa
             int index = nbttagcompound2.getInteger("index");
             if (index < _contents.length) {
                 _contents[index] = ItemStack.loadItemStackFromNBT(nbttagcompound2);
+                if (_contents[index] != null && nbttagcompound2.hasKey("lpStackSize")) {
+                    _contents[index].stackSize = nbttagcompound2.getInteger("lpStackSize");
+                }
             } else {
                 LogisticsPipes.log.fatal(
                         "SimpleInventory: java.lang.ArrayIndexOutOfBoundsException: " + index
@@ -169,6 +172,8 @@ public class SimpleStackInventory implements IInventory, ISaveState, Iterable<Pa
                 nbttaglist.appendTag(nbttagcompound2);
                 nbttagcompound2.setInteger("index", j);
                 _contents[j].writeToNBT(nbttagcompound2);
+                // Vanilla's Count byte cannot persist compressed request-table storage stacks.
+                nbttagcompound2.setInteger("lpStackSize", _contents[j].stackSize);
             }
         }
         nbttagcompound.setTag(prefix + "items", nbttaglist);

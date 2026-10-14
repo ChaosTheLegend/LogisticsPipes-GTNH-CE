@@ -8,8 +8,10 @@ import net.minecraft.world.World;
 import cpw.mods.fml.common.network.IGuiHandler;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.crafting.requesttable.RequestTableContainer;
-import logisticspipes.crafting.requesttable.RequestTableGui;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
+import logisticspipes.crafting.requesttable.gui.RequestTableGui;
+import logisticspipes.crafting.requesttable.gui.upgrade.RequestTableUpgradeGui;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
 import logisticspipes.gui.GuiFirewall;
 import logisticspipes.gui.GuiFluidSupplierPipe;
 import logisticspipes.gui.GuiFreqCardContent;
@@ -250,6 +252,10 @@ public class GuiHandler implements IGuiHandler {
                     }
                     return new RequestTableContainer(player, (RequestTablePipe) pipe.pipe);
 
+                case GuiIDs.GUI_Request_Table_Upgrades_ID:
+                    if (pipe == null || !(pipe.pipe instanceof RequestTablePipe table)) return null;
+                    return new RequestTableUpgradeContainer(player, table);
+
                 default:
                     break;
             }
@@ -354,6 +360,10 @@ public class GuiHandler implements IGuiHandler {
                         return null;
                     }
                     return new RequestTableGui(player, (RequestTablePipe) pipe.pipe);
+
+                case GuiIDs.GUI_Request_Table_Upgrades_ID:
+                    if (pipe == null || !(pipe.pipe instanceof RequestTablePipe table)) return null;
+                    return new RequestTableUpgradeGui(player, table);
 
                 default:
                     break;

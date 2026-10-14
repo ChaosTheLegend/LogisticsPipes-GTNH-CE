@@ -264,6 +264,9 @@ public class RequestTreeNode {
         for (IExtraPromise promise : byproducts) {
             promise.registerExtras(requestType);
         }
+        if (parentNode == null) {
+            logisticspipes.crafting.monitor.CraftingMonitorService.INSTANCE.observe(requestType, list);
+        }
         return list;
     }
 

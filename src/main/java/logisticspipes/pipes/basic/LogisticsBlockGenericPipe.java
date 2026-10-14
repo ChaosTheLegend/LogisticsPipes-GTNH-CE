@@ -39,6 +39,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.Configs;
+import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.interfaces.IRotationProvider;
 import logisticspipes.items.ItemLogisticsPipe;
 import logisticspipes.pipes.PipeBlockRequestTable;
@@ -61,6 +62,11 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
         setCreativeTab(null);
     }
 
+    private static ItemStack makePipeDrop(CoreUnroutedPipe pipe, int damage) {
+        return pipe instanceof RequestTablePipe table ? table.makeTableDrop(damage)
+                : new ItemStack(pipe.item, 1, damage);
+    }
+
     @Override
     public ArrayList<ItemStack> getDrops(World world, int x, int y, int z, int metadata, int fortune) {
         if (world.isRemote) {
@@ -78,7 +84,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
             if (pipe != null) {
                 if (pipe.item != null && (pipe.canBeDestroyed() || pipe.destroyByPlayer())) {
                     list.addAll(pipe.dropContents());
-                    list.add(new ItemStack(pipe.item, 1, damageDropped(metadata)));
+                    list.add(makePipeDrop(pipe, damageDropped(metadata)));
                 } else if (pipe.item != null) {
                     LogisticsBlockGenericPipe.cacheTileToPreventRemoval(pipe);
                 }
@@ -706,7 +712,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
                 for (ItemStack stack : pipe.dropContents()) {
                     dropBlockAsItem(world, i, j, k, stack);
                 }
-                dropBlockAsItem(world, i, j, k, new ItemStack(pipe.item, 1, damageDropped(l)));
+                dropBlockAsItem(world, i, j, k, makePipeDrop(pipe, damageDropped(l)));
             } else if (pipe.item != null) {
                 LogisticsBlockGenericPipe.cacheTileToPreventRemoval(pipe);
             }
@@ -772,6 +778,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
         CoreUnroutedPipe pipe = LogisticsBlockGenericPipe.getPipe(world, x, y, z);
 
         if (LogisticsBlockGenericPipe.isValid(pipe)) {
+            if (pipe instanceof RequestTablePipe table) table.restoreStorageUpgrades(stack);
             pipe.onBlockPlacedBy(placer);
             if (pipe instanceof IRotationProvider) {
                 double xPos = pipe.getX() + 0.5 - placer.posX;

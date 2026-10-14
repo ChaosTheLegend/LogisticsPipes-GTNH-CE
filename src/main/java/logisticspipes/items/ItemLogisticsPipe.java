@@ -21,6 +21,7 @@ import com.gtnewhorizon.gtnhlib.client.renderer.vao.IVertexArrayObject;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LogisticsPipes;
+import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
 import logisticspipes.renderer.IIconProvider;
@@ -55,6 +56,7 @@ public class ItemLogisticsPipe extends LogisticsItem {
     @Override
     public void addInformation(ItemStack stack, EntityPlayer player, List<String> list, boolean flags) {
         StringUtils.addShiftAddition(stack, list);
+        RequestTablePipe.addStorageUpgradeTooltip(stack, list);
     }
 
     @Override

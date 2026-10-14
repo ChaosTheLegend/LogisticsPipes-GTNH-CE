@@ -32,6 +32,7 @@ public class GuiIDs {
     public static final int GUI_Fluid_Basic_ID = 37;
     public static final int GUI_Request_Table_ID = 38;
     public static final int GUI_New_Request_Table_ID = 39;
+    public static final int GUI_Request_Table_Upgrades_ID = 40;
 
     // SubModules
     // All IDS above 120 and so on...
