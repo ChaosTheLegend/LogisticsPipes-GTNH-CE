@@ -15,6 +15,8 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 
+import org.lwjgl.opengl.GL11;
+
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.widget.IWidget;
@@ -109,7 +111,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
             "textures/gui/request_table_icons.png");
     private static final int ICON_SIZE = 16;
     private static final int ICON_SHEET_WIDTH = 64;
-    private static final int ICON_SHEET_HEIGHT = 208;
+    private static final int ICON_SHEET_HEIGHT = 224;
     // ticks the search text has to stay unchanged before the table remembers it
     private static final int SAVE_SEARCH_DELAY = 10;
     // the row of the sheet with the icons of the two storages and of the clear button
@@ -231,13 +233,16 @@ public class RequestTableMui extends LogisticsPipeMUI {
                 resultPopup.openPending();
             }));
         }
-        RequestTableGridWidget.RequestOpener requestOpener = (entry, fluid, startAmount) -> amountPopup.open(
-                StatCollector.translateToLocal(LANG + (fluid != null ? "popup.request.fluid" : "popup.request")),
+        RequestTableGridWidget.RequestOpener requestOpener = (entry, fluid, startAmount, craft) -> amountPopup.open(
+                StatCollector.translateToLocal(
+                        LANG + (craft ? "popup.craft.amount" : "popup.request") + (fluid != null ? ".fluid" : "")),
                 fluid != null ? null : entry.getStack().getItem().unsafeMakeNormalStack(1),
                 fluid,
                 startAmount,
-                entry.getNetworkAmount(),
-                amount -> handler.request(entry, amount));
+                // a craft has no button for all the network has
+                craft ? 0 : entry.getNetworkAmount(),
+                craft,
+                amount -> handler.request(entry, amount, craft));
         RequestTableGridWidget grid = new RequestTableGridWidget(handler, search::getText, requestOpener)
                 .pos(MARGIN, GRID_Y).setEnabledIf(w -> view == RequestTableView.NETWORK);
         if (client) {
@@ -375,6 +380,26 @@ public class RequestTableMui extends LogisticsPipeMUI {
         }
     }
 
+    /**
+     * Shows the amount in a slot of the item storage as small as the network list does: the slots hold more than a
+     * normal stack, a full sized number covers the item.
+     */
+    private static class StorageItemSlot extends ItemSlot {
+
+        @Override
+        protected void drawSlotAmountText(int amount, String format) {
+            if (amount <= 1 && format == null) {
+                return;
+            }
+            String text = RequestTableGridWidget.formatAmount(amount);
+            GL11.glPushAttrib(GL11.GL_ENABLE_BIT);
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            RequestTableGridWidget.drawCornerText(format == null ? text : format + text, 0, 0, false);
+            GL11.glPopAttrib();
+        }
+    }
+
     private static int rows(int slots) {
         return Math.max(1, (slots + RequestTableGridWidget.COLUMNS - 1) / RequestTableGridWidget.COLUMNS);
     }
@@ -429,7 +454,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         }
                     });
             itemTab.child(
-                    new ItemSlot().slot(slot).pos(
+                    new StorageItemSlot().slot(slot).pos(
                             (i % RequestTableGridWidget.COLUMNS) * RequestTableGridWidget.CELL,
                             (i / RequestTableGridWidget.COLUMNS) * RequestTableGridWidget.CELL));
         }
@@ -724,6 +749,14 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         s -> s.getDropMode().ordinal(),
                         s -> s.getDropMode().name(),
                         RequestTableDisplaySettings::nextDropMode));
+        buttons.add(
+                settingButton(
+                        handler,
+                        13,
+                        "containers",
+                        s -> s.getContainerMode().ordinal(),
+                        s -> s.getContainerMode().name(),
+                        RequestTableDisplaySettings::nextContainerMode));
         buttons.add(
                 settingButton(
                         handler,

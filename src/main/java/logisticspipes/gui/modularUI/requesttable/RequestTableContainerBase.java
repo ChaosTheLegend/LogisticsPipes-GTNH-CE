@@ -9,6 +9,7 @@ import com.cleanroommc.modularui.screen.ModularContainer;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
+import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.ContainerMode;
 import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.DropMode;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.RequestTableView;
@@ -35,13 +36,15 @@ public class RequestTableContainerBase extends ModularContainer {
     }
 
     /**
-     * A shift click on containers with fluid in them empties them into the fluid storage. Only while the item storage
-     * is shown they are put away like any other item.
+     * A shift click on containers with fluid in them empties them into the fluid storage, unless the player chose to
+     * treat them as items. While the item storage is shown they are always put away like any other item.
      */
     @Override
     public ItemStack transferStackInSlot(EntityPlayer player, int index) {
         ModularSlot slot = getModularSlot(index);
+        RequestTableDisplaySettings settings = isClient() ? handler.getSettings() : table.getDisplaySettings(player);
         if (ModularSlot.isPlayerSlot(slot) && handler.getShownView() != RequestTableView.ITEM_STORAGE
+                && settings.getContainerMode() == ContainerMode.EMPTY
                 && slot.getSlotIndex() < player.inventory.mainInventory.length
                 && table.isFilledFluidContainer(slot.getStack())) {
             if (!isClient()) {

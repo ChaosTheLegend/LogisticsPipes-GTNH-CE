@@ -27,9 +27,10 @@ public class RequestTableDisplaySettings {
             SearchMemory.FORGET,
             PopupMessages.ALWAYS,
             ChatMessages.OFF,
+            ContainerMode.EMPTY,
             "");
     public static final int MAX_SEARCH_LENGTH = 64;
-    public static final int ORDINAL_COUNT = 12;
+    public static final int ORDINAL_COUNT = 13;
     private static final String NBT_SORT_MODE = "sortMode";
     private static final String NBT_SORT_DIRECTION = "sortDirection";
     private static final String NBT_FILTER_MODE = "filterMode";
@@ -42,6 +43,7 @@ public class RequestTableDisplaySettings {
     private static final String NBT_SEARCH_MEMORY = "searchMemory";
     private static final String NBT_POPUP_MESSAGES = "popupMessages";
     private static final String NBT_CHAT_MESSAGES = "chatMessages";
+    private static final String NBT_CONTAINER_MODE = "containerMode";
     private static final String NBT_SAVED_SEARCH = "savedSearch";
     SortMode sortMode;
     SortDirection sortDirection;
@@ -55,6 +57,7 @@ public class RequestTableDisplaySettings {
     SearchMemory searchMemory;
     PopupMessages popupMessages;
     ChatMessages chatMessages;
+    ContainerMode containerMode;
     /** what the search field held last, kept only with {@link SearchMemory#REMEMBER} */
     String savedSearch;
 
@@ -74,7 +77,8 @@ public class RequestTableDisplaySettings {
                 tag.getInteger(NBT_SEARCH_MODE),
                 tag.getInteger(NBT_SEARCH_MEMORY),
                 tag.getInteger(NBT_POPUP_MESSAGES),
-                tag.getInteger(NBT_CHAT_MESSAGES)).withSavedSearch(limitSearch(tag.getString(NBT_SAVED_SEARCH)));
+                tag.getInteger(NBT_CHAT_MESSAGES),
+                tag.getInteger(NBT_CONTAINER_MODE)).withSavedSearch(limitSearch(tag.getString(NBT_SAVED_SEARCH)));
     }
 
     public static String limitSearch(String text) {
@@ -90,12 +94,12 @@ public class RequestTableDisplaySettings {
      */
     public static RequestTableDisplaySettings fromOrdinals(int[] ordinals) {
         int[] o = Arrays.copyOf(ordinals, ORDINAL_COUNT);
-        return fromOrdinals(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9], o[10], o[11]);
+        return fromOrdinals(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7], o[8], o[9], o[10], o[11], o[12]);
     }
 
     private static RequestTableDisplaySettings fromOrdinals(int sortMode, int sortDirection, int filterMode,
             int typeFilter, int fluidUnit, int clickMode, int dropMode, int deliveryMode, int searchMode,
-            int searchMemory, int popupMessages, int chatMessages) {
+            int searchMemory, int popupMessages, int chatMessages, int containerMode) {
         return new RequestTableDisplaySettings(
                 valueOrDefault(SortMode.values(), sortMode, DEFAULT.sortMode),
                 valueOrDefault(SortDirection.values(), sortDirection, DEFAULT.sortDirection),
@@ -109,6 +113,7 @@ public class RequestTableDisplaySettings {
                 valueOrDefault(SearchMemory.values(), searchMemory, DEFAULT.searchMemory),
                 valueOrDefault(PopupMessages.values(), popupMessages, DEFAULT.popupMessages),
                 valueOrDefault(ChatMessages.values(), chatMessages, DEFAULT.chatMessages),
+                valueOrDefault(ContainerMode.values(), containerMode, DEFAULT.containerMode),
                 "");
     }
 
@@ -118,7 +123,8 @@ public class RequestTableDisplaySettings {
     public int[] toOrdinals() {
         return new int[] { sortMode.ordinal(), sortDirection.ordinal(), filterMode.ordinal(), typeFilter.ordinal(),
                 fluidUnit.ordinal(), clickMode.ordinal(), dropMode.ordinal(), deliveryMode.ordinal(),
-                searchMode.ordinal(), searchMemory.ordinal(), popupMessages.ordinal(), chatMessages.ordinal() };
+                searchMode.ordinal(), searchMemory.ordinal(), popupMessages.ordinal(), chatMessages.ordinal(),
+                containerMode.ordinal() };
     }
 
     private static <T> T valueOrDefault(T[] values, int ordinal, T defaultValue) {
@@ -177,6 +183,10 @@ public class RequestTableDisplaySettings {
         return withChatMessages(next(ChatMessages.values(), chatMessages));
     }
 
+    public RequestTableDisplaySettings nextContainerMode() {
+        return withContainerMode(next(ContainerMode.values(), containerMode));
+    }
+
     /**
      * @return whether the result of a request is reported to the player anywhere
      */
@@ -197,6 +207,7 @@ public class RequestTableDisplaySettings {
         tag.setInteger(NBT_SEARCH_MEMORY, searchMemory.ordinal());
         tag.setInteger(NBT_POPUP_MESSAGES, popupMessages.ordinal());
         tag.setInteger(NBT_CHAT_MESSAGES, chatMessages.ordinal());
+        tag.setInteger(NBT_CONTAINER_MODE, containerMode.ordinal());
         tag.setString(NBT_SAVED_SEARCH, savedSearch);
     }
 
@@ -252,6 +263,16 @@ public class RequestTableDisplaySettings {
         TABLE,
         /** straight into the network, into the table only if the network doesn't take it */
         NETWORK
+    }
+
+    /**
+     * What a shift click does with a container with fluid in it while the item storage isn't shown.
+     */
+    public enum ContainerMode {
+        /** the fluid goes into the fluid storage of the table, the empty containers stay with the player */
+        EMPTY,
+        /** the containers are put away like any other item, where the {@link DropMode} says */
+        ITEM
     }
 
     /**

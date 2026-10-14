@@ -124,6 +124,19 @@ public class RequestTreeNode {
         return promiseAmount;
     }
 
+    /**
+     * @return how much of the request the network crafts, the rest comes from what it has
+     */
+    public int getCraftedAmount() {
+        int provided = 0;
+        for (IPromise promise : promises) {
+            if (promise.getType() == ResourceType.PROVIDER) {
+                provided += promise.getAmount();
+            }
+        }
+        return Math.max(0, promiseAmount - provided);
+    }
+
     public int getMissingAmount() {
         return requestType.getRequestedAmount() - promiseAmount;
     }

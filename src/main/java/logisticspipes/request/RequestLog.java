@@ -11,5 +11,11 @@ public interface RequestLog {
 
     void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList paticipating);
 
+    /**
+     * Called right before {@link #handleSucessfullRequestOf} with how much of the request gets crafted, the rest comes
+     * from what the network has.
+     */
+    default void handleCraftedAmount(int crafted) {}
+
     void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList paticipating);
 }

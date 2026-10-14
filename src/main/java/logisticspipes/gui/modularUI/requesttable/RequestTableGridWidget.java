@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.fluids.FluidStack;
 
 import org.jetbrains.annotations.NotNull;
@@ -55,7 +56,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
     static final int HANDLE_HEIGHT = 15;
 
     private static final int AMOUNT_COLOR = 0xffffff;
-    private static final int CRAFT_COLOR = 0xffff55;
+    private static final int CRAFT_COLOR = 0xffffff;
     private static final int HOVER_COLOR = 0x80ffffff;
 
     // the amounts the request window starts with
@@ -66,7 +67,10 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
      */
     public interface RequestOpener {
 
-        void open(RequestTableNetworkEntry entry, FluidStack fluid, int startAmount);
+        /**
+         * @param craft true to craft the amount instead of taking what the network has
+         */
+        void open(RequestTableNetworkEntry entry, FluidStack fluid, int startAmount, boolean craft);
     }
 
     private final RequestTableSyncHandler handler;
@@ -185,11 +189,11 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         // a list of only what can be crafted is about crafting: it shows no amounts
         boolean craftOnly = handler.getSettings().getFilterMode() == FilterMode.CRAFTABLE;
         if (craftOnly) {
-            drawCornerText("Craft", x, y, CRAFT_COLOR, false);
+            drawCraftText(x, y);
         } else if (entry.getNetworkAmount() > 0) {
             drawCornerText(formatAmount(entry, entry.getNetworkAmount()), x, y, AMOUNT_COLOR, false);
         } else if (entry.isCraftable()) {
-            drawCornerText("Craft", x, y, CRAFT_COLOR, false);
+            drawCraftText(x, y);
         }
         if (!craftOnly && entry.getInternalAmount() > 0) {
             drawCornerText(formatAmount(entry, entry.getInternalAmount()), x, y, AMOUNT_COLOR, true);
@@ -199,6 +203,20 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         }
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glColor4f(1, 1, 1, 1);
+    }
+
+    /**
+     * Marks a slot as one that crafts, the way the list shows what can be crafted.
+     */
+    static void drawCraftText(int slotX, int slotY) {
+        drawCornerText(StatCollector.translateToLocal("gui.requesttable.craft.mark"), slotX, slotY, CRAFT_COLOR, false);
+    }
+
+    /**
+     * Draws a half-sized amount into the top or bottom right corner of a slot.
+     */
+    static void drawCornerText(String text, int slotX, int slotY, boolean top) {
+        drawCornerText(text, slotX, slotY, AMOUNT_COLOR, top);
     }
 
     /**
@@ -398,15 +416,17 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
             return Result.ACCEPT;
         }
         boolean leftOrRight = mouseButton == 0 || mouseButton == 1;
-        boolean requestMode = handler.getSettings().getClickMode() == ClickMode.REQUEST;
+        // a list of only what can be crafted is about crafting: every click there crafts
+        boolean craft = handler.getSettings().getFilterMode() == FilterMode.CRAFTABLE;
+        boolean requestMode = craft || handler.getSettings().getClickMode() == ClickMode.REQUEST;
         boolean request = mouseButton == 2 || (leftOrRight && (Interactable.hasControlDown() || requestMode));
         if (request) {
             int startAmount = entry.isFluid() ? FLUID_AMOUNT : 1;
-            if (Interactable.hasShiftDown() && entry.getNetworkAmount() > 0) {
+            if (!craft && Interactable.hasShiftDown() && entry.getNetworkAmount() > 0) {
                 // with shift the request starts with all the network has
                 startAmount = entry.getNetworkAmount();
             }
-            requestOpener.open(entry, fluidOf(entry), startAmount);
+            requestOpener.open(entry, fluidOf(entry), startAmount, craft);
             return Result.SUCCESS;
         }
         if (mouseButton == 0 || mouseButton == 1) {

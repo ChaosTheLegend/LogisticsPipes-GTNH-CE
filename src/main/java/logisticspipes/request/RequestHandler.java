@@ -2,6 +2,7 @@ package logisticspipes.request;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,6 +62,14 @@ public class RequestHandler {
      */
     public static void request(final EntityPlayer player, final ItemIdentifierStack stack, final CoreRoutedPipe pipe,
             IAdditionalTargetInformation info, final boolean showMessages) {
+        request(player, stack, pipe, info, showMessages, RequestTree.defaultRequestFlags);
+    }
+
+    /**
+     * @param requestFlags {@link RequestTree#craftOnlyRequestFlags} to craft the stack even if the network has it
+     */
+    public static void request(final EntityPlayer player, final ItemIdentifierStack stack, final CoreRoutedPipe pipe,
+            IAdditionalTargetInformation info, final boolean showMessages, EnumSet<ActiveRequestType> requestFlags) {
         if (!pipe.useEnergy(5)) {
             if (showMessages) {
                 player.addChatMessage(new ChatComponentTranslation("lp.misc.noenergy"));
@@ -68,6 +77,8 @@ public class RequestHandler {
             return;
         }
         RequestTree.request(stack.clone(), pipe, new RequestLog() {
+
+            private int crafted;
 
             @Override
             public void handleMissingItems(List<IResource> resources) {
@@ -77,11 +88,17 @@ public class RequestHandler {
             }
 
             @Override
+            public void handleCraftedAmount(int amount) {
+                crafted = amount;
+            }
+
+            @Override
             public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {
                 Collection<IResource> coll = new ArrayList<>(1);
                 coll.add(item);
                 if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false),
+                        PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false)
+                                .setCrafted(Collections.singletonList(crafted)),
                         player);
                 if (pipe instanceof IRequestWatcher) {
                     ((IRequestWatcher) pipe).handleOrderList(item, parts);
@@ -90,7 +107,7 @@ public class RequestHandler {
 
             @Override
             public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {}
-        }, info);
+        }, requestFlags, info);
     }
 
     public static void simulate(final EntityPlayer player, final ItemIdentifierStack stack, CoreRoutedPipe pipe) {
@@ -327,6 +344,14 @@ public class RequestHandler {
 
     public static void requestFluid(final EntityPlayer player, final ItemIdentifierStack stack, CoreRoutedPipe pipe,
             IRequestFluid requester, final boolean showMessages) {
+        requestFluid(player, stack, pipe, requester, showMessages, RequestTree.defaultRequestFlags);
+    }
+
+    /**
+     * @param requestFlags {@link RequestTree#craftOnlyRequestFlags} to craft the fluid even if the network has it
+     */
+    public static void requestFluid(final EntityPlayer player, final ItemIdentifierStack stack, CoreRoutedPipe pipe,
+            IRequestFluid requester, final boolean showMessages, EnumSet<ActiveRequestType> requestFlags) {
         FluidIdentifier fluid = FluidIdentifier.get(stack.getItem());
         if (fluid == null) {
             return;
@@ -340,6 +365,8 @@ public class RequestHandler {
 
         RequestTree.requestFluid(fluid, stack.getStackSize(), requester, new RequestLog() {
 
+            private int crafted;
+
             @Override
             public void handleMissingItems(List<IResource> resources) {
                 if (showMessages) MainProxy.sendPacketToPlayer(
@@ -348,17 +375,23 @@ public class RequestHandler {
             }
 
             @Override
+            public void handleCraftedAmount(int amount) {
+                crafted = amount;
+            }
+
+            @Override
             public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {
                 Collection<IResource> coll = new ArrayList<>(1);
                 coll.add(item);
                 if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false),
+                        PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false)
+                                .setCrafted(Collections.singletonList(crafted)),
                         player);
             }
 
             @Override
             public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {}
-        });
+        }, requestFlags);
     }
 
     public static void simulateFluid(final EntityPlayer player, final ItemIdentifierStack stack, CoreRoutedPipe pipe,

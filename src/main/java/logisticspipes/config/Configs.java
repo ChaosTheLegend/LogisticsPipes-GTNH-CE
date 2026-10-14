@@ -45,7 +45,10 @@ public class Configs {
     // GuiOrderer Popup setting
     public static boolean DISPLAY_POPUP = true;
     public static int[] REQUEST_TABLE_AMOUNT_STEPS = { 1, 10, 100, 1000 };
+    // the mouse wheel in the same window: alone, with shift, with ctrl, with both
+    public static int[] REQUEST_TABLE_SCROLL_STEPS = { 1, 10, 100, 1000 };
     public static final int MAX_REQUEST_TABLE_AMOUNT_STEP = 99999;
+    private static final String SCROLL_STEPS_COMMENT = "The four amounts the mouse wheel changes the amount window of the request table by: alone, with shift, with ctrl and with both.";
 
     // MultiThread
     public static int MULTI_THREAD_NUMBER = 4;
@@ -151,6 +154,14 @@ public class Configs {
                                 "requestTableAmountSteps",
                                 Configs.REQUEST_TABLE_AMOUNT_STEPS,
                                 "The four values of the plus and minus buttons in the amount window of the request table.")
+                        .getIntList());
+        Configs.setRequestTableScrollSteps(
+                Configs.CONFIGURATION
+                        .get(
+                                Configuration.CATEGORY_GENERAL,
+                                "requestTableScrollSteps",
+                                Configs.REQUEST_TABLE_SCROLL_STEPS,
+                                SCROLL_STEPS_COMMENT)
                         .getIntList());
 
         Configs.DISPLAY_POPUP = Configs.CONFIGURATION
@@ -297,15 +308,30 @@ public class Configs {
      * Takes four values of at least 1, anything else leaves the steps as they are.
      */
     public static void setRequestTableAmountSteps(int[] steps) {
-        if (steps == null || steps.length != REQUEST_TABLE_AMOUNT_STEPS.length) {
-            return;
+        if (validSteps(steps)) {
+            REQUEST_TABLE_AMOUNT_STEPS = steps.clone();
+        }
+    }
+
+    /**
+     * Takes four values of at least 1, anything else leaves the steps as they are.
+     */
+    public static void setRequestTableScrollSteps(int[] steps) {
+        if (validSteps(steps)) {
+            REQUEST_TABLE_SCROLL_STEPS = steps.clone();
+        }
+    }
+
+    private static boolean validSteps(int[] steps) {
+        if (steps == null || steps.length != 4) {
+            return false;
         }
         for (int step : steps) {
             if (step < 1 || step > MAX_REQUEST_TABLE_AMOUNT_STEP) {
-                return;
+                return false;
             }
         }
-        REQUEST_TABLE_AMOUNT_STEPS = steps.clone();
+        return true;
     }
 
     public static void saveRequestTableAmountSteps() {
@@ -315,6 +341,16 @@ public class Configs {
                 Configs.REQUEST_TABLE_AMOUNT_STEPS,
                 "The four values of the plus and minus buttons in the amount window of the request table.");
         property.set(Configs.REQUEST_TABLE_AMOUNT_STEPS);
+        Configs.CONFIGURATION.save();
+    }
+
+    public static void saveRequestTableScrollSteps() {
+        Property property = Configs.CONFIGURATION.get(
+                Configuration.CATEGORY_GENERAL,
+                "requestTableScrollSteps",
+                Configs.REQUEST_TABLE_SCROLL_STEPS,
+                SCROLL_STEPS_COMMENT);
+        property.set(Configs.REQUEST_TABLE_SCROLL_STEPS);
         Configs.CONFIGURATION.save();
     }
 

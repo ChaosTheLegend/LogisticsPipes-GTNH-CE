@@ -2,6 +2,7 @@ package logisticspipes.gui.modularUI.requesttable;
 
 import java.util.regex.Matcher;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.fluids.FluidContainerRegistry;
@@ -21,8 +22,8 @@ import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
 /**
- * The search field of the request table. A right click clears it, and an item dragged from NEI onto it puts the name of
- * the item into it.
+ * The search field of the request table. A right click clears it, and an item dragged from NEI onto it or carried from
+ * the inventory and clicked on it puts the name of the item into it.
  */
 public class RequestTableSearchField extends TextFieldWidget implements RecipeViewerGhostIngredientSlot<ItemStack> {
 
@@ -80,6 +81,15 @@ public class RequestTableSearchField extends TextFieldWidget implements RecipeVi
 
     @Override
     public @NotNull Result onMousePressed(int mouseButton) {
+        // an item carried from the inventory puts its name in like one dragged from NEI, and stays on the cursor
+        ItemStack held = Minecraft.getMinecraft().thePlayer.inventory.getItemStack();
+        if (held != null && (mouseButton == 0 || mouseButton == 1)) {
+            String name = getSearchName(held);
+            if (name != null && !name.isEmpty()) {
+                replaceText(name);
+                return Result.SUCCESS;
+            }
+        }
         if (mouseButton == 1) {
             replaceText("");
             // fall through to the focus handling, so typing can go on right away

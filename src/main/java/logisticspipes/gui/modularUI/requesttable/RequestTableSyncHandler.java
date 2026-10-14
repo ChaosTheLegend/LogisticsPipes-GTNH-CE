@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,8 @@ import logisticspipes.crafting.requesttable.RequestTableView;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.request.RequestHandler;
+import logisticspipes.request.RequestTree;
+import logisticspipes.request.RequestTree.ActiveRequestType;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -261,12 +264,15 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
 
     /**
      * Requests that amount of the entry from the network, it is delivered into the storage of the table.
+     *
+     * @param craft true to have it crafted even if the network has it
      */
-    public void request(RequestTableNetworkEntry entry, int amount) {
+    public void request(RequestTableNetworkEntry entry, int amount, boolean craft) {
         syncToServer(C_REQUEST, buf -> {
             new LPDataOutputStream(buf).writeItemIdentifierStack(entry.getStack());
             buf.writeBoolean(entry.isFluid());
             buf.writeInt(amount);
+            buf.writeBoolean(craft);
         });
     }
 
@@ -647,6 +653,8 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 ItemIdentifierStack stack = new LPDataInputStream(buf).readItemIdentifierStack();
                 boolean fluid = buf.readBoolean();
                 int amount = Math.max(1, Math.min(MAX_REQUEST_AMOUNT, buf.readInt()));
+                EnumSet<ActiveRequestType> flags = buf.readBoolean() ? RequestTree.craftOnlyRequestFlags
+                        : RequestTree.defaultRequestFlags;
                 if (stack == null) {
                     return;
                 }
@@ -655,7 +663,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 RequestTableDisplaySettings playerSettings = table.getDisplaySettings(player);
                 boolean messages = playerSettings.reportsRequests();
                 if (fluid) {
-                    RequestHandler.requestFluid(player, toRequest, table, table, messages);
+                    RequestHandler.requestFluid(player, toRequest, table, table, messages, flags);
                 } else {
                     boolean toPlayer = playerSettings.getDeliveryMode() == DeliveryMode.PLAYER;
                     RequestHandler.request(
@@ -663,7 +671,8 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                             toRequest,
                             table,
                             toPlayer ? new RequestTablePlayerTarget(player.getUniqueID()) : null,
-                            messages);
+                            messages,
+                            flags);
                 }
                 sendContent(false);
             }

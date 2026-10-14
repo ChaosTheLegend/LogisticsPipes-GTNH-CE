@@ -413,7 +413,7 @@ public class ClientProxy implements IProxy {
     @Override
     public void processMissingItemsPacket(MissingItems packet, EntityPlayer player) {
         // the request table has its own switch for these messages, the setting for the old windows doesn't count
-        if (RequestTableResultPopup.offer(packet.getItems(), packet.isFlag())) {
+        if (RequestTableResultPopup.offer(packet.getItems(), packet.isFlag(), packet.getCrafted())) {
             return;
         }
         if (Configs.DISPLAY_POPUP && FMLClientHandler.instance().getClient().currentScreen instanceof GuiOrderer) {

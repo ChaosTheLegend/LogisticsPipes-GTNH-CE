@@ -47,6 +47,9 @@ public class RequestTableResultPopup {
     private static final int MAX_WIDTH = 300;
     private static final int HEADLINE_HEIGHT = 14;
     private static final int ROW_HEIGHT = 18;
+    // a row with a second line under its text: how the request reaches the table
+    private static final int DETAIL_ROW_HEIGHT = 22;
+    private static final int DETAIL_COLOR = 0x707070;
     private static final int MAX_ROWS = 8;
     private static final String LANG = "gui.requesttable.result.";
 
@@ -61,14 +64,24 @@ public class RequestTableResultPopup {
         final ItemStack item;
         final FluidStack fluid;
         final String text;
+        // the second line, null for none
+        final String detail;
 
-        Row(IResource resource) {
+        /**
+         * @param crafted how much of a requested resource is crafted, 0 for a missing one
+         */
+        Row(IResource resource, int crafted) {
             ItemIdentifierStack display = resource.getDisplayItem();
             FluidStack displayFluid = display == null ? null
                     : SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(display);
             fluid = displayFluid;
             item = display == null || displayFluid != null ? null : display.getItem().unsafeMakeNormalStack(1);
             text = resource.getDisplayText(IResource.ColorCode.NONE);
+            detail = split(resource, crafted);
+        }
+
+        int height() {
+            return detail == null ? ROW_HEIGHT : DETAIL_ROW_HEIGHT;
         }
 
         /**
@@ -83,6 +96,7 @@ public class RequestTableResultPopup {
                 item = stack.getItem().unsafeMakeNormalStack(1);
                 text = stack.getStackSize() + " " + item.getDisplayName();
             }
+            detail = null;
         }
     }
 
@@ -109,9 +123,10 @@ public class RequestTableResultPopup {
      * the chat, in both or not at all.
      *
      * @param missing true if the items are what the network lacks, false if they are what was requested
+     * @param crafted for each requested item how much of it is crafted, may be shorter than the items
      * @return false if no such window is open: the result has to be reported another way
      */
-    public static boolean offer(Collection<IResource> items, boolean missing) {
+    public static boolean offer(Collection<IResource> items, boolean missing, List<Integer> crafted) {
         RequestTableResultPopup popup = active;
         if (popup == null || !popup.parent.isValid()) {
             active = null;
@@ -119,12 +134,17 @@ public class RequestTableResultPopup {
         }
         RequestTableDisplaySettings settings = popup.handler.getSettings();
         if (settings.getPopupMessages().shows(missing)) {
-            popup.show(items, missing);
+            popup.show(items, missing, crafted);
         }
         if (settings.getChatMessages().shows(missing)) {
             EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+            int index = 0;
             for (IResource item : items) {
                 String text = item.getDisplayText(missing ? IResource.ColorCode.MISSING : IResource.ColorCode.SUCCESS);
+                String detail = split(item, craftedAt(crafted, index++, missing));
+                if (detail != null) {
+                    text += EnumChatFormatting.GRAY + " (" + detail + ")";
+                }
                 player.addChatMessage(
                         new ChatComponentText(
                                 (missing ? EnumChatFormatting.RED : EnumChatFormatting.GREEN)
@@ -137,10 +157,30 @@ public class RequestTableResultPopup {
         return true;
     }
 
-    private void show(Collection<IResource> items, boolean nowMissing) {
+    private static int craftedAt(List<Integer> crafted, int index, boolean missing) {
+        return missing || crafted == null || index >= crafted.size() ? 0 : crafted.get(index);
+    }
+
+    /**
+     * @return how a requested resource reaches the table: what comes from the network and what is crafted, null if it
+     *         all comes from the network
+     */
+    private static String split(IResource resource, int crafted) {
+        int total = resource.getRequestedAmount();
+        if (crafted <= 0) {
+            return null;
+        }
+        if (crafted >= total) {
+            return StatCollector.translateToLocal(LANG + "crafted.all");
+        }
+        return StatCollector.translateToLocalFormatted(LANG + "crafted.part", total - crafted, crafted);
+    }
+
+    private void show(Collection<IResource> items, boolean nowMissing, List<Integer> crafted) {
         List<Row> added = new ArrayList<>();
+        int index = 0;
         for (IResource item : items) {
-            added.add(new Row(item));
+            added.add(new Row(item, craftedAt(crafted, index++, nowMissing)));
         }
         show(added, nowMissing, nowMissing ? "missing" : "success");
     }
@@ -232,11 +272,17 @@ public class RequestTableResultPopup {
         int textWidth = font.getStringWidth(title);
         for (Row row : shown) {
             textWidth = Math.max(textWidth, ROW_HEIGHT + 2 + font.getStringWidth(row.text));
+            if (row.detail != null) {
+                textWidth = Math.max(textWidth, ROW_HEIGHT + 2 + font.getStringWidth(row.detail));
+            }
         }
         int width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, textWidth + 20));
         int rowsY = 5 + HEADLINE_HEIGHT + 4;
-        int rowCount = shown.size() + (more == null ? 0 : 1);
-        int buttonY = rowsY + rowCount * ROW_HEIGHT + 4;
+        int rowsHeight = more == null ? 0 : ROW_HEIGHT;
+        for (Row row : shown) {
+            rowsHeight += row.height();
+        }
+        int buttonY = rowsY + rowsHeight + 4;
 
         ModularPanel panel = new ModularPanel("request_table_result").size(width, buttonY + 14 + 7)
                 .background(ModularUIHelper.BACKGROUND_TEXTURE);
@@ -252,9 +298,8 @@ public class RequestTableResultPopup {
                 IKey.str(title).asWidget().pos(5, 5).size(width - 10, HEADLINE_HEIGHT).alignment(Alignment.Center)
                         .color(HEADLINE_TEXT_COLOR).shadow(true));
 
-        for (int i = 0; i < shown.size(); i++) {
-            Row row = shown.get(i);
-            int y = rowsY + i * ROW_HEIGHT;
+        int y = rowsY;
+        for (Row row : shown) {
             IDrawable icon = (context, x, iconY, w, h, widgetTheme) -> {
                 if (row.fluid != null) {
                     GuiDraw.drawFluidTexture(row.fluid, x, iconY, 16, 16, context.getCurrentDrawingZ());
@@ -262,16 +307,28 @@ public class RequestTableResultPopup {
                     GuiDraw.drawItem(row.item, x, iconY, 16, 16, context.getCurrentDrawingZ());
                 }
             };
-            panel.child(new Widget<>().pos(8, y + 1).size(16, 16).overlay(icon));
-            String text = colored(font.trimStringToWidth(row.text, width - 16 - ROW_HEIGHT - 2));
-            panel.child(
-                    IKey.str(text).asWidget().pos(8 + ROW_HEIGHT + 2, y).size(width - 16 - ROW_HEIGHT - 2, ROW_HEIGHT)
-                            .alignment(Alignment.CenterLeft).color(TEXT_COLOR));
+            panel.child(new Widget<>().pos(8, y + (row.height() - 16) / 2).size(16, 16).overlay(icon));
+            int textX = 8 + ROW_HEIGHT + 2;
+            int textWidthLeft = width - 16 - ROW_HEIGHT - 2;
+            String text = colored(font.trimStringToWidth(row.text, textWidthLeft));
+            if (row.detail == null) {
+                panel.child(
+                        IKey.str(text).asWidget().pos(textX, y).size(textWidthLeft, ROW_HEIGHT)
+                                .alignment(Alignment.CenterLeft).color(TEXT_COLOR));
+            } else {
+                panel.child(
+                        IKey.str(text).asWidget().pos(textX, y + 1).size(textWidthLeft, 10)
+                                .alignment(Alignment.CenterLeft).color(TEXT_COLOR));
+                panel.child(
+                        IKey.str(font.trimStringToWidth(row.detail, textWidthLeft)).asWidget().pos(textX, y + 11)
+                                .size(textWidthLeft, 10).alignment(Alignment.CenterLeft).color(DETAIL_COLOR));
+            }
+            y += row.height();
         }
         if (more != null) {
             panel.child(
-                    IKey.str(more).asWidget().pos(8, rowsY + shown.size() * ROW_HEIGHT).size(width - 16, ROW_HEIGHT)
-                            .alignment(Alignment.Center).color(TEXT_COLOR));
+                    IKey.str(more).asWidget().pos(8, y).size(width - 16, ROW_HEIGHT).alignment(Alignment.Center)
+                            .color(TEXT_COLOR));
         }
         panel.child(
                 new ButtonWidget<>().pos((width - 44) / 2, buttonY).size(44, 14)
