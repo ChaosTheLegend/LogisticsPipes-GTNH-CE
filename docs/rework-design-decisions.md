@@ -46,6 +46,14 @@
 - Pattern crafting pipe - new driver for autocrafting, the old crafting system is going to be deprecated
 - Inv. system connector pipe - to be re-enabled and upgraded. this is the major advantage of LP allowing to connect 2 networks using *ANY* intermediate buffer (chests, ender chests, long distance pipelines, *chest minecarts*, *CARGO ROCKETS* <- wild one, and more), can be used to automate cleanroom and connect LP networks from different outposts
 - Extractor pipe - same as extractor module (why don't we have this yet?)
+- Fiber pipe (new) - connects subnets for power only: logistics power flows through it, items and requests don't. The subnets stay fully separate networks (the fiber pipe divides the network like obsidian pipes do). Each subnet sees the fiber as a power provider, like a power junction, so its power search ends at the fiber; drawing power from it passes the request to the subnet(s) on the other side, whose own firewall/security filters still apply. Replaces the BuildCraft diamond pipe, which did this before BC support was dropped
+
+## Power
+
+- Network power is pooled per island (a connected network): all power junctions in it share their power, and any pipe in the island draws from the pool. Pipes no longer look for a route to a power junction. Power transport (power supplier upgrades) is a separate topic and unchanged for now
+- One-way pipes don't restrict power any more (LP has no power-passing one-way pipes; BC/TD support is dropped)
+- Firewall pipes are the only exception: a firewall that blocks power splits the pool
+- Firewall pipes work against most routing optimizations (their filters make routes depend on the item, and they split power pools), so they cost more than other pipes. Mark them as "use sparingly" (tooltip, docs); subnets joined by fiber pipes are the cheap way to separate networks
 
 ## Interactions
 
