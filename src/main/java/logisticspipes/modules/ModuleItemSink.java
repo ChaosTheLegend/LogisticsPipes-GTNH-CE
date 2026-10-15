@@ -189,7 +189,8 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
     /**
      * {@code reply} if the target inventory still has room for {@code item} once the items already on their way here
      * are counted, limited to that room. Without this, small inventories are promised to far more items than fit, and
-     * the ones that arrive late bounce from sink to sink until only default routes are left.
+     * the ones that arrive late bounce from sink to sink until only default routes are left. The limit applies even
+     * with nothing on the way, so a stack is split across sinks when it is sent, not after it bounced.
      */
     private SinkReply replyIfRoom(SinkReply reply, ItemIdentifier item, boolean includeInTransit, int energy) {
         if (!hasRoomFor(item) || !_service.canUseEnergy(energy)) {
@@ -200,9 +201,6 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
             return reply;
         }
         int onRoute = _service.countOnRoute(item);
-        if (onRoute == 0) {
-            return reply;
-        }
         IInventoryUtil inv = targetInventory();
         if (inv == null) {
             return null;

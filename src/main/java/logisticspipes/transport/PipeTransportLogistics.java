@@ -387,7 +387,7 @@ public class PipeTransportLogistics {
             data.setDoNotBuffer(false);
             value = ForgeDirection.UNKNOWN;
         } else {
-            value = getRoutedPipe().getRouteLayer().getOrientationForItem(data, blocked);
+            value = getRoutedPipe().getRouteLayer().getOrientationForItem(data, blocked, true);
         }
         if (value == null && MainProxy.isClient(getWorld())) {
             return null;
@@ -409,7 +409,7 @@ public class PipeTransportLogistics {
             // out of retries: last effort is any default route with room, only then the item drops
             if (SimpleServiceLocator.logisticsManager
                     .assignDefaultRouteFor(data, getRoutedPipe().getRouter().getSimpleID())) {
-                ForgeDirection retry = getRoutedPipe().getRouteLayer().getOrientationForItem(data, null);
+                ForgeDirection retry = getRoutedPipe().getRouteLayer().getOrientationForItem(data, null, true);
                 if (retry != null) {
                     value = retry;
                 }

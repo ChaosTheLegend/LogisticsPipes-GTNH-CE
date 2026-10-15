@@ -235,13 +235,19 @@ public class LogisticsManager implements ILogisticsManager {
      */
     @Override
     public IRoutedItem assignDestinationFor(IRoutedItem item, int sourceRouterID, boolean excludeSource) {
+        assignDestinationWithLimit(item, sourceRouterID, excludeSource);
+        return item;
+    }
+
+    @Override
+    public int assignDestinationWithLimit(IRoutedItem item, int sourceRouterID, boolean excludeSource) {
 
         // Assert: only called server side.
 
         // If we for some reason can't get the router we can't do anything either
         IRouter sourceRouter = SimpleServiceLocator.routerManager.getRouterUnsafe(sourceRouterID, false);
         if (sourceRouter == null) {
-            return item;
+            return 0;
         }
 
         // Wipe current destination
@@ -270,7 +276,7 @@ public class LogisticsManager implements ILogisticsManager {
             if (bestReply.getValue1() != null && bestReply.getValue1() != 0) {
                 item.setDestination(bestReply.getValue1());
             }
-            return item;
+            return 0;
         } else {
             Triplet<Integer, SinkReply, List<IFilter>> bestReply = getBestReply(
                     item.getItemIdentifierStack().getItem(),
@@ -298,8 +304,9 @@ public class LogisticsManager implements ILogisticsManager {
                     item.setTransportMode(TransportMode.Active);
                 }
                 item.setAdditionalTargetInformation(bestReply.getValue2().addInfo);
+                return Math.max(0, bestReply.getValue2().maxNumberOfItems);
             }
-            return item;
+            return 0;
         }
     }
 

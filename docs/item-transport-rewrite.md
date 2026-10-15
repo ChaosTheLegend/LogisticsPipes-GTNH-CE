@@ -150,6 +150,22 @@ is being dropped. Found:
 
 What's left to test (save/unload, config switch, spark) is in [testing-checklist.md](testing-checklist.md) §1.
 
+## Splitting stacks by destination room (2026-10-15)
+
+Problem: an extractor feeding a large grid of small inventories (GT++ Lead Lined Box: 15 slots of 1 item). A whole
+stack was sent to the first box, 15 items fit, and the rest bounced and was rerouted from there to the next box, once per
+box it filled. In-flight clumps did 10+ hops each, which tanked TPS.
+
+- `ModuleItemSink.replyIfRoom` caps the reply at the inventory's free room even when nothing is in transit yet. The
+  extractor already splits a stack by `maxNumberOfItems` and adds each destination to its jam list, so the stack is split
+  across boxes when it is extracted, one clump per box.
+- `RouteLayer` (called from `PTL.resolveRoutedDestination` with `splitOverflow`): when an item in a pipe is given a
+  destination that takes only part of the stack (`ILogisticsManager.assignDestinationWithLimit`), the rest is split off
+  and injected into the same pipe without a destination, so it is routed to the next box at once. This covers bounces,
+  clump arrivals and anything else that reroutes. Other callers (request tables) don't split.
+- Not covered: sink modules that don't check room at all (oredict, mod, polymorphic, creative tab, ...) still promise
+  unlimited room; chassis modules were already capped by `ChassiModule`.
+
 ## Later phases
 
 1. Skip pass-through junctions: one event per run of junctions that don't touch passing items (no pluggable, not a
