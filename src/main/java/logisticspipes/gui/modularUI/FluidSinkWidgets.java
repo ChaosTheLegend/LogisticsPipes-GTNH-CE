@@ -56,14 +56,6 @@ public final class FluidSinkWidgets {
                 BooleanSyncValue.class,
                 () -> newDefaultRouteValue(settings)) : newDefaultRouteValue(settings);
 
-        InteractionSyncHandler importSync = syncManager != null ? syncManager
-                .getOrCreateSyncHandler(id + "_import", 0, InteractionSyncHandler.class, InteractionSyncHandler::new)
-                : new InteractionSyncHandler();
-        importSync.setOnMousePressed(mouse -> {
-            if (mouse.mouseButton != 0) return;
-            settings.importFromTank();
-        });
-
         Flow defaultRoute = new Flow(GuiAxis.X).coverChildren().childPadding(4)
                 .child(IKey.lang("gui.module.ModuleFluidSink.defaultRoute").asWidget()).child(
                         new CycleButtonWidget().width(26).height(16).value(defaultRouteSync).overlay(
@@ -72,14 +64,29 @@ public final class FluidSinkWidgets {
                                                 : "gui.module.ModuleFluidSink.off")));
 
         Flow controls = new Flow(GuiAxis.X).coverChildrenHeight().widthRel(1f)
-                .child(
-                        new ButtonWidget<>().syncHandler(importSync)
-                                .overlay(IKey.lang("gui.module.ModuleFluidSink.import")).width(40).height(16))
-                .child(new Flow(GuiAxis.X).expanded()).child(defaultRoute);
+                .child(importButton(settings::importFromTank, syncManager, id)).child(new Flow(GuiAxis.X).expanded())
+                .child(defaultRoute);
 
         return new Flow(GuiAxis.Y).coverChildren().left(9).top(4).childPadding(4)
                 .crossAxisAlignment(Alignment.CrossAxis.START).child(IKey.lang("gui.module.ModuleFluidSink").asWidget())
                 .child(filterRow(settings.getFilter(), syncManager, id)).child(controls);
+    }
+
+    /**
+     * @param importer sets the filter to the fluids in the tank, it runs on the server. The other parameters are the
+     *                 ones of {@link #filterRow}.
+     * @return the button that reads the filter from the tank
+     */
+    public static ButtonWidget<?> importButton(Runnable importer, PanelSyncManager syncManager, String id) {
+        InteractionSyncHandler importSync = syncManager != null ? syncManager
+                .getOrCreateSyncHandler(id + "_import", 0, InteractionSyncHandler.class, InteractionSyncHandler::new)
+                : new InteractionSyncHandler();
+        importSync.setOnMousePressed(mouse -> {
+            if (mouse.mouseButton != 0) return;
+            importer.run();
+        });
+        return new ButtonWidget<>().syncHandler(importSync).overlay(IKey.lang("gui.module.ModuleFluidSink.import"))
+                .width(40).height(16);
     }
 
     private static BooleanSyncValue newDefaultRouteValue(IFluidSinkSettings settings) {

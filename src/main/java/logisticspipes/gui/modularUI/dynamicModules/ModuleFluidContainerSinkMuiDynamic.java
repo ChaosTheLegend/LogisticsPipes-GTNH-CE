@@ -37,6 +37,7 @@ public class ModuleFluidContainerSinkMuiDynamic extends GenericModuleMUI<ModuleF
                         .crossAxisAlignment(Alignment.CrossAxis.START)
                         .child(IKey.lang("gui.module.ModuleFluidContainerSink").asWidget())
                         .child(FluidSinkWidgets.filterRow(module.getFilter(), syncManager, getFullId()))
+                        .child(FluidSinkWidgets.importButton(module::importFromTank, syncManager, getFullId()))
                         .child(IKey.lang("gui.module.ModuleFluidContainerSink.hint").asWidget().width(162)));
 
         return widget;
@@ -54,6 +55,7 @@ public class ModuleFluidContainerSinkMuiDynamic extends GenericModuleMUI<ModuleF
 
     @Override
     public int getHeight() {
-        return 140;
+        // the hint takes a few lines between the import button and the player inventory
+        return 190;
     }
 }

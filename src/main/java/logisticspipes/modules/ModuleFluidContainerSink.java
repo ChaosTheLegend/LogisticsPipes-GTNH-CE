@@ -25,6 +25,7 @@ import logisticspipes.interfaces.IInventorylessSink;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
+import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.FluidContainerUtil;
 import logisticspipes.utils.FluidFilter;
 import logisticspipes.utils.FluidIdentifier;
@@ -220,6 +221,16 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
     @Override
     public boolean recievePassive() {
         return true;
+    }
+
+    /**
+     * Sets the filter to the fluids that are in the tank.
+     */
+    public void importFromTank() {
+        if (getTankTile() == null || MainProxy.isClient(getWorld())) {
+            return;
+        }
+        filter.setFluids(getTankContents().keySet());
     }
 
     @Override
