@@ -37,7 +37,11 @@ import logisticspipes.config.Configs;
  */
 public class RequestTableAmountPopup {
 
-    private static final int WIDTH = 152;
+    // wide enough for the field to show a full amount: fluids are counted in mB and run into many digits
+    private static final int WIDTH = 184;
+    // the four step buttons, and the fields for their values, share the width of the window
+    private static final int STEP_WIDTH = 40;
+    private static final int STEP_SPACING = 42;
     private static final int HEIGHT = 80;
     // the face with the values of the buttons and of the mouse wheel is taller
     private static final int STEPS_HEIGHT = 104;
@@ -172,11 +176,11 @@ public class RequestTableAmountPopup {
         amountPage.child(new Widget<>().pos(8, 20).size(18, 18).overlay(icon));
 
         amountPage.child(
-                field.pos(30, 22).size(allAmount > 0 ? 44 : 72, 14).setNumbers(1, MAX_AMOUNT)
+                field.pos(30, 22).size(allAmount > 0 ? 76 : 104, 14).setNumbers(1, MAX_AMOUNT)
                         .value(new IntValue.Dynamic(() -> amount, value -> amount = clamp(value))));
         if (allAmount > 0) {
             amountPage.child(
-                    new ButtonWidget<>().pos(77, 21).size(26, 16)
+                    new ButtonWidget<>().pos(109, 21).size(26, 16)
                             .overlay(IKey.lang("gui.requesttable.popup.all").scale(0.8f))
                             .onMousePressed(mouseButton -> {
                                 if (mouseButton != 0) return false;
@@ -189,7 +193,7 @@ public class RequestTableAmountPopup {
                                             IKey.lang("gui.requesttable.popup.all.tip", String.valueOf(allAmount)))));
         }
         amountPage.child(
-                new ButtonWidget<>().pos(106, 21).size(38, 16)
+                new ButtonWidget<>().pos(WIDTH - 8 - 38, 21).size(38, 16)
                         .overlay(
                                 IKey.dynamic(
                                         () -> StatCollector.translateToLocal(
@@ -205,7 +209,7 @@ public class RequestTableAmountPopup {
                         }));
 
         for (int i = 0; i < 4; i++) {
-            int x = 8 + i * 34;
+            int x = 8 + i * STEP_SPACING;
             amountPage.child(stepButton(panel, i, 1).pos(x, 42));
             amountPage.child(stepButton(panel, i, -1).pos(x, 58));
         }
@@ -220,12 +224,12 @@ public class RequestTableAmountPopup {
                         .alignment(Alignment.TopLeft).color(TEXT_COLOR));
         String[] modifiers = { "none", "shift", "ctrl", "both" };
         for (int i = 0; i < 4; i++) {
-            int x = 8 + i * 34;
+            int x = 8 + i * STEP_SPACING;
             stepsPage.child(stepField(editedSteps, i).pos(x, 29));
             stepsPage.child(stepField(editedScrollSteps, i).pos(x, 57));
             stepsPage.child(
                     IKey.lang("gui.requesttable.popup.steps.wheel." + modifiers[i]).scale(0.6f).asWidget().pos(x, 73)
-                            .size(32, 6).alignment(Alignment.Center).color(TEXT_COLOR));
+                            .size(STEP_WIDTH, 6).alignment(Alignment.Center).color(TEXT_COLOR));
         }
         stepsPage.child(
                 new ButtonWidget<>().pos(WIDTH - 8 - 44, 83).size(44, 14)
@@ -334,7 +338,7 @@ public class RequestTableAmountPopup {
      * @param sign  1 to add it, -1 to take it away
      */
     private ButtonWidget<?> stepButton(ModularPanel panel, int index, int sign) {
-        return new ButtonWidget<>().size(32, 14).overlay(
+        return new ButtonWidget<>().size(STEP_WIDTH, 14).overlay(
                 IKey.dynamic(() -> (sign > 0 ? "+" : "-") + Configs.REQUEST_TABLE_AMOUNT_STEPS[index]).scale(0.8f))
                 .onMousePressed(mouseButton -> {
                     if (mouseButton != 0) return false;
@@ -346,7 +350,7 @@ public class RequestTableAmountPopup {
     }
 
     private static TextFieldWidget stepField(int[] values, int index) {
-        return new TextFieldWidget().size(32, 14).setNumbers(1, Configs.MAX_REQUEST_TABLE_AMOUNT_STEP).value(
+        return new TextFieldWidget().size(STEP_WIDTH, 14).setNumbers(1, Configs.MAX_REQUEST_TABLE_AMOUNT_STEP).value(
                 new IntValue.Dynamic(
                         () -> values[index],
                         value -> values[index] = Math.max(1, Math.min(Configs.MAX_REQUEST_TABLE_AMOUNT_STEP, value))));
