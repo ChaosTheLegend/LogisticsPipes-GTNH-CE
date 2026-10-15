@@ -73,11 +73,11 @@ public final class RequestTableGuiStyle {
         Gui.drawRect(x + width - 2, y + 1, x + width - 1, y + height - 1, 0xff555555);
     }
 
-    static void requestButton(int x, int y, int width, int height, boolean enabled) {
+    public static void requestButton(int x, int y, int width, int height, boolean enabled) {
         bevel(x, y, width, height, enabled ? 0xffc6c6c6 : 0xff7f7f7f, 0xff000000);
     }
 
-    static void requestButton(int x, int y, int width, int height, boolean enabled, int mouseX, int mouseY) {
+    public static void requestButton(int x, int y, int width, int height, boolean enabled, int mouseX, int mouseY) {
         boolean hover = enabled && RequestTableRender.inside(mouseX, mouseY, x, y, width, height);
         bevel(x, y, width, height, !enabled ? 0xff7f7f7f : hover ? 0xffa8b4c2 : 0xffc6c6c6, 0xff000000);
     }

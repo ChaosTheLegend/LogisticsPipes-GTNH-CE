@@ -22,7 +22,7 @@ public final class RequestTableIcons {
     private RequestTableIcons() {}
 
     /** Eight-pixel cog for compact popup controls. */
-    static void gear(int x, int y) {
+    public static void gear(int x, int y) {
         drawRect(x + 1, y + 1, x + 7, y + 7, 0xff373737);
         drawRect(x + 3, y, x + 5, y + 8, 0xff373737);
         drawRect(x, y + 3, x + 8, y + 5, 0xff373737);
@@ -31,7 +31,7 @@ public final class RequestTableIcons {
         drawRect(x + 3, y + 3, x + 5, y + 5, 0xff373737);
     }
 
-    static void draw(Icon icon, int x, int y, int size, boolean enabled) {
+    public static void draw(Icon icon, int x, int y, int size, boolean enabled) {
         switch (icon) {
             case MESSAGES_ON, MESSAGES_OFF -> drawRequestMessagesIcon(x, y, icon == Icon.MESSAGES_ON);
             case MONITOR_GRID, MONITOR_TREE -> drawMonitorViewIcon(x, y, icon == Icon.MONITOR_TREE);
@@ -217,7 +217,7 @@ public final class RequestTableIcons {
         Gui.drawRect(x + 4, y + 13, x + 12, y + 14, 0xff373737);
     }
 
-    static void craftable(int x, int y) {
+    public static void craftable(int x, int y) {
         try (var ignored = RequestTableRender.guiState()) {
             GL11.glTranslatef(x + 17 - 6 * CRAFTABLE_ICON_SCALE, y - 1, 150.0F);
             GL11.glScalef(CRAFTABLE_ICON_SCALE, CRAFTABLE_ICON_SCALE, 1.0F);

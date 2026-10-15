@@ -1,11 +1,13 @@
 package logisticspipes.crafting.requesttable.gui;
 
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
@@ -27,6 +29,7 @@ public final class RequestTableRender {
 
     // GUI drawing happens on the client render thread.
     private static final IntBuffer SCISSOR_BOX = BufferUtils.createIntBuffer(4);
+    private static final FloatBuffer MODELVIEW = BufferUtils.createFloatBuffer(16);
 
     private RequestTableRender() {}
 
@@ -137,13 +140,26 @@ public final class RequestTableRender {
         tessellator.draw();
     }
 
-    /** Clips inside any existing scissor instead of widening a parent's clip region. */
+    /**
+     * Clips inside any existing scissor instead of widening a parent's clip region.
+     * <p>
+     * The rectangle is given in the current model-view space, so callers that draw inside a translated widget can pass
+     * local coordinates.
+     */
     public static void clip(Minecraft mc, int x, int y, int width, int height) {
+        MODELVIEW.clear();
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, MODELVIEW);
+        float scaleX = MODELVIEW.get(0);
+        float scaleY = MODELVIEW.get(5);
+        float screenX = MODELVIEW.get(12) + x * scaleX;
+        float screenY = MODELVIEW.get(13) + y * scaleY;
+        float screenWidth = width * scaleX;
+        float screenHeight = height * scaleY;
         int scale = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight).getScaleFactor();
-        int left = Math.max(0, x * scale);
-        int bottom = Math.max(0, mc.displayHeight - (y + height) * scale);
-        int right = Math.min(mc.displayWidth, (x + width) * scale);
-        int top = Math.min(mc.displayHeight, mc.displayHeight - y * scale);
+        int left = Math.max(0, Math.round(screenX * scale));
+        int bottom = Math.max(0, mc.displayHeight - Math.round((screenY + screenHeight) * scale));
+        int right = Math.min(mc.displayWidth, Math.round((screenX + screenWidth) * scale));
+        int top = Math.min(mc.displayHeight, mc.displayHeight - Math.round(screenY * scale));
         if (GL11.glIsEnabled(GL11.GL_SCISSOR_TEST)) {
             SCISSOR_BOX.clear();
             GL11.glGetInteger(GL11.GL_SCISSOR_BOX, SCISSOR_BOX);
@@ -163,6 +179,12 @@ public final class RequestTableRender {
             GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
             GL11.glMatrixMode(GL11.GL_MODELVIEW);
             GL11.glPushMatrix();
+            // ModularUI does not reset state between widgets. Without texturing and the alpha test, unblended text
+            // and item icons draw as solid white cells.
+            OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL11.GL_DEPTH_TEST);
             GL11.glDisable(GL11.GL_BLEND);

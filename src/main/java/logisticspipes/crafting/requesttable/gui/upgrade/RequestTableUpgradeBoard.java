@@ -18,13 +18,13 @@ import logisticspipes.crafting.requesttable.gui.RequestTableRender;
 import logisticspipes.crafting.requesttable.gui.upgrade.RequestTableBoardLayout.Node;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
-import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeMaterials;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeMaterials.Requirement;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeState;
 
 /** One motherboard with four storage buses fed by a CPU and a separate fluid controller. */
 @SideOnly(Side.CLIENT)
-final class RequestTableUpgradeBoard {
+public final class RequestTableUpgradeBoard {
 
     private static final ResourceLocation BACKGROUND = RequestTableRender.texture("requesttable_board");
     private static final int DRAG_THRESHOLD = 4;
@@ -77,7 +77,7 @@ final class RequestTableUpgradeBoard {
         }
     }
 
-    void setArea(int left, int top, int width, int height) {
+    public void setArea(int left, int top, int width, int height) {
         if (positioned) {
             panX += (width - this.width) / 2.0F;
             panY += (height - this.height) / 2.0F;
@@ -88,11 +88,11 @@ final class RequestTableUpgradeBoard {
         this.height = height;
     }
 
-    void initializeView(RequestTableUpgradeBranch branch, int tier) {
+    public void initializeView(RequestTableUpgradeBranch branch, int tier) {
         if (!positioned) centerOnUpgrade(branch, tier);
     }
 
-    void updateProgress(RequestTableUpgradeContainer upgrades) {
+    public void updateProgress(RequestTableUpgradeState upgrades) {
         // Initial state and reopening a table must not assemble already installed chips again.
         if (!upgrades.isReady()) return;
         for (RequestTableUpgradeBranch branch : RequestTableUpgradeBranch.values()) {
@@ -108,7 +108,7 @@ final class RequestTableUpgradeBoard {
         progressInitialized = true;
     }
 
-    void centerOnUpgrade(RequestTableUpgradeBranch branch, int tier) {
+    public void centerOnUpgrade(RequestTableUpgradeBranch branch, int tier) {
         cancelDrag();
         positioned = true;
         Node node = findUpgrade(branch, tier);
@@ -116,11 +116,11 @@ final class RequestTableUpgradeBoard {
         panY = height / 2.0F - node.y * zoom;
     }
 
-    void center() {
+    public void center() {
         centerOnUpgrade(null, 0);
     }
 
-    void showAll() {
+    public void showAll() {
         cancelDrag();
         positioned = true;
         zoom = Math
@@ -129,7 +129,7 @@ final class RequestTableUpgradeBoard {
         panY = (height - RequestTableBoardLayout.HEIGHT * zoom) / 2.0F;
     }
 
-    void changeZoom(boolean increase) {
+    public void changeZoom(boolean increase) {
         float target = zoom;
         if (increase) {
             for (float level : ZOOM_LEVELS) {
@@ -160,11 +160,11 @@ final class RequestTableUpgradeBoard {
         return nodes.get(0);
     }
 
-    boolean contains(int mouseX, int mouseY) {
+    public boolean contains(int mouseX, int mouseY) {
         return mouseX >= left + 1 && mouseX < left + width - 1 && mouseY >= top + 1 && mouseY < top + height - 1;
     }
 
-    boolean startDrag(int mouseX, int mouseY, int button) {
+    public boolean startDrag(int mouseX, int mouseY, int button) {
         if ((button != 0 && button != 2) || !contains(mouseX, mouseY)) return false;
         if (isDragging()) return true;
         positioned = true;
@@ -178,15 +178,15 @@ final class RequestTableUpgradeBoard {
         return true;
     }
 
-    boolean isDragging() {
+    public boolean isDragging() {
         return dragButton >= 0;
     }
 
-    int getDragButton() {
+    public int getDragButton() {
         return dragButton;
     }
 
-    void drag(int mouseX, int mouseY) {
+    public void drag(int mouseX, int mouseY) {
         int dx = mouseX - dragStartX;
         int dy = mouseY - dragStartY;
         moved |= Math.max(Math.abs(dx), Math.abs(dy)) > DRAG_THRESHOLD;
@@ -207,12 +207,25 @@ final class RequestTableUpgradeBoard {
         return selected;
     }
 
-    void cancelDrag() {
+    /**
+     * Ends a drag and reports the clicked upgrade, if the press was a click on an upgrade socket.
+     *
+     * @return {@code true} if an upgrade was selected
+     */
+    public boolean release(int mouseX, int mouseY, int button,
+            java.util.function.ObjIntConsumer<RequestTableUpgradeBranch> selection) {
+        Node node = release(mouseX, mouseY, button);
+        if (node == null) return false;
+        selection.accept(node.branch, node.tier);
+        return true;
+    }
+
+    public void cancelDrag() {
         dragButton = -1;
         pressedNode = null;
     }
 
-    void scroll(int wheel, boolean horizontal) {
+    public void scroll(int wheel, boolean horizontal) {
         int distance = wheel > 0 ? 32 : -32;
         positioned = true;
         if (horizontal) {
@@ -224,7 +237,7 @@ final class RequestTableUpgradeBoard {
         }
     }
 
-    void draw(Minecraft mc, RequestTableUpgradeContainer upgrades, int mouseX, int mouseY) {
+    public void draw(Minecraft mc, RequestTableUpgradeState upgrades, int mouseX, int mouseY) {
         try (var ignored = RequestTableRender.guiState()) {
             RequestTableGuiStyle.inset(left, top, width, height);
             RequestTableRender.clip(mc, left + 1, top + 1, width - 2, height - 2);
@@ -245,7 +258,7 @@ final class RequestTableUpgradeBoard {
         }
     }
 
-    private void drawNode(Node node, RequestTableUpgradeContainer upgrades, boolean hover) {
+    private void drawNode(Node node, RequestTableUpgradeState upgrades, boolean hover) {
         boolean cpu = node.branch == null;
         int installed = cpu ? 0 : upgrades.getTable().getUpgradeTier(node.branch);
         boolean complete = cpu || (node.branch.isSpecial() ? installed > 0 : node.tier <= installed);
@@ -303,7 +316,7 @@ final class RequestTableUpgradeBoard {
         return null;
     }
 
-    List<String> tooltip(int mouseX, int mouseY, RequestTableUpgradeContainer upgrades) {
+    public List<String> tooltip(int mouseX, int mouseY, RequestTableUpgradeState upgrades) {
         if (isDragging()) return null;
         Node node = nodeAt(mouseX, mouseY);
         if (node == null) return null;

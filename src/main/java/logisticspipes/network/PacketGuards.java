@@ -7,6 +7,7 @@ import net.minecraft.server.MinecraftServer;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.crafting.requesttable.RequestTableContainer;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
+import logisticspipes.gui.modularUI.pipes.requesttable.RequestTableMuiContainer;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -65,10 +66,17 @@ public final class PacketGuards {
      * Request table packets resolve their table through this instead of trusting client-sent coordinates or dimensions.
      */
     public static RequestTablePipe getOpenRequestTable(EntityPlayer player) {
-        if (player == null || !(player.openContainer instanceof RequestTableContainer container)) {
+        if (player == null) {
             return null;
         }
-        RequestTablePipe table = container.getTable();
+        RequestTablePipe table;
+        if (player.openContainer instanceof RequestTableContainer container) {
+            table = container.getTable();
+        } else if (player.openContainer instanceof RequestTableMuiContainer container) {
+            table = container.getTable();
+        } else {
+            return null;
+        }
         if (table == null || table.container == null || table.container.isInvalid()) {
             return null;
         }

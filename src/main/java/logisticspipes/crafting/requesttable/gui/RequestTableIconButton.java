@@ -9,7 +9,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 
 /** Icon buttons and tabs with shared pixel artwork. */
 @SideOnly(Side.CLIENT)
-final class RequestTableIconButton extends RequestTableButton {
+public final class RequestTableIconButton extends RequestTableButton {
 
     private static final int TAB_LABEL_TOP = 4;
     private static final int TAB_LETTER_HEIGHT = 7;
@@ -54,6 +54,28 @@ final class RequestTableIconButton extends RequestTableButton {
 
     @Override
     protected void drawContent(Minecraft mc, boolean hover) {
+        paintContent(
+                mc,
+                xPosition,
+                yPosition,
+                width,
+                height,
+                icon,
+                enabled,
+                hover,
+                selected,
+                tabLabel,
+                fill,
+                fillColor);
+    }
+
+    /**
+     * Draws an icon button or tab body over its raised bevel; shared with the ModularUI terminal.
+     *
+     * @param fill fill level from 0 to 1, or a negative value for no fill bar
+     */
+    public static void paintContent(Minecraft mc, int xPosition, int yPosition, int width, int height, Icon icon,
+            boolean enabled, boolean hover, boolean selected, String tabLabel, float fill, int fillColor) {
         if (tabLabel != null && !selected) {
             drawRect(
                     xPosition + 2,
@@ -97,7 +119,7 @@ final class RequestTableIconButton extends RequestTableButton {
         }
     }
 
-    enum Icon {
+    public enum Icon {
         NETWORK,
         NAME,
         AMOUNT,

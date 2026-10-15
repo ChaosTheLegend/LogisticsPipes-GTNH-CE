@@ -93,16 +93,42 @@ public final class RequestTableMonitorPanel {
     }
 
     public void render(RequestTableLayout layout, int mouseX, int mouseY) {
+        int bottom = layout.guiTop + layout.ySize - 10;
+        render(
+                layout.centralLeft + 13,
+                layout.centralTop + 8,
+                layout.centralWidth - 26,
+                bottom,
+                layout.centralLeft + layout.centralWidth - 1,
+                layout.sortModeButtonY,
+                layout.monitorButtonWidth + 7,
+                mouseX,
+                mouseY);
+    }
+
+    /**
+     * Renders the monitor into explicit bounds.
+     *
+     * @param x         left edge of the request header and resource area
+     * @param y         top edge of the request header
+     * @param width     width of the header and resource area
+     * @param bottom    bottom edge of the resource area and the request tabs
+     * @param tabsX     left edge of the request tabs
+     * @param tabsY     top edge of the request tabs
+     * @param tabsWidth width of the request tabs
+     */
+    public void render(int x, int y, int width, int bottom, int tabsX, int tabsY, int tabsWidth, int mouseX,
+            int mouseY) {
         model.maintain();
-        x = layout.centralLeft + 13;
-        y = layout.centralTop + 8;
-        width = layout.centralWidth - 26;
+        this.x = x;
+        this.y = y;
+        this.width = width;
         top = y + 37;
-        height = Math.max(20, layout.guiTop + layout.ySize - 10 - top);
-        tabsX = layout.centralLeft + layout.centralWidth - 1;
-        tabsY = layout.sortModeButtonY;
-        tabsWidth = layout.monitorButtonWidth + 7;
-        tabsHeight = layout.guiTop + layout.ySize - 10 - tabsY;
+        height = Math.max(20, bottom - top);
+        this.tabsX = tabsX;
+        this.tabsY = tabsY;
+        this.tabsWidth = tabsWidth;
+        tabsHeight = bottom - tabsY;
         tooltip = null;
         rebuild();
         Summary summary = model.summary();
@@ -153,6 +179,11 @@ public final class RequestTableMonitorPanel {
 
     public void drawTooltip(int mouseX, int mouseY) {
         if (tooltip != null) GuiGraphics.drawToolTip(mouseX, mouseY, tooltip, EnumChatFormatting.WHITE);
+    }
+
+    /** @return the tooltip of the element hovered during the last render, or {@code null} */
+    public List<String> getTooltip() {
+        return tooltip;
     }
 
     private void rebuild() {

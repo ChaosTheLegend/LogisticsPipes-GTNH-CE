@@ -26,10 +26,23 @@ public class RequestTableButton extends GuiButton {
     }
 
     protected void drawContent(Minecraft mc, boolean hover) {
+        paintLabel(mc, displayString, xPosition, yPosition, width, height, enabled);
+    }
+
+    /** Draws a complete text button; shared with the ModularUI terminal. */
+    public static void paint(Minecraft mc, String label, int x, int y, int width, int height, boolean enabled,
+            boolean hover) {
+        try (var ignored = RequestTableRender.guiState()) {
+            RequestTableGuiStyle.raised(x, y, width, height, enabled && hover);
+            paintLabel(mc, label, x, y, width, height, enabled);
+        }
+    }
+
+    private static void paintLabel(Minecraft mc, String label, int x, int y, int width, int height, boolean enabled) {
         mc.fontRenderer.drawString(
-                displayString,
-                xPosition + (width - mc.fontRenderer.getStringWidth(displayString)) / 2,
-                yPosition + (height - 8) / 2,
+                label,
+                x + (width - mc.fontRenderer.getStringWidth(label)) / 2,
+                y + (height - 8) / 2,
                 enabled ? RequestTableGuiStyle.TEXT : 0x808080);
     }
 }

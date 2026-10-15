@@ -159,6 +159,30 @@ Template:
 - **Found:** 2026-09-30, in game
 - **Notes:** Old extractor modules extracted items from chests if they had no filter and were set to "include" filter - this was their default state, now they are not extracting by default - this is intentional, but for the sake of compatibility, old modules with no filter and include mode, should flip to exclide - no filter, new modules should be exclude - no filter by default so they always extract by default
 
+### B35: Client crashes sometimes when breaking crafting pipe
+- **Status:** open
+- **Found:** 2026-10-12, in game
+- **Where:** `LogisticsBlockGenericPipe.removePipe` / `breakBlock` / `dropBlockAsItemWithChance` (`:643-710`)
+- **Notes:** When breaking crafting pipe, *sometimes* (the cause is unknown) the client crashes and breaks the pipe block, the pipe has to be replace after that, the pipe item gets deleted
+- **Investigation (2026-10-12, by reading code, no crash log yet):** a lost item means the failure is on the server
+  thread, after the block is set to air and before the drop. In singleplayer a server crash shows up as a client
+  crash. On the client, `breakBlock` doesn't run (vanilla `Chunk` calls it only on the server). The client only runs
+  `addDestroyEffects` and `tile.invalidate()`, and nothing in those is specific to the crafting pipe.
+  - `dropBlockAsItemWithChance:701` has no null check. By then the tile is already removed, so `pipe` comes only from
+    the static `pipeRemoved` map. If it's missing, `pipe.item` throws an NPE. `getDrops` has the check, this method
+    doesn't. The entry is missing when `removePipe` returned early (`!isValid(pipe)`), or when another `removePipe` call
+    cleared the map in between (`lastRemovedDate` is compared to the calling world's time, and the map is static, so it
+    is shared by all dimensions).
+  - Code between `setBlockToAir` and the drop that isn't covered by `onBlockRemoval`'s `catch (Exception)`:
+    `ClumpTransit.onPipeRemoved`, `world.removeTileEntity` → `invalidate()` → `router.destroy()` (junction router),
+    and in the drop itself `transport.dropContents()` → `item.itemWasLost()` for clumps on their way in. The last one
+    is the best match for "sometimes" and "crafting pipe": crafting pipes are reliable-transport destinations and
+    usually have ingredient clumps on their way. A lost item calls `itemLost` on the destination pipe.
+    An `Error` (not an `Exception`) from `onAllowedRemoval` also escapes the catch.
+  - Next: get the crash report (in singleplayer, check for both `-client` and `-server` files). Cheap hardening
+    whatever the cause: null-check `pipe` in `dropBlockAsItemWithChance`, and drop the pipe item before
+    `dropContents()`, or wrap `dropContents()` in a try/catch, so the pipe item is never lost.
+
 ## Rendering
 
 ### B7: Pipe model doesn't update when a neighbour's shape changes

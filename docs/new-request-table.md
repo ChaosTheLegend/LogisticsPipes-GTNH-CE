@@ -74,6 +74,24 @@ security and upgrade. The overview updates at most once per second; selected-job
 ticks. Initial trees are split into bounded chunks, assembled atomically, and subsequently updated by node ID
 and revision. Closing or leaving the monitor stops its subscription.
 
+## GUI
+
+The table opens a ModularUI GUI (`gui.modularUI.pipes.requesttable`). Right-clicking it while holding the legacy
+wrench opens the legacy GUI instead, which still works and is kept for debugging. Both GUIs share the layout
+(`RequestTableLayout`), the drawing helpers and the server-side table logic, so they behave the same:
+
+- One adaptive panel holds every view: the terminal, item and fluid storage, the crafting monitor and the upgrade
+  board. The upgrade board is a view of the same panel instead of a separate screen; unused materials still return
+  when leaving it.
+- Table storage is drawn as virtual slots and synchronized by `RequestTableSyncHandler` with integer counts, because
+  compressed stacks do not fit vanilla slot packets. Clicks on them follow vanilla slot behaviour (pick up, place,
+  swap, shift-click, hotbar keys, dropping, creative middle-click, drag distribution and double-click collection) and
+  are applied by the server.
+- Shift-clicks from the player inventory are routed by `RequestTableMuiContainer`, following the active view.
+- The crafting monitor keeps its chunked snapshot packets; `PacketGuards` accepts the ModularUI container.
+- Storage clicks, cell handling and the upgrade escrow live in `RequestTableInteractions` and
+  `RequestTableUpgradeSession`, shared by both GUIs.
+
 ## Integration scope
 
 The implementation lives in `crafting.requesttable`, with packages grouped by responsibility:

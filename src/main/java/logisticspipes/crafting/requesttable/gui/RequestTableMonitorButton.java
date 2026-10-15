@@ -7,7 +7,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 
 /** A small CRT and power lamp enabled by the table's permanent monitoring upgrade. */
 @SideOnly(Side.CLIENT)
-final class RequestTableMonitorButton extends RequestTableButton {
+public final class RequestTableMonitorButton extends RequestTableButton {
 
     private boolean selected;
 
@@ -27,6 +27,12 @@ final class RequestTableMonitorButton extends RequestTableButton {
 
     @Override
     protected void drawContent(Minecraft mc, boolean hover) {
+        paintContent(xPosition, yPosition, width, height, enabled, selected);
+    }
+
+    /** Draws the monitor button body over its raised bevel; shared with the ModularUI terminal. */
+    public static void paintContent(int xPosition, int yPosition, int width, int height, boolean enabled,
+            boolean selected) {
         if (!enabled) {
             drawRect(xPosition + 2, yPosition + 2, xPosition + width - 2, yPosition + height - 2, 0xffa0a0a0);
         } else if (selected) {

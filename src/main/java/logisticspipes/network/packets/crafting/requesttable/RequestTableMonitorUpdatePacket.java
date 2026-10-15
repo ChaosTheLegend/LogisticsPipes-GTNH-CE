@@ -7,6 +7,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import cpw.mods.fml.client.FMLClientHandler;
 import logisticspipes.crafting.monitor.CraftingMonitorData;
 import logisticspipes.crafting.requesttable.gui.RequestTableGui;
+import logisticspipes.gui.modularUI.pipes.requesttable.RequestTableMui;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.PacketGuards;
@@ -48,10 +49,13 @@ public class RequestTableMonitorUpdatePacket extends CoordinatesPacket {
     @Override
     public void processPacket(EntityPlayer player) {
         if (!PacketGuards.isOnClient(player)) return;
-        if (FMLClientHandler.instance().getClient().currentScreen instanceof RequestTableGui gui
-                && gui.isForTable(getPosX(), getPosY(), getPosZ())) {
-            gui.handleMonitorChunk(session, transfer, part, parts, payload);
+        if (FMLClientHandler.instance().getClient().currentScreen instanceof RequestTableGui gui) {
+            if (gui.isForTable(getPosX(), getPosY(), getPosZ())) {
+                gui.handleMonitorChunk(session, transfer, part, parts, payload);
+            }
+            return;
         }
+        RequestTableMui.handleMonitorChunk(getPosX(), getPosY(), getPosZ(), session, transfer, part, parts, payload);
     }
 
     @Override

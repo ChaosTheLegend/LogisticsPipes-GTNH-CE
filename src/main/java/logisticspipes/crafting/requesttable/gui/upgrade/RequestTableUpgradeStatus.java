@@ -4,11 +4,11 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
-import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeState;
 
 /** One presentation decision shared by upgrade descriptions, sockets and button tooltips. */
 @SideOnly(Side.CLIENT)
-enum RequestTableUpgradeStatus {
+public enum RequestTableUpgradeStatus {
 
     WAITING,
     APPLIED,
@@ -16,7 +16,7 @@ enum RequestTableUpgradeStatus {
     FLUID_CONTROLLER_REQUIRED,
     AVAILABLE;
 
-    static RequestTableUpgradeStatus of(RequestTableUpgradeContainer upgrades, RequestTableUpgradeBranch branch,
+    public static RequestTableUpgradeStatus of(RequestTableUpgradeState upgrades, RequestTableUpgradeBranch branch,
             int tier) {
         int installed = upgrades.getTable().getUpgradeTier(branch);
         if (branch.isSpecial() ? installed > 0 : installed >= tier) return APPLIED;
@@ -27,7 +27,7 @@ enum RequestTableUpgradeStatus {
         return AVAILABLE;
     }
 
-    String hint(int tier) {
+    public String hint(int tier) {
         return switch (this) {
             case WAITING -> "Waiting for the server...";
             case APPLIED -> "Upgrade applied permanently.";

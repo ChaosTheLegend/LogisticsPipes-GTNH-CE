@@ -21,7 +21,9 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidContainerItem;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.blocks.crafting.AutoCraftingInventory;
+import logisticspipes.compat.ModularUIHelper;
 import logisticspipes.crafting.requesttable.network.RequestTableNetworkEntry;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettings;
 import logisticspipes.crafting.requesttable.settings.RequestTableDisplaySettingsStore;
@@ -30,7 +32,10 @@ import logisticspipes.crafting.requesttable.storage.RequestTableFluidContainers;
 import logisticspipes.crafting.requesttable.storage.RequestTableFluidStorage;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.pipes.requesttable.RequestTableMui;
 import logisticspipes.interfaces.routing.IRequestFluid;
+import logisticspipes.items.ItemLegacyWrench;
 import logisticspipes.items.ItemUpgrade;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
@@ -61,7 +66,7 @@ import lombok.Getter;
  * crafting semantics required by the redesigned table.
  */
 @Getter
-public class RequestTablePipe extends PipeBlockRequestTable implements IRequestFluid {
+public class RequestTablePipe extends PipeBlockRequestTable implements IRequestFluid, IMUICompatiblePipeV2 {
 
     private static final int FLUID_SEND_CHUNK = 5000;
     private static final String NBT_FLUID_STORAGE = "newRequestTableFluidStorage";
@@ -74,6 +79,8 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
     private final RequestTableDisplaySettingsStore displaySettingsStore = new RequestTableDisplaySettingsStore();
     private final PlayerCollectionList requestTableGuiWatchers = new PlayerCollectionList();
     private boolean networkContentDirty;
+    /** Increases whenever the combined network list should be rebuilt for open ModularUI terminals. */
+    private int networkContentRevision;
     private int itemSlotTier;
     private int itemSizeTier;
     private int fluidSlotTier;
@@ -119,14 +126,32 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
         super.ignoreDisableUpdateEntity();
         if (MainProxy.isServer(getWorld()) && networkContentDirty) {
             networkContentDirty = false;
+            networkContentRevision++;
             sendNetworkContentToWatchers();
         }
     }
 
+    /** Opens the ModularUI terminal, or the legacy GUI while the player holds a legacy wrench. */
     @Override
     public void openGui(EntityPlayer player) {
         updateStorageUpgrades();
-        player.openGui(LogisticsPipes.instance, GuiIDs.GUI_New_Request_Table_ID, getWorld(), getX(), getY(), getZ());
+        ItemStack held = player.getCurrentEquippedItem();
+        if (held != null && held.getItem() instanceof ItemLegacyWrench) {
+            player.openGui(
+                    LogisticsPipes.instance,
+                    GuiIDs.GUI_New_Request_Table_ID,
+                    getWorld(),
+                    getX(),
+                    getY(),
+                    getZ());
+        } else {
+            ModularUIHelper.openPipeUI(player, this);
+        }
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new RequestTableMui(this);
     }
 
     @Override
@@ -185,14 +210,26 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
      * Saves the view state for this player at this table.
      */
     public void setDisplaySettings(EntityPlayer player, RequestTableDisplaySettings settings) {
+        if (updateDisplaySettings(player, settings)) {
+            sendNetworkContentToPlayer(player);
+        }
+    }
+
+    /**
+     * Saves the view state for this player without notifying the legacy GUI.
+     *
+     * @return {@code true} if anything changed
+     */
+    public boolean updateDisplaySettings(EntityPlayer player, RequestTableDisplaySettings settings) {
         boolean orderChanged = !RequestTableOrderSettings.forPlayer(player).equals(settings.getOrderSettings());
         if (orderChanged) settings.getOrderSettings().saveForPlayer(player);
         boolean displayChanged = displaySettingsStore
                 .set(player.getUniqueID(), settings.withOrderSettings(RequestTableOrderSettings.DEFAULT));
         if ((displayChanged || orderChanged) && container != null) {
             if (displayChanged) container.markDirty();
-            sendNetworkContentToPlayer(player);
+            return true;
         }
+        return false;
     }
 
     private static boolean isControllerCard(ItemStack stack, int damage) {
@@ -475,8 +512,7 @@ public class RequestTablePipe extends PipeBlockRequestTable implements IRequestF
             } else if (fluid && stack != null && isEmptyFluidContainer(cursor)) {
                 changed = handleNetworkFluidInteraction(player, stack.getItem(), mouseButton);
             } else {
-                changed = player.openContainer instanceof RequestTableContainer
-                        && ((RequestTableContainer) player.openContainer).insertCursorItem(player, mouseButton);
+                changed = RequestTableInteractions.insertCursorItem(this, player, mouseButton);
             }
         } else {
             if (stack == null || player.inventory.getItemStack() != null) {

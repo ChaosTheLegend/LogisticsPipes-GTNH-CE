@@ -21,7 +21,12 @@ public enum RequestTableView {
     FLUID_STORAGE,
 
     /** Opens the crafting-monitor display shell, unlocked by the monitoring upgrade. */
-    CRAFTING_MONITOR;
+    CRAFTING_MONITOR,
+
+    /**
+     * Shows the permanent upgrade board. Only the ModularUI terminal uses it; the legacy GUI opens a separate screen.
+     */
+    UPGRADES;
 
     boolean transfersFluids(boolean filledCell) {
         return (this == NETWORK || this == FLUID_STORAGE) && filledCell;
