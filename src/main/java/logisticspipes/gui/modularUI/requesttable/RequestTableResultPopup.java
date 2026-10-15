@@ -25,7 +25,7 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import logisticspipes.compat.ModularUIHelper;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings;
-import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.request.resources.IResource;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -72,8 +72,7 @@ public class RequestTableResultPopup {
          */
         Row(IResource resource, int crafted) {
             ItemIdentifierStack display = resource.getDisplayItem();
-            FluidStack displayFluid = display == null ? null
-                    : SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(display);
+            FluidStack displayFluid = RequestTableMk3Pipe.getNetworkFluid(display);
             fluid = displayFluid;
             item = display == null || displayFluid != null ? null : display.getItem().unsafeMakeNormalStack(1);
             text = resource.getDisplayText(IResource.ColorCode.NONE);
@@ -88,7 +87,7 @@ public class RequestTableResultPopup {
          * @param stack what the network didn't take, a fluid container with the amount in millibuckets for a fluid
          */
         Row(ItemIdentifierStack stack) {
-            fluid = SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(stack);
+            fluid = RequestTableMk3Pipe.getNetworkFluid(stack);
             if (fluid != null) {
                 item = null;
                 text = stack.getStackSize() + "mB " + fluid.getLocalizedName();

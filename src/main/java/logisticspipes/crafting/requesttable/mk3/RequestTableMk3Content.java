@@ -11,6 +11,7 @@ import java.util.TreeSet;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 
+import logisticspipes.items.LogisticsFluidContainer;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -40,12 +41,12 @@ public final class RequestTableMk3Content {
         itemIds.addAll(availableItems.keySet());
         itemIds.addAll(internalItems.keySet());
         for (ItemIdentifier craftable : craftableItems) {
-            if (!craftable.isFluidContainer()) {
+            if (!isFluid(craftable)) {
                 itemIds.add(craftable);
             }
         }
         for (ItemIdentifier item : itemIds) {
-            if (item.isFluidContainer()) {
+            if (isFluid(item)) {
                 continue;
             }
             int networkAmount = getAmount(availableItems, item);
@@ -70,7 +71,7 @@ public final class RequestTableMk3Content {
         fluidIds.addAll(networkFluids.keySet());
         fluidIds.addAll(internalFluids.keySet());
         for (ItemIdentifier craftable : craftableItems) {
-            if (craftable.isFluidContainer()) {
+            if (isFluid(craftable)) {
                 fluidIds.add(craftable);
             }
         }
@@ -108,6 +109,15 @@ public final class RequestTableMk3Content {
             }
         }
         return fluids;
+    }
+
+    /**
+     * Only the fluid of the network is listed as fluid. A GregTech cell keeps its fluid in its data and counts as a
+     * fluid container elsewhere, but here it is an item: a filled cell that a filler can make is crafted as a cell, not
+     * as the fluid in it.
+     */
+    private static boolean isFluid(ItemIdentifier item) {
+        return item.item instanceof LogisticsFluidContainer;
     }
 
     /**

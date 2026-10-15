@@ -653,6 +653,17 @@ public class RequestTableMk3Pipe extends PipeBlockRequestTable implements IReque
     }
 
     /**
+     * @return the fluid the stack carries through the network, or null for an item. A GregTech cell is an item here,
+     *         although it keeps its fluid in its data the same way: the cell that was requested has to arrive as one.
+     */
+    public static FluidStack getNetworkFluid(ItemIdentifierStack stack) {
+        if (stack == null || stack.getItem().item != LogisticsPipes.LogisticsFluidContainer) {
+            return null;
+        }
+        return SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(stack);
+    }
+
+    /**
      * @return whether the stack is something fluid can be put into or taken out of, filled or empty
      */
     public static boolean isFluidContainer(ItemStack stack) {
@@ -1697,7 +1708,7 @@ public class RequestTableMk3Pipe extends PipeBlockRequestTable implements IReque
                     if (routedStack == null) {
                         return;
                     }
-                    FluidStack fluid = SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(routedStack);
+                    FluidStack fluid = getNetworkFluid(routedStack);
                     if (fluid != null) {
                         updateStorageUpgrades();
                         int filled = fluidStorage.fill(fluid, true);
