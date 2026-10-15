@@ -51,6 +51,7 @@
 ## Power
 
 - Network power is pooled per island (a connected network): all power junctions in it share their power, and any pipe in the island draws from the pool. Pipes no longer look for a route to a power junction. Power transport (power supplier upgrades) is a separate topic and unchanged for now
+- Power junctions don't store power themselves: each junction adds its capacity to its island's pool, and the pool holds the energy. Pipes only need to know their pool. A junction touching two networks joins their pools
 - One-way pipes don't restrict power any more (LP has no power-passing one-way pipes; BC/TD support is dropped)
 - Firewall pipes are the only exception: a firewall that blocks power splits the pool
 - Firewall pipes work against most routing optimizations (their filters make routes depend on the item, and they split power pools), so they cost more than other pipes. Mark them as "use sparingly" (tooltip, docs); subnets joined by fiber pipes are the cheap way to separate networks

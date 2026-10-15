@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import logisticspipes.interfaces.routing.IFilter;
+
 /**
  * The single writer of the junction graph.
  * <p>
@@ -75,6 +77,11 @@ public final class JunctionGraphWriter {
     private final Map<Integer, Set<Integer>> incoming = new HashMap<>();
     /** Per junction: min over its corridors of weight / manhattan, kept current so publish is O(junctions). */
     private double[] nodeMinRatio = new double[64];
+    /**
+     * Per junction: some corridor of it may not pass power (it has filters, or lacks
+     * {@link RoutingFlags#CAN_POWER_FROM}). Only islands with such a junction need the power pool split at publish.
+     */
+    private boolean[] powerGated = new boolean[64];
     private long stampCounter = 1;
     private int edgeSequence = 1;
     private long generation = 0;
@@ -242,6 +249,7 @@ public final class JunctionGraphWriter {
             nodes = new JunctionNode[64];
             slotOf = new int[64];
             nodeMinRatio = new double[64];
+            powerGated = new boolean[64];
             nodeCount = 0;
             unionFind = new UnionFind(64);
             nextSlot = 0;
@@ -289,6 +297,14 @@ public final class JunctionGraphWriter {
         submit(w -> w.doSetData(id, data, improvement));
     }
 
+    /**
+     * Rebuild the power pools on the next publish. Firewall flags are read live, so a firewall that starts or stops
+     * blocking power changes the pools without changing any corridor.
+     */
+    public void refreshPowerPools() {
+        submit(w -> w.dirty = true);
+    }
+
     /** Invalidate every cached route in the junction's component (manual network refresh). */
     public void invalidateComponent(JunctionId id) {
         submit(w -> w.doInvalidate(id));
@@ -324,6 +340,7 @@ public final class JunctionGraphWriter {
         Arrays.fill(slotOf, oldLength, newLength, -1);
         nodeMinRatio = Arrays.copyOf(nodeMinRatio, newLength);
         Arrays.fill(nodeMinRatio, oldLength, newLength, Double.POSITIVE_INFINITY);
+        powerGated = Arrays.copyOf(powerGated, newLength);
     }
 
     private JunctionNode get(JunctionId id) {
@@ -431,6 +448,7 @@ public final class JunctionGraphWriter {
         long stamp = ++stampCounter;
         components.put(slot, ComponentInfo.fresh(stamp));
         nodeMinRatio[i] = Double.POSITIVE_INFINITY;
+        powerGated[i] = false;
         dirty = true;
         // Corridors other junctions already reported towards this position now lead somewhere.
         Set<Integer> in = incoming.get(i);
@@ -500,6 +518,7 @@ public final class JunctionGraphWriter {
         // the slot stays in union-find chains but is never handed out again
         slotOf[i] = -1;
         nodeMinRatio[i] = Double.POSITIVE_INFINITY;
+        powerGated[i] = false;
         removedInBatch.add(id);
     }
 
@@ -558,6 +577,14 @@ public final class JunctionGraphWriter {
         }
         nodes[i] = node.withEdges(newEdges, node.nextEdgeSequence);
         recomputeMinRatio(i);
+        boolean gated = false;
+        for (CorridorEdge e : newEdges) {
+            if (!e.filters.isEmpty() || (e.flags & RoutingFlags.CAN_POWER_FROM) == 0) {
+                gated = true;
+                break;
+            }
+        }
+        powerGated[i] = gated;
         for (CorridorEdge e : newEdges) {
             union(i, e.to.index());
         }
@@ -822,6 +849,24 @@ public final class JunctionGraphWriter {
             }
         }
 
+        // Power pools: an island is one pool, numbered like the island, unless one of its corridors may not pass power
+        int[] powerPoolOf = new int[length];
+        boolean[] denseGated = new boolean[denseCount];
+        boolean anyGated = false;
+        for (int i = 0; i < length; i++) {
+            if (nodes[i] == null) {
+                powerPoolOf[i] = -1;
+                continue;
+            }
+            powerPoolOf[i] = denseOfNode[i];
+            if (powerGated[i]) {
+                denseGated[denseOfNode[i]] = true;
+                anyGated = true;
+            }
+        }
+        int poolCount = anyGated ? splitPowerPools(denseOfNode, denseGated, denseCount, powerPoolOf) : denseCount;
+        linkSharedPools(poolCount, powerPoolOf);
+
         NetworkGraph graph = new NetworkGraph(
                 ++generation,
                 Arrays.copyOf(nodes, length),
@@ -830,12 +875,156 @@ public final class JunctionGraphWriter {
                 nodeScale,
                 Collections.unmodifiableMap(snapshotComponents),
                 chunkIndex,
-                dataJunctions.stream().mapToInt(Integer::intValue).toArray());
+                dataJunctions.stream().mapToInt(Integer::intValue).toArray(),
+                powerPoolOf,
+                buildPowerPools(poolCount, powerPoolOf));
         published.set(graph);
         dirty = false;
         List<JunctionId> removed = new ArrayList<>(removedInBatch);
         removedInBatch.clear();
         return new PublishEvent(graph, removed);
+    }
+
+    /**
+     * Splits the islands marked in {@code denseGated} into the parts joined by corridors that pass power: the corridor
+     * carries {@link RoutingFlags#CAN_POWER_FROM}, has no power-blocking filter, and neither end is a power-blocking
+     * firewall (its corridors carry its filter; one that blocks power keeps only the providers attached to itself). One
+     * direction passing is enough: one-way pipes don't restrict power. Filters are judged now, since firewall flags are
+     * live. The first part of an island keeps the island's number, the others get new ones.
+     *
+     * @return the number of pools
+     */
+    private int splitPowerPools(int[] denseOfNode, boolean[] denseGated, int denseCount, int[] poolOf) {
+        int length = poolOf.length;
+        int[] parent = new int[length];
+        boolean[] blocks = new boolean[length];
+        for (int i = 0; i < length; i++) {
+            parent[i] = i;
+            if (nodes[i] != null && denseGated[denseOfNode[i]]) {
+                for (CorridorEdge e : nodes[i].edges) {
+                    if (blocksPower(e.filters)) {
+                        blocks[i] = true;
+                        break;
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < length; i++) {
+            JunctionNode node = nodes[i];
+            if (node == null || blocks[i] || !denseGated[denseOfNode[i]]) {
+                continue;
+            }
+            for (CorridorEdge e : node.edges) {
+                int t = e.to.index();
+                if ((e.flags & RoutingFlags.CAN_POWER_FROM) != 0 && alive(t) && !blocks[t]) {
+                    int ra = findPool(parent, i);
+                    int rb = findPool(parent, t);
+                    if (ra != rb) {
+                        parent[rb] = ra;
+                    }
+                }
+            }
+        }
+        int poolCount = denseCount;
+        int[] poolOfRoot = new int[length];
+        Arrays.fill(poolOfRoot, -1);
+        boolean[] denseUsed = new boolean[denseCount];
+        for (int i = 0; i < length; i++) {
+            if (nodes[i] == null || !denseGated[denseOfNode[i]]) {
+                continue;
+            }
+            int r = findPool(parent, i);
+            if (poolOfRoot[r] < 0) {
+                int d = denseOfNode[i];
+                poolOfRoot[r] = denseUsed[d] ? poolCount++ : d;
+                denseUsed[d] = true;
+            }
+            poolOf[i] = poolOfRoot[r];
+        }
+        return poolCount;
+    }
+
+    /**
+     * Joins pools whose junctions name the same store ({@link PowerPool.Member}): the joined pool takes the lowest
+     * number of the group. Numbers that end up unused stay empty.
+     */
+    private void linkSharedPools(int poolCount, int[] poolOf) {
+        Map<Object, Integer> poolOfKey = null;
+        int[] parent = null;
+        for (int j : dataJunctions) {
+            Object data = nodes[j].data;
+            if (!(data instanceof PowerPool.Member) || poolOf[j] < 0) {
+                continue;
+            }
+            for (Object key : ((PowerPool.Member) data).poolKeys()) {
+                if (poolOfKey == null) {
+                    poolOfKey = new HashMap<>();
+                }
+                Integer other = poolOfKey.putIfAbsent(key, poolOf[j]);
+                if (other == null || other == poolOf[j]) {
+                    continue;
+                }
+                if (parent == null) {
+                    parent = new int[poolCount];
+                    for (int p = 0; p < poolCount; p++) {
+                        parent[p] = p;
+                    }
+                }
+                int ra = findPool(parent, other);
+                int rb = findPool(parent, poolOf[j]);
+                if (ra != rb) {
+                    parent[Math.max(ra, rb)] = Math.min(ra, rb);
+                }
+            }
+        }
+        if (parent == null) {
+            return;
+        }
+        for (int i = 0; i < poolOf.length; i++) {
+            if (poolOf[i] >= 0) {
+                poolOf[i] = findPool(parent, poolOf[i]);
+            }
+        }
+    }
+
+    private static int findPool(int[] parent, int i) {
+        while (parent[i] != i) {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        return i;
+    }
+
+    private static boolean blocksPower(List<?> filters) {
+        for (Object f : filters) {
+            if (f instanceof IFilter && ((IFilter) f).blockPower()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The data of every data junction, grouped by pool; pools without data stay {@code null}. */
+    private PowerPool[] buildPowerPools(int poolCount, int[] poolOf) {
+        int[] counts = new int[poolCount];
+        for (int j : dataJunctions) {
+            if (poolOf[j] >= 0) {
+                counts[poolOf[j]]++;
+            }
+        }
+        PowerPool[] pools = new PowerPool[poolCount];
+        int[] filled = new int[poolCount];
+        for (int j : dataJunctions) {
+            int p = poolOf[j];
+            if (p < 0) {
+                continue;
+            }
+            if (pools[p] == null) {
+                pools[p] = new PowerPool(p, new Object[counts[p]]);
+            }
+            pools[p].data[filled[p]++] = nodes[j].data;
+        }
+        return pools;
     }
 
     /**

@@ -153,29 +153,44 @@ without a wrench or button spam.
 - [ ] 🟡 GregTech pipes as buffers
 - [ ] 🟡 Tesseracts / special pipe connections as buffer endpoints
 - [ ] 🟠 Re-add and upgrade the inv. system connector pipe
-- [ ] 🟠 Pooled network power: every power junction in an island (graph component) adds to that island's power pool,
-  and any pipe in the island draws from the pool. No routes to power junctions: the snapshot already knows each
-  junction's component (`componentOf`), so the publish step keeps a list of power providers per component, and
-  `canUseEnergy` / `useEnergy` walk that short list (a draw takes from the fullest provider, or round-robin). Only
-  joining or leaving an island (merge, split, provider added or removed) changes a pipe's pool, and that is already
-  part of the publish. Replaces the per-pipe `powerView()` sweep (`findRoutesToTargets` to every power junction after
-  every graph change).
-  - Scope: powering the network itself only. Power transport (RF/EU supplier upgrades, subsystem power) is separate
-    and keeps its current path for now.
-  - One-way pipes no longer restrict power (only BC/TD had power-passing one-way pipes, and they are being dropped).
-  - Firewall pipes are the only exception: a power-blocking firewall (`PipeItemsFirewall.blockPower`, on by default)
-    splits the pool, so a pool is a component minus the corridors through power-blocking firewalls. Computed at publish
-    like the components (union-find over the corridors that pass power).
-  - Power lasers (visual) need a source junction; pick the nearest only when they are shown.
+- [x] 🟠 Pooled network power (in code 2026-10-15, not tested in game yet): every power junction in an island adds to
+  that island's power pool, and any pipe in the island draws from the pool. No routes to power junctions.
+  - The graph publish builds the pools (`JunctionGraphWriter.publish`, `PowerPool`). A pool reuses its island's
+    number. An island is split only when a corridor in it may not pass power: the writer keeps a per-junction
+    "power-gated" flag (a corridor with filters or without `CAN_POWER_FROM`), and only islands with a gated junction
+    run the extra union-find over the corridors that do pass power. Other islands cost nothing extra.
+  - A pipe's lookup is `NetworkGraph.powerPool(junctionId)`, an array read. `JunctionRouter.getPowerProvider()` builds
+    the pool view once per pool and snapshot and caches it on the pool. Joining or leaving an island (merge,
+    split, provider added or removed) is a publish, so it updates the pools.
+  - Power junctions hold no power of their own. Each adds its capacity (`MAX_STORAGE`) to its pool's
+    `PowerPoolStorage`, and pipes draw from that storage directly (`IRouter.getPowerPool()`), with no provider
+    choice. A graph pool binds to its storage the first time a pipe draws from it. When the member junctions change
+    (merge, split, junction added or removed), each junction brings its share of its old pool's energy, in proportion
+    to capacity, so energy is neither lost nor created.
+  - A junction that leaves (broken, chunk unloaded) takes its share along and saves it as `powerLevel` in its NBT; on
+    load it brings that share into its pool. Breaking a junction loses its share, as before.
+  - A junction touching two networks is one store, so it joins their pools (`PowerPool.Member` keys at publish). Before,
+    both networks drew from it separately.
+  - The junction GUI, HUD, CC commands and RF/EU input show and use the whole pool (`PowerJunctionLevel` now sends the
+    capacity too). The "needs more power" gate trigger is per pool: off at full, on below half.
+  - Scope: powering the network itself only. Subsystem power (RF/EU supplier upgrades) keeps its route-based
+    `powerView()`, which now runs only for pipes with supplier upgrades.
+  - One-way pipes no longer restrict power: a corridor passing power in either direction joins the pool.
+  - Corridors that don't pass power in either direction split the pool (inventory system connectors).
+  - Firewall pipes: a power-blocking firewall (`PipeItemsFirewall.blockPower`, on by default) splits the pool. The
+    firewall junction is its own pool, so a power junction attached directly to a firewall powers only the firewall.
+    The flag is read live, so `FireWallFlag` calls `refreshPowerPools()` when it changes.
+  - Power lasers (visual) need a source junction; pick the nearest only when they are shown. (open)
 - [ ] 🟡 Fiber pipe: power-only link between subnets that stay separate networks. The pipe divides the network
-  (`divideNetwork()`) and implements `ILogisticsPowerProvider`, so each subnet registers it like a power junction and
-  its power search ends there. Drawing power delegates to the far side: a junction attached there returns its cached
-  power providers (with that subnet's filters). Needs:
-  - a visited set of fiber runs, so a draw can't loop back through the fiber it came from or around A→B→C→A
-  - a scanner change: a fiber reached along a corridor (behind transport pipes) registers as a provider of the scanning
-    junction with that corridor's filters; today only providers touching the routed pipe register
-  - per fiber run (flood fill, cached until a fiber pipe changes): the junctions attached on each side; a branched run
-    links several subnets
+  (`divideNetwork()`), so each subnet is its own island and power pool.
+  - Power grid: a structure that only stores which pool ids are linked by fiber runs into one grid. At publish, a
+    small union-find over the pools (one union per fiber run) gives each pool its grid; a pipe draws from every pool
+    of its grid. No delegation through the fiber at draw time, so no visited sets and no A→B→C→A loops.
+  - Per fiber run (flood fill, cached until a fiber pipe changes): the junctions attached on each side; a branched run
+    links several subnets. The run reports its links to the writer like corridors, and the publish turns them into
+    pool links.
+  - Firewalls still apply: a link joins the pools on each side of the fiber, and those pools already end at
+    power-blocking firewalls.
   - refusing items entering the pipe
   - open: whether it carries subsystem power (RF/EU supplier upgrades)
 - Junction-graph router: [router-rework/](router-rework/) (spec, developer guide, code review guide, benchmarks)

@@ -191,6 +191,8 @@ even when idle, pipes often cost 20-50 us per tick just to exist/update, even tr
 - At 50k pipes that is about 5,000 rebuilds per tick.
 - The view is now reused while the graph snapshot is the same object and the pipe's own power lists haven't changed. Routes
   to power junctions and their data can only change with a new snapshot.
+- Since replaced by pooled power (roadmap): the check is now an array read for the pipe's power pool, built at graph
+  publish. The route-based view is left only for subsystem power (supplier upgrades).
 
 **What's left per idle pipe, with debug off** (from reading the code; each item is well under 1 µs unless stated):
 - *Tile* (`LogisticsTileGenericPipe.updateEntity`):

@@ -26,7 +26,9 @@ public final class NetworkGraph {
             new double[0],
             Collections.emptyMap(),
             new ChunkEdgeIndex(),
-            new int[0]);
+            new int[0],
+            new int[0],
+            new PowerPool[0]);
 
     private final long generation;
     private final JunctionNode[] nodes;
@@ -39,9 +41,14 @@ public final class NetworkGraph {
     private final ChunkEdgeIndex chunkIndex;
     /** Junctions that carry data (power providers), ascending. */
     private final int[] dataJunctions;
+    /** Power pool number per junction index, -1 if absent. */
+    private final int[] powerPoolOf;
+    /** Pools by number; {@code null} for a pool without power providers. */
+    private final PowerPool[] powerPools;
 
     NetworkGraph(long generation, JunctionNode[] nodes, int nodeCount, int[] componentOf, double[] nodeScale,
-            Map<Integer, ComponentInfo> components, ChunkEdgeIndex chunkIndex, int[] dataJunctions) {
+            Map<Integer, ComponentInfo> components, ChunkEdgeIndex chunkIndex, int[] dataJunctions, int[] powerPoolOf,
+            PowerPool[] powerPools) {
         this.generation = generation;
         this.nodes = nodes;
         this.nodeCount = nodeCount;
@@ -50,6 +57,8 @@ public final class NetworkGraph {
         this.components = components;
         this.chunkIndex = chunkIndex;
         this.dataJunctions = dataJunctions;
+        this.powerPoolOf = powerPoolOf;
+        this.powerPools = powerPools;
     }
 
     /** Monotonic snapshot number. */
@@ -213,6 +222,22 @@ public final class NetworkGraph {
             }
         }
         return list;
+    }
+
+    /** The power pool the junction draws from, or {@code null} if it is absent or its pool has no providers. */
+    public PowerPool powerPool(JunctionId id) {
+        int i = id.index();
+        if (i < 0 || i >= powerPoolOf.length || node(i) == null) {
+            return null;
+        }
+        int p = powerPoolOf[i];
+        return p < 0 ? null : powerPools[p];
+    }
+
+    /** Power pool number of the junction, -1 if absent. Junctions with the same number share their power. */
+    public int powerPoolOf(JunctionId id) {
+        int i = id.index();
+        return i < 0 || i >= powerPoolOf.length || node(i) == null ? -1 : powerPoolOf[i];
     }
 
     public ChunkEdgeIndex chunkIndex() {

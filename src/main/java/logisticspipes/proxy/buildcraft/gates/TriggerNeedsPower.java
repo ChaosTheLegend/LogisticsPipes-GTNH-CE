@@ -31,7 +31,7 @@ public class TriggerNeedsPower extends LPTrigger implements ITriggerExternal {
             IStatementParameter[] paramArrayOfIStatementParameter) {
         if (tile instanceof LogisticsPowerJunctionTileEntity) {
             LogisticsPowerJunctionTileEntity LPJTE = (LogisticsPowerJunctionTileEntity) tile;
-            if (LPJTE.needMorePowerTriggerCheck) {
+            if (LPJTE.needsMorePower()) {
                 return true;
             }
         }
