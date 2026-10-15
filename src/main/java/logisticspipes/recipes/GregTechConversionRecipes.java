@@ -61,6 +61,14 @@ final class GregTechConversionRecipes {
     }
 
     /**
+     * Assembler: the fluid container supplier module, made of an active supplier module and a fluid supplier module, at
+     * MV like the other modules that request.
+     */
+    static void addFluidContainerSupplier(ItemStack activeSupplier, ItemStack fluidSupplier, ItemStack output) {
+        addFluidVariant(output, TierEU.RECIPE_MV, activeSupplier, fluidSupplier);
+    }
+
+    /**
      * @param parts what the recipe takes besides the cell and the circuit, a part that is null is left out
      */
     private static void addFluidVariant(ItemStack output, long eut, ItemStack... parts) {

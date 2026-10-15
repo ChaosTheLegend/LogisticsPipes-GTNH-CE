@@ -53,6 +53,7 @@ import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.modules.ModuleExtractorMk2;
 import logisticspipes.modules.ModuleExtractorMk3;
 import logisticspipes.modules.ModuleFluidContainerSink;
+import logisticspipes.modules.ModuleFluidContainerSupplier;
 import logisticspipes.modules.ModuleFluidExtractor;
 import logisticspipes.modules.ModuleFluidProvider;
 import logisticspipes.modules.ModuleFluidSink;
@@ -134,6 +135,8 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
     public static final int FLUID_PROVIDER = 702;
     public static final int FLUID_SUPPLIER = 703;
     public static final int FLUID_CONTAINER_SINK = 704;
+    // works with fluid but sits in an item chassis: it keeps filled containers in an inventory
+    public static final int FLUID_CONTAINER_SUPPLIER = 705;
 
     private final List<Module> modules = new ArrayList<>();
 
@@ -263,6 +266,7 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
         registerModule(ItemModule.FLUID_PROVIDER, ModuleFluidProvider.class);
         registerModule(ItemModule.FLUID_SUPPLIER, ModuleFluidTankSupplier.class);
         registerModule(ItemModule.FLUID_CONTAINER_SINK, ModuleFluidContainerSink.class);
+        registerModule(ItemModule.FLUID_CONTAINER_SUPPLIER, ModuleFluidContainerSupplier.class);
 
         if (LogisticsPipes.isGTNH) {
             registerModule(ItemModule.GT_TYPEFILTER_ITEMSINK, ModuleTypeFilterItemSink.class);

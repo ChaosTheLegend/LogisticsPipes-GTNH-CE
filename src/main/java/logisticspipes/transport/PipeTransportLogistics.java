@@ -34,6 +34,7 @@ import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IBufferItems;
+import logisticspipes.interfaces.IChassiItemReceiver;
 import logisticspipes.interfaces.IFluidContainerReceiver;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IItemAdvancedExistance;
@@ -986,6 +987,17 @@ public class PipeTransportLogistics {
         if (getPipe() instanceof IFluidContainerReceiver receiver && MainProxy.isServer(getWorld())
                 && getRoutedPipe().getRouter().getSimpleID() == arrivingItem.getDestination()
                 && receiver.endReached(arrivingItem, tile)) {
+            return;
+        }
+        // a chassis module that keeps what was sent to it, like the containers and the fluid of a fluid container
+        // supplier
+        if (MainProxy.isServer(getWorld()) && isRouted
+                && arrivingItem.getInfo() != null
+                && arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation target
+                && getRoutedPipe().getRouter().getSimpleID() == arrivingItem.getDestination()
+                && getRoutedPipe().getLogisticsModule() instanceof ChassiModule chassis
+                && chassis.getModule(target.getModuleSlot()) instanceof IChassiItemReceiver receiver
+                && receiver.receiveItem(arrivingItem.getItemIdentifierStack())) {
             return;
         }
         boolean isSpecialConnectionInformationTransition = false;

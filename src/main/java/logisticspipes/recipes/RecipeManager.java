@@ -3076,6 +3076,10 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.ModuleItem, 2, module[1]),
                     new ItemStack(LogisticsPipes.ModuleItem, 2, module[0]));
         }
+        GregTechConversionRecipes.addFluidContainerSupplier(
+                new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ACTIVE_SUPPLIER),
+                new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.FLUID_SUPPLIER),
+                new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.FLUID_CONTAINER_SUPPLIER));
     }
 
     private static void addFluidChassisRecipes() {
@@ -3095,5 +3099,11 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.ModuleItem, 1, module[1]),
                     Items.bucket);
         }
+        // the fluid container supplier requests like the active supplier and fills like the fluid supplier
+        RecipeManager.craftingManager.addShapelessRecipe(
+                new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.FLUID_CONTAINER_SUPPLIER),
+                CraftingDependency.Modular_Pipes,
+                new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ACTIVE_SUPPLIER),
+                new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.FLUID_SUPPLIER));
     }
 }
