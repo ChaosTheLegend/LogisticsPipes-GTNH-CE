@@ -102,6 +102,8 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         if (handler.getList().setSearch(search.get())) {
             scrollRow = 0;
         }
+        // with shift held the items are taken out one stack after the other, the entries stay where they are
+        handler.getList().setOrderFrozen(Interactable.hasShiftDown());
         return handler.getList().getVisibleEntries();
     }
 

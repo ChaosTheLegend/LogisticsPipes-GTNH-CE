@@ -45,6 +45,10 @@ public class RequestTableMk3NetworkList {
     private String[] searchTokens = new String[0];
     // the words of the search that start with @, they search the mod
     private String[] modTokens = new String[0];
+    // while true the entries keep their places when their amounts change, see setOrderFrozen
+    private boolean orderFrozen;
+    // true when the entries changed while the order was frozen and are to be sorted again
+    private boolean orderStale;
 
     public void setEntries(List<RequestTableMk3NetworkEntry> entries) {
         sourceEntries.clear();
@@ -63,8 +67,46 @@ public class RequestTableMk3NetworkList {
                 knownItems.put(entry.getStack().getItem(), entry);
             }
         }
+        if (orderFrozen && !sortedEntries.isEmpty()) {
+            keepOrder();
+        } else {
+            rebuildSortedEntries();
+        }
+        rebuildVisibleEntries();
+    }
+
+    /**
+     * While the player takes items out with shift held, the entry under the mouse must not move away when its amount
+     * changes. The order is kept until it is let go, then the list is sorted again.
+     *
+     * @return true if the visible list changed
+     */
+    public boolean setOrderFrozen(boolean frozen) {
+        orderFrozen = frozen;
+        if (frozen || !orderStale) {
+            return false;
+        }
+        orderStale = false;
         rebuildSortedEntries();
         rebuildVisibleEntries();
+        return true;
+    }
+
+    /**
+     * Sorts the new entries into the places the old ones had. An entry that wasn't there before goes behind the others,
+     * in the order of the sort settings.
+     */
+    private void keepOrder() {
+        Map<ItemIdentifier, Integer> places = new HashMap<>();
+        for (int i = 0; i < sortedEntries.size(); i++) {
+            places.put(sortedEntries.get(i).entry.getStack().getItem(), i);
+        }
+        rebuildSortedEntries();
+        // the sort is stable: the new entries keep the order the settings gave them
+        sortedEntries.sort(
+                Comparator.comparingInt(
+                        entry -> places.getOrDefault(entry.entry.getStack().getItem(), Integer.MAX_VALUE)));
+        orderStale = true;
     }
 
     public boolean setDisplaySettings(RequestTableMk3DisplaySettings newSettings) {
@@ -77,6 +119,7 @@ public class RequestTableMk3NetworkList {
                 || settings.getTypeFilter() != newSettings.getTypeFilter();
         settings = newSettings;
         if (sortingChanged) {
+            orderStale = false;
             rebuildSortedEntries();
         }
         if (!listChanged) {
