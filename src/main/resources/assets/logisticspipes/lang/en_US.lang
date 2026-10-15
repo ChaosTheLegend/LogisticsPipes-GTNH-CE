@@ -230,6 +230,8 @@ item.PipeBlockRequestTable.name=Logistics Request Table
 
 item.RequestTablePipe=Logistics Request Table Mk2
 item.RequestTablePipe.name=Logistics Request Table Mk2
+item.RequestTableMk3Pipe=Logistics Request Table Mk3
+item.RequestTableMk3Pipe.name=Logistics Request Table Mk3
 
 item.PipeBlockFluidContainerFiller=Logistics Fluid Container Filler
 item.PipeBlockFluidContainerFiller.name=Logistics Fluid Container Filler

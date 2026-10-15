@@ -15,7 +15,7 @@ import com.cleanroommc.modularui.screen.ModularContainer;
 import codechicken.nei.PositionedStack;
 import codechicken.nei.recipe.GuiOverlayButton;
 import codechicken.nei.recipe.IRecipeHandler;
-import logisticspipes.crafting.requesttable.RequestTablePipe;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 
 /**
  * Container of the request table GUI. Implementing {@link INEIRecipeTransfer} lets ModularUI route the recipe transfer
@@ -30,14 +30,14 @@ public class RequestTableMuiContainer extends RequestTableContainerBase implemen
     // how long the answer of the server to an auto craft is waited for
     private static final long AUTOCRAFT_TIMEOUT_MILLIS = 2000;
 
-    public RequestTableMuiContainer(RequestTableSyncHandler handler, RequestTablePipe table) {
+    public RequestTableMuiContainer(RequestTableSyncHandler handler, RequestTableMk3Pipe table) {
         super(handler, table);
     }
 
     /**
      * Container factory for {@code UISettings#customContainer}, so the GUI code never refers to this class directly.
      */
-    public static Supplier<ModularContainer> supplier(RequestTableSyncHandler handler, RequestTablePipe table) {
+    public static Supplier<ModularContainer> supplier(RequestTableSyncHandler handler, RequestTableMk3Pipe table) {
         return () -> new RequestTableMuiContainer(handler, table);
     }
 

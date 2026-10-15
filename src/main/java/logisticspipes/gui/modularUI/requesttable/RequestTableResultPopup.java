@@ -24,7 +24,7 @@ import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import logisticspipes.compat.ModularUIHelper;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.resources.IResource;
 import logisticspipes.utils.item.ItemIdentifierStack;
@@ -132,7 +132,7 @@ public class RequestTableResultPopup {
             active = null;
             return false;
         }
-        RequestTableDisplaySettings settings = popup.handler.getSettings();
+        RequestTableMk3DisplaySettings settings = popup.handler.getSettings();
         if (settings.getPopupMessages().shows(missing)) {
             popup.show(items, missing, crafted);
         }
@@ -201,7 +201,7 @@ public class RequestTableResultPopup {
      * messages there switched on.
      */
     public void showUnsent(List<ItemIdentifierStack> stacks) {
-        RequestTableDisplaySettings settings = handler.getSettings();
+        RequestTableMk3DisplaySettings settings = handler.getSettings();
         if (stacks.isEmpty()) {
             return;
         }

@@ -17,7 +17,7 @@ import com.cleanroommc.modularui.widgets.textfield.TextFieldRenderer;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 
 import cpw.mods.fml.common.Loader;
-import logisticspipes.crafting.requesttable.RequestTableNetworkList;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkList;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -52,7 +52,7 @@ public class RequestTableSearchField extends TextFieldWidget implements RecipeVi
             }
             int textColor = color;
             int drawn = 0;
-            Matcher words = RequestTableNetworkList.SEARCH_WORD.matcher(text);
+            Matcher words = RequestTableMk3NetworkList.SEARCH_WORD.matcher(text);
             while (words.find()) {
                 if (!words.group().startsWith("@")) {
                     continue;

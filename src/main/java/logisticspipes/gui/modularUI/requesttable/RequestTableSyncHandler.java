@@ -24,15 +24,15 @@ import net.minecraft.network.PacketBuffer;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.value.sync.SyncHandler;
 
-import logisticspipes.crafting.requesttable.RequestTableContent;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.DeliveryMode;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.DropMode;
-import logisticspipes.crafting.requesttable.RequestTableNetworkEntry;
-import logisticspipes.crafting.requesttable.RequestTableNetworkList;
-import logisticspipes.crafting.requesttable.RequestTablePipe;
-import logisticspipes.crafting.requesttable.RequestTablePlayerTarget;
 import logisticspipes.crafting.requesttable.RequestTableView;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Content;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.DeliveryMode;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.DropMode;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkEntry;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkList;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3PlayerTarget;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.request.RequestHandler;
@@ -82,11 +82,11 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     // the least ticks between two updates of the list
     private static final int MIN_SEND_INTERVAL = 10;
 
-    private final RequestTablePipe table;
+    private final RequestTableMk3Pipe table;
 
     // client: the received list, sorted and filtered for display
-    private final RequestTableNetworkList list = new RequestTableNetworkList();
-    private RequestTableDisplaySettings settings = RequestTableDisplaySettings.DEFAULT;
+    private final RequestTableMk3NetworkList list = new RequestTableMk3NetworkList();
+    private RequestTableMk3DisplaySettings settings = RequestTableMk3DisplaySettings.DEFAULT;
 
     // client: the search text the table remembered for the player, and what to do once it is known
     private String savedSearch = "";
@@ -110,7 +110,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
 
     // client: every entry the server sent, at the position the server knows it by. Entries that are gone stay here
     // with nothing in them.
-    private final List<RequestTableNetworkEntry> received = new ArrayList<>();
+    private final List<RequestTableMk3NetworkEntry> received = new ArrayList<>();
 
     // server: the content revision of the table that was sent last
     private int sentRevision;
@@ -123,7 +123,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     // server: the recipe of the crafting grid that was sent last
     private final ItemIdentifier[] sentRecipe = new ItemIdentifier[9];
 
-    public RequestTableSyncHandler(RequestTablePipe table) {
+    public RequestTableSyncHandler(RequestTableMk3Pipe table) {
         this.table = table;
         allowC2S();
     }
@@ -148,11 +148,11 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
 
     // region client
 
-    public RequestTableNetworkList getList() {
+    public RequestTableMk3NetworkList getList() {
         return list;
     }
 
-    public RequestTableDisplaySettings getSettings() {
+    public RequestTableMk3DisplaySettings getSettings() {
         return settings;
     }
 
@@ -172,7 +172,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
      */
     public void saveSearch(String text) {
         savedSearch = text;
-        syncToServer(C_SAVE_SEARCH, buf -> buf.writeStringToBuffer(RequestTableDisplaySettings.limitSearch(text)));
+        syncToServer(C_SAVE_SEARCH, buf -> buf.writeStringToBuffer(RequestTableMk3DisplaySettings.limitSearch(text)));
     }
 
     public RequestTableView getShownView() {
@@ -246,7 +246,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     /**
      * A click on an entry without a request: it moves items or fluid between the cursor and the storage of the table.
      */
-    public void interact(RequestTableNetworkEntry entry, int mouseButton, boolean shift) {
+    public void interact(RequestTableMk3NetworkEntry entry, int mouseButton, boolean shift) {
         interact(entry.getStack(), entry.isFluid(), mouseButton, shift);
     }
 
@@ -267,7 +267,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
      *
      * @param craft true to have it crafted even if the network has it
      */
-    public void request(RequestTableNetworkEntry entry, int amount, boolean craft) {
+    public void request(RequestTableMk3NetworkEntry entry, int amount, boolean craft) {
         syncToServer(C_REQUEST, buf -> {
             new LPDataOutputStream(buf).writeItemIdentifierStack(entry.getStack());
             buf.writeBoolean(entry.isFluid());
@@ -373,7 +373,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
         syncToServer(C_REQUEST_INGREDIENTS, buf -> buf.writeVarIntToBuffer(sets));
     }
 
-    public void setSettings(RequestTableDisplaySettings newSettings) {
+    public void setSettings(RequestTableMk3DisplaySettings newSettings) {
         settings = newSettings;
         list.setDisplaySettings(newSettings);
         syncToServer(C_SETTINGS, buf -> writeSettings(buf, newSettings));
@@ -428,10 +428,10 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 int internalAmount = buf.readInt();
                 boolean craftable = buf.readBoolean();
                 if (index < received.size()) {
-                    RequestTableNetworkEntry old = received.get(index);
+                    RequestTableMk3NetworkEntry old = received.get(index);
                     received.set(
                             index,
-                            new RequestTableNetworkEntry(
+                            new RequestTableMk3NetworkEntry(
                                     old.getStack(),
                                     old.isFluid(),
                                     networkAmount,
@@ -447,15 +447,15 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
             int networkAmount = buf.readInt();
             int internalAmount = buf.readInt();
             boolean craftable = buf.readBoolean();
-            received.add(new RequestTableNetworkEntry(stack, fluid, networkAmount, internalAmount, craftable));
+            received.add(new RequestTableMk3NetworkEntry(stack, fluid, networkAmount, internalAmount, craftable));
         }
         if (id == S_CONTENT) {
             // only with the list the window opens with: a later copy could undo what the player just set
             settings = readSettings(buf);
-            savedSearch = buf.readStringFromBuffer(RequestTableDisplaySettings.MAX_SEARCH_LENGTH);
+            savedSearch = buf.readStringFromBuffer(RequestTableMk3DisplaySettings.MAX_SEARCH_LENGTH);
         }
-        List<RequestTableNetworkEntry> present = new ArrayList<>(received.size());
-        for (RequestTableNetworkEntry entry : received) {
+        List<RequestTableMk3NetworkEntry> present = new ArrayList<>(received.size());
+        for (RequestTableMk3NetworkEntry entry : received) {
             if (entry.isStored() || entry.isCraftable()) {
                 present.add(entry);
             }
@@ -512,17 +512,17 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private void sendContent(boolean full) {
         sentRevision = table.getContentRevision();
         lastSendTime = table.getWorld().getTotalWorldTime();
-        List<RequestTableNetworkEntry> entries = RequestTableContent.buildEntries(table);
-        RequestTableDisplaySettings playerSettings = table.getDisplaySettings(getSyncManager().getPlayer());
+        List<RequestTableMk3NetworkEntry> entries = RequestTableMk3Content.buildEntries(table);
+        RequestTableMk3DisplaySettings playerSettings = table.getDisplaySettings(getSyncManager().getPlayer());
         if (full) {
             sentIndex.clear();
             sentValues.clear();
         }
         // entries the client doesn't know yet, and the positions of the known ones whose numbers changed
-        List<RequestTableNetworkEntry> added = new ArrayList<>();
+        List<RequestTableMk3NetworkEntry> added = new ArrayList<>();
         List<Integer> changed = new ArrayList<>();
         boolean[] seen = new boolean[sentValues.size()];
-        for (RequestTableNetworkEntry entry : entries) {
+        for (RequestTableMk3NetworkEntry entry : entries) {
             int[] values = { entry.getNetworkAmount(), entry.getInternalAmount(), entry.isCraftable() ? 1 : 0 };
             Integer index = sentIndex.get(entry.getStack().getItem());
             if (index == null) {
@@ -558,7 +558,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 }
             }
             buf.writeVarIntToBuffer(added.size());
-            for (RequestTableNetworkEntry entry : added) {
+            for (RequestTableMk3NetworkEntry entry : added) {
                 data.writeItemIdentifierStack(entry.getStack());
                 buf.writeBoolean(entry.isFluid());
                 buf.writeInt(entry.getNetworkAmount());
@@ -616,7 +616,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
             }
             case C_SAVE_SEARCH -> {
                 EntityPlayer player = getSyncManager().getPlayer();
-                String text = buf.readStringFromBuffer(RequestTableDisplaySettings.MAX_SEARCH_LENGTH);
+                String text = buf.readStringFromBuffer(RequestTableMk3DisplaySettings.MAX_SEARCH_LENGTH);
                 table.setDisplaySettings(player, table.getDisplaySettings(player).withSavedSearch(text));
             }
             case C_AUTOCRAFT -> {
@@ -660,7 +660,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 }
                 ItemIdentifierStack toRequest = stack.getItem().makeStack(amount);
                 EntityPlayer player = getSyncManager().getPlayer();
-                RequestTableDisplaySettings playerSettings = table.getDisplaySettings(player);
+                RequestTableMk3DisplaySettings playerSettings = table.getDisplaySettings(player);
                 boolean messages = playerSettings.reportsRequests();
                 if (fluid) {
                     RequestHandler.requestFluid(player, toRequest, table, table, messages, flags);
@@ -670,7 +670,7 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                             player,
                             toRequest,
                             table,
-                            toPlayer ? new RequestTablePlayerTarget(player.getUniqueID()) : null,
+                            toPlayer ? new RequestTableMk3PlayerTarget(player.getUniqueID()) : null,
                             messages,
                             flags);
                 }
@@ -737,17 +737,17 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
 
     // endregion
 
-    private static void writeSettings(PacketBuffer buf, RequestTableDisplaySettings settings) {
+    private static void writeSettings(PacketBuffer buf, RequestTableMk3DisplaySettings settings) {
         for (int ordinal : settings.toOrdinals()) {
             buf.writeByte(ordinal);
         }
     }
 
-    private static RequestTableDisplaySettings readSettings(PacketBuffer buf) {
-        int[] ordinals = new int[RequestTableDisplaySettings.ORDINAL_COUNT];
+    private static RequestTableMk3DisplaySettings readSettings(PacketBuffer buf) {
+        int[] ordinals = new int[RequestTableMk3DisplaySettings.ORDINAL_COUNT];
         for (int i = 0; i < ordinals.length; i++) {
             ordinals[i] = buf.readByte();
         }
-        return RequestTableDisplaySettings.fromOrdinals(ordinals);
+        return RequestTableMk3DisplaySettings.fromOrdinals(ordinals);
     }
 }

@@ -30,11 +30,11 @@ import com.cleanroommc.modularui.widget.Widget;
 
 import cpw.mods.fml.common.Loader;
 import gregtech.api.util.GTUtility;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.ClickMode;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.FilterMode;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.FluidUnit;
-import logisticspipes.crafting.requesttable.RequestTableNetworkEntry;
-import logisticspipes.crafting.requesttable.RequestTablePipe;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.ClickMode;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.FilterMode;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.FluidUnit;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkEntry;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -70,14 +70,14 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         /**
          * @param craft true to craft the amount instead of taking what the network has
          */
-        void open(RequestTableNetworkEntry entry, FluidStack fluid, int startAmount, boolean craft);
+        void open(RequestTableMk3NetworkEntry entry, FluidStack fluid, int startAmount, boolean craft);
     }
 
     private final RequestTableSyncHandler handler;
     private final Supplier<String> search;
     private final RequestOpener requestOpener;
 
-    private final Map<RequestTableNetworkEntry, FluidStack> fluids = new IdentityHashMap<>();
+    private final Map<RequestTableMk3NetworkEntry, FluidStack> fluids = new IdentityHashMap<>();
     private final RichTooltip entryTooltip = new RichTooltip().parent(this).pos(RichTooltip.Pos.NEXT_TO_MOUSE)
             .tooltipBuilder(this::buildEntryTooltip);
 
@@ -86,8 +86,8 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
     // where the dragged handle is drawn, and where on the handle the mouse holds it
     private int dragHandleTop = -1;
     private int grabOffset;
-    private RequestTableNetworkEntry hovered;
-    private RequestTableNetworkEntry tooltipEntry;
+    private RequestTableMk3NetworkEntry hovered;
+    private RequestTableMk3NetworkEntry tooltipEntry;
     private boolean tooltipShift;
 
     public RequestTableGridWidget(RequestTableSyncHandler handler, Supplier<String> search,
@@ -98,7 +98,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         width(WIDTH);
     }
 
-    private List<RequestTableNetworkEntry> entries() {
+    private List<RequestTableMk3NetworkEntry> entries() {
         if (handler.getList().setSearch(search.get())) {
             scrollRow = 0;
         }
@@ -109,12 +109,12 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         return Math.max(1, getArea().height / CELL);
     }
 
-    private int maxScroll(List<RequestTableNetworkEntry> entries) {
+    private int maxScroll(List<RequestTableMk3NetworkEntry> entries) {
         int rows = (entries.size() + COLUMNS - 1) / COLUMNS;
         return Math.max(0, rows - visibleRows());
     }
 
-    private RequestTableNetworkEntry entryAt(List<RequestTableNetworkEntry> entries, int mouseX, int mouseY) {
+    private RequestTableMk3NetworkEntry entryAt(List<RequestTableMk3NetworkEntry> entries, int mouseX, int mouseY) {
         if (mouseX < 0 || mouseY < 0 || mouseX >= COLUMNS * CELL || mouseY >= visibleRows() * CELL) {
             return null;
         }
@@ -122,7 +122,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         return index < entries.size() ? entries.get(index) : null;
     }
 
-    private FluidStack fluidOf(RequestTableNetworkEntry entry) {
+    private FluidStack fluidOf(RequestTableMk3NetworkEntry entry) {
         if (!entry.isFluid()) {
             return null;
         }
@@ -138,7 +138,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
 
     @Override
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
-        List<RequestTableNetworkEntry> entries = entries();
+        List<RequestTableMk3NetworkEntry> entries = entries();
         int rows = visibleRows();
         int maxScroll = maxScroll(entries);
         scrollRow = Math.max(0, Math.min(maxScroll, scrollRow));
@@ -170,7 +170,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         drawScrollbar(rows * CELL, maxScroll);
     }
 
-    private void drawEntry(ModularGuiContext context, RequestTableNetworkEntry entry, int x, int y) {
+    private void drawEntry(ModularGuiContext context, RequestTableMk3NetworkEntry entry, int x, int y) {
         FluidStack fluid = fluidOf(entry);
         if (fluid != null) {
             GuiDraw.drawFluidTexture(fluid, x + 1, y + 1, 16, 16, context.getCurrentDrawingZ());
@@ -235,14 +235,14 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         GL11.glColor4f(1, 1, 1, 1);
     }
 
-    private boolean inBuckets(RequestTableNetworkEntry entry) {
+    private boolean inBuckets(RequestTableMk3NetworkEntry entry) {
         return entry.isFluid() && handler.getSettings().getFluidUnit() == FluidUnit.BUCKETS;
     }
 
     /**
      * Formats the amount of an entry for its slot, a fluid in the unit the player chose.
      */
-    private String formatAmount(RequestTableNetworkEntry entry, int amount) {
+    private String formatAmount(RequestTableMk3NetworkEntry entry, int amount) {
         return entry.isFluid() ? formatFluidAmount(amount, inBuckets(entry)) : formatAmount(amount);
     }
 
@@ -264,7 +264,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
     /**
      * The full amount for the tooltip.
      */
-    private String describeAmount(RequestTableNetworkEntry entry, int amount) {
+    private String describeAmount(RequestTableMk3NetworkEntry entry, int amount) {
         if (!entry.isFluid()) {
             return Integer.toString(amount);
         }
@@ -350,7 +350,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
      */
     @Override
     public ItemStack getStackForRecipeViewer() {
-        RequestTableNetworkEntry entry = hovered;
+        RequestTableMk3NetworkEntry entry = hovered;
         if (entry == null) {
             return null;
         }
@@ -373,7 +373,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
     }
 
     private void buildEntryTooltip(RichTooltip tooltip) {
-        RequestTableNetworkEntry entry = tooltipEntry;
+        RequestTableMk3NetworkEntry entry = tooltipEntry;
         if (entry == null) {
             return;
         }
@@ -399,7 +399,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
 
     @Override
     public @NotNull Result onMousePressed(int mouseButton) {
-        List<RequestTableNetworkEntry> entries = entries();
+        List<RequestTableMk3NetworkEntry> entries = entries();
         int mouseX = getContext().getMouseX();
         int mouseY = getContext().getMouseY();
         if (mouseButton == 0 && mouseX >= SCROLLBAR_X) {
@@ -410,11 +410,11 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
             scrollTo(entries, mouseY);
             return Result.SUCCESS;
         }
-        RequestTableNetworkEntry entry = entryAt(entries, mouseX, mouseY);
+        RequestTableMk3NetworkEntry entry = entryAt(entries, mouseX, mouseY);
         // an item on the cursor goes into the storage of the table wherever it is dropped on the list; a fluid
         // container dropped on a fluid entry is filled from or emptied into the storage instead
         ItemStack held = Minecraft.getMinecraft().thePlayer.inventory.getItemStack();
-        boolean onFluid = entry != null && entry.isFluid() && RequestTablePipe.isFluidContainer(held);
+        boolean onFluid = entry != null && entry.isFluid() && RequestTableMk3Pipe.isFluidContainer(held);
         if (held != null && (mouseButton == 0 || mouseButton == 1) && !onFluid) {
             handler.interact(ItemIdentifierStack.getFromStack(held), false, mouseButton, false);
             return Result.SUCCESS;
@@ -456,7 +456,7 @@ public class RequestTableGridWidget extends Widget<RequestTableGridWidget>
         return false;
     }
 
-    private void scrollTo(List<RequestTableNetworkEntry> entries, int mouseY) {
+    private void scrollTo(List<RequestTableMk3NetworkEntry> entries, int mouseY) {
         int maxScroll = maxScroll(entries);
         int travel = visibleRows() * CELL - 2 - HANDLE_HEIGHT;
         if (maxScroll == 0 || travel <= 0) {

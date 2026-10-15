@@ -1,4 +1,4 @@
-package logisticspipes.crafting.requesttable;
+package logisticspipes.crafting.requesttable.mk3;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,15 +20,15 @@ import logisticspipes.utils.tuples.Pair;
 /**
  * Builds the list the request table shows: what the network and the table hold and what the network can craft.
  */
-public final class RequestTableContent {
+public final class RequestTableMk3Content {
 
-    private RequestTableContent() {}
+    private RequestTableMk3Content() {}
 
     /**
      * Builds the combined network/internal request-table entry list.
      */
-    public static List<RequestTableNetworkEntry> buildEntries(RequestTablePipe table) {
-        List<RequestTableNetworkEntry> entries = new ArrayList<>();
+    public static List<RequestTableMk3NetworkEntry> buildEntries(RequestTableMk3Pipe table) {
+        List<RequestTableMk3NetworkEntry> entries = new ArrayList<>();
         table.updateStorageUpgrades();
         Map<ItemIdentifier, Integer> availableItems = SimpleServiceLocator.logisticsManager
                 .getAvailableItems(table.getRouter().getIRoutersByCost());
@@ -51,7 +51,7 @@ public final class RequestTableContent {
             int networkAmount = getAmount(availableItems, item);
             int internalAmount = getAmount(internalItems, item);
             entries.add(
-                    new RequestTableNetworkEntry(
+                    new RequestTableMk3NetworkEntry(
                             item.makeStack(total(networkAmount, internalAmount)),
                             false,
                             networkAmount,
@@ -78,7 +78,7 @@ public final class RequestTableContent {
             int networkAmount = getAmount(networkFluids, fluid);
             int internalAmount = getAmount(internalFluids, fluid);
             entries.add(
-                    new RequestTableNetworkEntry(
+                    new RequestTableMk3NetworkEntry(
                             fluid.makeStack(total(networkAmount, internalAmount)),
                             true,
                             networkAmount,
@@ -88,7 +88,7 @@ public final class RequestTableContent {
         return entries;
     }
 
-    private static Map<ItemIdentifier, Integer> getInternalItems(RequestTablePipe table) {
+    private static Map<ItemIdentifier, Integer> getInternalItems(RequestTableMk3Pipe table) {
         Map<ItemIdentifier, Integer> items = new HashMap<>();
         for (Pair<ItemStack, Integer> entry : table.inv) {
             ItemStack stack = entry.getValue1();
@@ -99,7 +99,7 @@ public final class RequestTableContent {
         return items;
     }
 
-    private static Map<ItemIdentifier, Integer> getInternalFluids(RequestTablePipe table) {
+    private static Map<ItemIdentifier, Integer> getInternalFluids(RequestTableMk3Pipe table) {
         Map<ItemIdentifier, Integer> fluids = new HashMap<>();
         for (int slot = 0; slot < table.getFluidStorage().getSizeInventory(); slot++) {
             FluidStack stack = table.getFluidStorage().getFluid(slot);

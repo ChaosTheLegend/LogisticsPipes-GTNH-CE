@@ -1,4 +1,4 @@
-package logisticspipes.crafting.requesttable;
+package logisticspipes.crafting.requesttable.mk3;
 
 import java.util.UUID;
 
@@ -10,11 +10,11 @@ import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
  * <p>
  * It isn't saved with an item on its way, so what arrives after a restart stays in the table.
  */
-public class RequestTablePlayerTarget implements IAdditionalTargetInformation {
+public class RequestTableMk3PlayerTarget implements IAdditionalTargetInformation {
 
     private final UUID player;
 
-    public RequestTablePlayerTarget(UUID player) {
+    public RequestTableMk3PlayerTarget(UUID player) {
         this.player = player;
     }
 

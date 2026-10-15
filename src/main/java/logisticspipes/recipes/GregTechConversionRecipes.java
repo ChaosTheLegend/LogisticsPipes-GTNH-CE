@@ -31,8 +31,8 @@ final class GregTechConversionRecipes {
                 .itemOutputs(output).duration(5 * 20).eut(TierEU.RECIPE_ULV).addTo(RecipeMaps.assemblerRecipes);
     }
 
-    /** Assembler: request table + fluid request pipe + programmed circuit 18 → request table Mk2, at MV. */
-    static void addRequestTableMk2(ItemStack table, ItemStack fluidRequestPipe, ItemStack output) {
+    /** Assembler: request table + fluid request pipe + programmed circuit 18 → request table Mk3, at MV. */
+    static void addRequestTableMk3(ItemStack table, ItemStack fluidRequestPipe, ItemStack output) {
         GTValues.RA.stdBuilder().itemInputs(table, fluidRequestPipe, GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
                 .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_MV).addTo(RecipeMaps.assemblerRecipes);
     }

@@ -52,6 +52,7 @@ import logisticspipes.crafting.PipeFluidPatternSatelliteLogistics;
 import logisticspipes.crafting.PipeItemsPatternSatelliteLogistics;
 import logisticspipes.crafting.pattern.ItemPattern;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.items.*;
 import logisticspipes.items.ItemDisk;
@@ -270,6 +271,7 @@ public class LogisticsPipes {
     public static Item LogisticsFirewallPipe;
     public static Item logisticsRequestTable;
     public static Item logisticsNewRequestTable;
+    public static Item logisticsRequestTableMk3;
     public static Item LogisticsFluidContainerFiller;
 
     // Logistics Apiarist's Pipes
@@ -784,6 +786,7 @@ public class LogisticsPipes {
 
         LogisticsPipes.logisticsRequestTable = createPipe(PipeBlockRequestTable.class, "Request Table", side);
         LogisticsPipes.logisticsNewRequestTable = createPipe(RequestTablePipe.class, "New Request Table", side);
+        LogisticsPipes.logisticsRequestTableMk3 = createPipe(RequestTableMk3Pipe.class, "Request Table Mk3", side);
         LogisticsPipes.LogisticsFluidContainerFiller = createPipe(
                 PipeBlockFluidContainerFiller.class,
                 "Fluid Container Filler",

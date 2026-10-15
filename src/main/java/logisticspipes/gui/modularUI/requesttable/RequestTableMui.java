@@ -51,16 +51,16 @@ import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.compat.ModularUIHelper;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.FluidUnit;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.SearchMemory;
 import logisticspipes.crafting.requesttable.RequestTableFluidStorage;
-import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.RequestTableView;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.FluidUnit;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.SearchMemory;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.gui.modularUI.LogisticsPipeMUI;
 
 /**
- * ModularUI GUI of the request table Mk2.
+ * ModularUI GUI of the request table Mk3.
  * <p>
  * Layout, top to bottom: title and search field, the network list, the player inventory. The network list takes the
  * rows the screen has room for.
@@ -127,21 +127,21 @@ public class RequestTableMui extends LogisticsPipeMUI {
     private static final int SETTING_BUTTONS_Y = GRID_Y + 2 * (BUTTON_SIZE + 2) + 6;
     private static final int TEXT_COLOR = 0x404040;
 
-    private final RequestTablePipe table;
+    private final RequestTableMk3Pipe table;
 
     // client: what the upper part of the window shows
     private RequestTableView view = RequestTableView.NETWORK;
     private int itemStorageRows = 1;
     private int fluidStorageRows = 1;
 
-    public RequestTableMui(RequestTablePipe table) {
+    public RequestTableMui(RequestTableMk3Pipe table) {
         super(table);
         this.table = table;
     }
 
     @Override
     public String getId() {
-        return "request_table_mk2";
+        return "request_table_mk3";
     }
 
     @Override
@@ -190,8 +190,9 @@ public class RequestTableMui extends LogisticsPipeMUI {
         // the header: the search field over the network list, the name of the storage and the send button over a
         // storage tab
         RequestTableSearchField search = new RequestTableSearchField();
-        search.pos(MARGIN, 4).size(WIDTH - 2 * MARGIN, 12).setMaxLength(RequestTableDisplaySettings.MAX_SEARCH_LENGTH)
-                .autoUpdateOnChange(true).hintText(StatCollector.translateToLocal(LANG + "search"))
+        search.pos(MARGIN, 4).size(WIDTH - 2 * MARGIN, 12)
+                .setMaxLength(RequestTableMk3DisplaySettings.MAX_SEARCH_LENGTH).autoUpdateOnChange(true)
+                .hintText(StatCollector.translateToLocal(LANG + "search"))
                 .setEnabledIf(w -> view == RequestTableView.NETWORK);
         panel.child(search);
         if (client) {
@@ -686,7 +687,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
         String[] known = new String[2];
         int[] unchangedTicks = new int[1];
         handler.setOnOpened(() -> {
-            RequestTableDisplaySettings settings = handler.getSettings();
+            RequestTableMk3DisplaySettings settings = handler.getSettings();
             if (settings.getSearchMemory() == SearchMemory.REMEMBER && search.getText().isEmpty()) {
                 search.replaceText(handler.getSavedSearch());
             }
@@ -700,7 +701,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
             if (known[0] == null) {
                 return;
             }
-            RequestTableDisplaySettings settings = handler.getSettings();
+            RequestTableMk3DisplaySettings settings = handler.getSettings();
             String text = search.getText();
             if (settings.getSearchMode().neiSynced) {
                 if (!text.equals(known[1])) {
@@ -737,7 +738,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "sort",
                         s -> s.getSortMode().ordinal(),
                         s -> s.getSortMode().name(),
-                        RequestTableDisplaySettings::nextSortMode));
+                        RequestTableMk3DisplaySettings::nextSortMode));
         buttons.add(
                 settingButton(
                         handler,
@@ -745,7 +746,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "direction",
                         s -> s.getSortDirection().ordinal(),
                         s -> s.getSortDirection().name(),
-                        RequestTableDisplaySettings::nextSortDirection));
+                        RequestTableMk3DisplaySettings::nextSortDirection));
         buttons.add(
                 settingButton(
                         handler,
@@ -753,7 +754,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "show",
                         s -> s.getFilterMode().ordinal(),
                         s -> s.getFilterMode().name(),
-                        RequestTableDisplaySettings::nextFilterMode));
+                        RequestTableMk3DisplaySettings::nextFilterMode));
         buttons.add(
                 settingButton(
                         handler,
@@ -761,7 +762,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "type",
                         s -> s.getTypeFilter().ordinal(),
                         s -> s.getTypeFilter().name(),
-                        RequestTableDisplaySettings::nextTypeFilter));
+                        RequestTableMk3DisplaySettings::nextTypeFilter));
         buttons.add(
                 settingButton(
                         handler,
@@ -769,7 +770,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "unit",
                         s -> s.getFluidUnit().ordinal(),
                         s -> s.getFluidUnit().name(),
-                        RequestTableDisplaySettings::nextFluidUnit));
+                        RequestTableMk3DisplaySettings::nextFluidUnit));
         buttons.add(
                 settingButton(
                         handler,
@@ -777,7 +778,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "click",
                         s -> s.getClickMode().ordinal(),
                         s -> s.getClickMode().name(),
-                        RequestTableDisplaySettings::nextClickMode));
+                        RequestTableMk3DisplaySettings::nextClickMode));
         buttons.add(
                 settingButton(
                         handler,
@@ -785,7 +786,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "drop",
                         s -> s.getDropMode().ordinal(),
                         s -> s.getDropMode().name(),
-                        RequestTableDisplaySettings::nextDropMode));
+                        RequestTableMk3DisplaySettings::nextDropMode));
         buttons.add(
                 settingButton(
                         handler,
@@ -793,7 +794,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "containers",
                         s -> s.getContainerMode().ordinal(),
                         s -> s.getContainerMode().name(),
-                        RequestTableDisplaySettings::nextContainerMode));
+                        RequestTableMk3DisplaySettings::nextContainerMode));
         buttons.add(
                 settingButton(
                         handler,
@@ -801,7 +802,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "delivery",
                         s -> s.getDeliveryMode().ordinal(),
                         s -> s.getDeliveryMode().name(),
-                        RequestTableDisplaySettings::nextDeliveryMode));
+                        RequestTableMk3DisplaySettings::nextDeliveryMode));
         // a second column left of the first one: how the search field and the request messages behave
         List<IWidget> second = new ArrayList<>();
         second.add(
@@ -811,7 +812,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "searchmode",
                         s -> s.getSearchMode().ordinal(),
                         s -> s.getSearchMode().name(),
-                        RequestTableDisplaySettings::nextSearchMode));
+                        RequestTableMk3DisplaySettings::nextSearchMode));
         second.add(
                 settingButton(
                         handler,
@@ -819,7 +820,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "searchmemory",
                         s -> s.getSearchMemory().ordinal(),
                         s -> s.getSearchMemory().name(),
-                        RequestTableDisplaySettings::nextSearchMemory));
+                        RequestTableMk3DisplaySettings::nextSearchMemory));
         second.add(
                 settingButton(
                         handler,
@@ -827,7 +828,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "popupmessages",
                         s -> s.getPopupMessages().ordinal(),
                         s -> s.getPopupMessages().name(),
-                        RequestTableDisplaySettings::nextPopupMessages));
+                        RequestTableMk3DisplaySettings::nextPopupMessages));
         second.add(
                 settingButton(
                         handler,
@@ -835,7 +836,7 @@ public class RequestTableMui extends LogisticsPipeMUI {
                         "chatmessages",
                         s -> s.getChatMessages().ordinal(),
                         s -> s.getChatMessages().name(),
-                        RequestTableDisplaySettings::nextChatMessages));
+                        RequestTableMk3DisplaySettings::nextChatMessages));
         for (int i = 0; i < second.size(); i++) {
             IWidget button = second.get(i);
             ((ButtonWidget<?>) button).pos(SIDE_BUTTON_X - BUTTON_SIZE - 2, SETTING_BUTTONS_Y + i * (BUTTON_SIZE + 2));
@@ -858,8 +859,9 @@ public class RequestTableMui extends LogisticsPipeMUI {
     }
 
     private IWidget settingButton(RequestTableSyncHandler handler, int iconRow, String name,
-            ToIntFunction<RequestTableDisplaySettings> state, Function<RequestTableDisplaySettings, String> stateName,
-            UnaryOperator<RequestTableDisplaySettings> next) {
+            ToIntFunction<RequestTableMk3DisplaySettings> state,
+            Function<RequestTableMk3DisplaySettings, String> stateName,
+            UnaryOperator<RequestTableMk3DisplaySettings> next) {
         IDrawable icon = (context, x, y, width, height, widgetTheme) -> GuiDraw.drawTexture(
                 ICONS,
                 x + (width - ICON_SIZE) / 2f,

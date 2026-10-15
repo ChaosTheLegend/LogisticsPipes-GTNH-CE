@@ -8,11 +8,11 @@ import net.minecraft.item.ItemStack;
 import com.cleanroommc.modularui.screen.ModularContainer;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.ContainerMode;
-import logisticspipes.crafting.requesttable.RequestTableDisplaySettings.DropMode;
-import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.RequestTableView;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.ContainerMode;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.DropMode;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 
 /**
  * Container of the request table GUI on both sides. It sends a shift clicked stack of the player straight into the
@@ -21,9 +21,9 @@ import logisticspipes.crafting.requesttable.RequestTableView;
 public class RequestTableContainerBase extends ModularContainer {
 
     protected final RequestTableSyncHandler handler;
-    private final RequestTablePipe table;
+    private final RequestTableMk3Pipe table;
 
-    public RequestTableContainerBase(RequestTableSyncHandler handler, RequestTablePipe table) {
+    public RequestTableContainerBase(RequestTableSyncHandler handler, RequestTableMk3Pipe table) {
         this.handler = handler;
         this.table = table;
     }
@@ -31,7 +31,7 @@ public class RequestTableContainerBase extends ModularContainer {
     /**
      * Container factory for {@code UISettings#customContainer}.
      */
-    public static Supplier<ModularContainer> supplier(RequestTableSyncHandler handler, RequestTablePipe table) {
+    public static Supplier<ModularContainer> supplier(RequestTableSyncHandler handler, RequestTableMk3Pipe table) {
         return () -> new RequestTableContainerBase(handler, table);
     }
 
@@ -43,7 +43,7 @@ public class RequestTableContainerBase extends ModularContainer {
     @Override
     public ItemStack transferStackInSlot(EntityPlayer player, int index) {
         ModularSlot slot = getModularSlot(index);
-        RequestTableDisplaySettings settings = isClient() ? handler.getSettings() : table.getDisplaySettings(player);
+        RequestTableMk3DisplaySettings settings = isClient() ? handler.getSettings() : table.getDisplaySettings(player);
         RequestTableView view = handler.getShownView();
         boolean fluidShown = view == RequestTableView.FLUID_STORAGE;
         boolean empty = fluidShown
@@ -79,7 +79,7 @@ public class RequestTableContainerBase extends ModularContainer {
             return super.transferItem(fromSlot, fromStack);
         }
         EntityPlayer player = getPlayer();
-        RequestTableDisplaySettings settings = table.getDisplaySettings(player);
+        RequestTableMk3DisplaySettings settings = table.getDisplaySettings(player);
         if (!storageShown && settings.getDropMode() == DropMode.NETWORK) {
             fromStack.stackSize -= table.sendStackToNetwork(fromStack);
             if (fromStack.stackSize <= 0) {

@@ -28,7 +28,7 @@ import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import logisticspipes.compat.ModularUIHelper;
-import logisticspipes.crafting.requesttable.RequestTableNetworkEntry;
+import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkEntry;
 import logisticspipes.utils.item.ItemIdentifier;
 
 /**
@@ -186,7 +186,8 @@ public class RequestTableRecipeChooser {
             int bestAmount = 0;
             int craftable = -1;
             for (int i = 0; i < choice.variants.size(); i++) {
-                RequestTableNetworkEntry entry = handler.getList().getEntry(ItemIdentifier.get(choice.variants.get(i)));
+                RequestTableMk3NetworkEntry entry = handler.getList()
+                        .getEntry(ItemIdentifier.get(choice.variants.get(i)));
                 if (entry == null) {
                     continue;
                 }

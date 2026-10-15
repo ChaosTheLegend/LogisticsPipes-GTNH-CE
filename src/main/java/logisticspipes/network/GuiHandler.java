@@ -7,6 +7,9 @@ import net.minecraft.world.World;
 
 import cpw.mods.fml.common.network.IGuiHandler;
 import logisticspipes.LogisticsPipes;
+import logisticspipes.crafting.requesttable.RequestTableContainer;
+import logisticspipes.crafting.requesttable.RequestTableGui;
+import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.gui.GuiFirewall;
 import logisticspipes.gui.GuiFluidSupplierPipe;
 import logisticspipes.gui.GuiFreqCardContent;
@@ -241,6 +244,12 @@ public class GuiHandler implements IGuiHandler {
                     dummy.addNormalSlotsForPlayerInventory(0, 0);
                     return dummy;
 
+                case GuiIDs.GUI_New_Request_Table_ID:
+                    if (pipe == null || !(pipe.pipe instanceof RequestTablePipe)) {
+                        return null;
+                    }
+                    return new RequestTableContainer(player, (RequestTablePipe) pipe.pipe);
+
                 default:
                     break;
             }
@@ -339,6 +348,12 @@ public class GuiHandler implements IGuiHandler {
                         return null;
                     }
                     return new GuiRequestTable(player, ((PipeBlockRequestTable) pipe.pipe));
+
+                case GuiIDs.GUI_New_Request_Table_ID:
+                    if (pipe == null || !(pipe.pipe instanceof RequestTablePipe)) {
+                        return null;
+                    }
+                    return new RequestTableGui(player, (RequestTablePipe) pipe.pipe);
 
                 default:
                     break;

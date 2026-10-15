@@ -88,8 +88,7 @@ public class RequestTableNetworkEntry implements Comparable<RequestTableNetworkE
      * @return combined request-table and network amount
      */
     public int getTotalAmount() {
-        // a network can report as much as an int holds, the sum must not wrap around to a negative amount
-        return (int) Math.min(Integer.MAX_VALUE, (long) networkAmount + internalAmount);
+        return networkAmount + internalAmount;
     }
 
     /**
