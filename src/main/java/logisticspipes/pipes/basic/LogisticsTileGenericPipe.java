@@ -127,6 +127,9 @@ public class LogisticsTileGenericPipe extends TileEntity
     public final IBCPluggableState bcPlugableState;
     public final ITDPart tdPart;
 
+    /** Client: the state packet contents last received, so packets that change nothing don't re-render the chunk. */
+    private byte[][] lastReceivedState;
+
     @Getter
     private IBlockPos pos;
 
@@ -823,7 +826,18 @@ public class LogisticsTileGenericPipe extends TileEntity
         return packet;
     }
 
-    public void afterStateUpdated() {
+    /**
+     * Client: records the contents of a state packet just received and returns whether they differ from the previous
+     * one. Network changes make the server resend the state of many pipes, often unchanged, and each re-render rebuilds
+     * the whole chunk section.
+     */
+    public boolean receivedStateChanged(byte[]... state) {
+        boolean changed = lastReceivedState == null || !Arrays.deepEquals(lastReceivedState, state);
+        lastReceivedState = state;
+        return changed;
+    }
+
+    public void afterStateUpdated(boolean stateChanged) {
         if (pipe == null && coreState.pipeId != 0) {
             initialize(LogisticsBlockGenericPipe.createPipe((Item) Item.itemRegistry.getObjectById(coreState.pipeId)));
         }
@@ -832,9 +846,7 @@ public class LogisticsTileGenericPipe extends TileEntity
             return;
         }
 
-        worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
-
-        if (renderState.needsRenderUpdate()) {
+        if (stateChanged || renderState.needsRenderUpdate()) {
             worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
             renderState.clean();
         }

@@ -10,6 +10,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,8 @@ import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.asm.te.ILPTEInformation;
 import logisticspipes.asm.te.ITileEntityChangeListener;
 import logisticspipes.asm.te.LPTileEntityObject;
+import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
+import logisticspipes.blocks.powertile.PowerPoolStorage;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.ISubSystemPowerProvider;
 import logisticspipes.interfaces.routing.IFilter;
@@ -848,16 +851,39 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         }
     }
 
-    /** Power providers known to a junction, stored as the junction's graph data. */
-    static final class PowerData {
+    /**
+     * Power providers known to a junction, stored as the junction's graph data. Its pool keys are the power junctions
+     * it reaches without a power-blocking filter: each of them stores into exactly one pool.
+     */
+    static final class PowerData implements PowerPool.Member {
 
         final List<Pair<ILogisticsPowerProvider, List<IFilter>>> power;
         final List<Pair<ISubSystemPowerProvider, List<IFilter>>> subSystemPower;
+        final List<LogisticsPowerJunctionTileEntity> junctions;
 
         PowerData(List<Pair<ILogisticsPowerProvider, List<IFilter>>> power,
                 List<Pair<ISubSystemPowerProvider, List<IFilter>>> subSystemPower) {
             this.power = power;
             this.subSystemPower = subSystemPower;
+            List<LogisticsPowerJunctionTileEntity> list = new ArrayList<>(1);
+            if (power != null) {
+                outer: for (Pair<ILogisticsPowerProvider, List<IFilter>> p : power) {
+                    for (IFilter filter : p.getValue2()) {
+                        if (filter.blockPower()) {
+                            continue outer;
+                        }
+                    }
+                    if (p.getValue1() instanceof LogisticsPowerJunctionTileEntity && !list.contains(p.getValue1())) {
+                        list.add((LogisticsPowerJunctionTileEntity) p.getValue1());
+                    }
+                }
+            }
+            junctions = Collections.unmodifiableList(list);
+        }
+
+        @Override
+        public Iterable<?> poolKeys() {
+            return junctions;
         }
     }
 
@@ -915,9 +941,83 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         return table;
     }
 
+    /**
+     * Network power is pooled per island (see {@link PowerPool}): the junctions of the pool share one
+     * {@link PowerPoolStorage}, and every pipe of the pool draws from it, with no routes and no provider choice. The
+     * view is built once per pool and snapshot.
+     */
+    @Override
+    public PowerPoolStorage getPowerPool() {
+        PoolPower view = poolPower();
+        if (view == null) {
+            return null;
+        }
+        PowerPoolStorage storage = view.storage;
+        if (storage == null) {
+            // a junction removed since the snapshot already left its pool with its share; binding it again would
+            // bring that share back
+            List<LogisticsPowerJunctionTileEntity> junctions = new ArrayList<>(view.junctions.size());
+            for (LogisticsPowerJunctionTileEntity junction : view.junctions) {
+                if (!junction.isInvalid()) {
+                    junctions.add(junction);
+                }
+            }
+            storage = PowerPoolStorage.bind(junctions);
+            view.storage = storage;
+        }
+        return storage;
+    }
+
+    /** The providers of this junction's power pool; only for debug output, power is drawn from the pool. */
     @Override
     public List<Pair<ILogisticsPowerProvider, List<IFilter>>> getPowerProvider() {
-        return powerView().power;
+        PoolPower view = poolPower();
+        return view == null ? Collections.emptyList() : view.power;
+    }
+
+    private PoolPower poolPower() {
+        ensureConnectionsFresh();
+        PowerPool pool = LPJunctionNetwork.writer().graph().powerPool(junctionId);
+        if (pool == null || destroied) {
+            return null;
+        }
+        Object view = pool.getAdapterView();
+        if (view instanceof PoolPower) {
+            return (PoolPower) view;
+        }
+        ArrayList<Pair<ILogisticsPowerProvider, List<IFilter>>> power = new ArrayList<>();
+        Set<LogisticsPowerJunctionTileEntity> junctions = new LinkedHashSet<>();
+        for (Object data : pool.data) {
+            if (!(data instanceof PowerData)) {
+                continue;
+            }
+            PowerData pd = (PowerData) data;
+            if (pd.power != null) {
+                for (Pair<ILogisticsPowerProvider, List<IFilter>> p : pd.power) {
+                    if (!power.contains(p)) {
+                        power.add(p);
+                    }
+                }
+            }
+            junctions.addAll(pd.junctions);
+        }
+        PoolPower result = new PoolPower(Collections.unmodifiableList(power), junctions);
+        pool.setAdapterView(result);
+        return result;
+    }
+
+    private static final class PoolPower {
+
+        final List<Pair<ILogisticsPowerProvider, List<IFilter>>> power;
+        final Set<LogisticsPowerJunctionTileEntity> junctions;
+        /** Bound on first use, so a pool nobody draws from doesn't move energy around. */
+        volatile PowerPoolStorage storage;
+
+        PoolPower(List<Pair<ILogisticsPowerProvider, List<IFilter>>> power,
+                Set<LogisticsPowerJunctionTileEntity> junctions) {
+            this.power = power;
+            this.junctions = junctions;
+        }
     }
 
     @Override
@@ -926,9 +1026,10 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
     }
 
     /**
-     * Power tables. Every pipe polls these (energy checks run every few ticks), so they are not derived from the
-     * whole-network view, which any improvement anywhere invalidates. Only junctions with power providers attached
-     * matter, so the tables come from cached pair routes to exactly those junctions: one one-to-many search when
+     * Subsystem power table (RF/EU power supplier upgrades), which still goes along routes: straight corridors and the
+     * power pass upgrade decide where it can flow. Only pipes with supplier upgrades poll it. It is not derived from
+     * the whole-network view, which any improvement anywhere invalidates: only junctions with power providers attached
+     * matter, so the table comes from cached pair routes to exactly those junctions: one one-to-many search when
      * something relevant changed, cache hits otherwise.
      */
     private static final class PowerView {
@@ -938,20 +1039,15 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         final List<JunctionId> targets;
         final RouteCacheEntry[] entries;
         final Object[] data;
-        final Object ownPower;
         final Object ownSubSystemPower;
-        final List<Pair<ILogisticsPowerProvider, List<IFilter>>> power;
         final List<Pair<ISubSystemPowerProvider, List<IFilter>>> subSystemPower;
 
-        PowerView(List<JunctionId> targets, RouteCacheEntry[] entries, Object[] data, Object ownPower,
-                Object ownSubSystemPower, List<Pair<ILogisticsPowerProvider, List<IFilter>>> power,
+        PowerView(List<JunctionId> targets, RouteCacheEntry[] entries, Object[] data, Object ownSubSystemPower,
                 List<Pair<ISubSystemPowerProvider, List<IFilter>>> subSystemPower) {
             this.targets = targets;
             this.entries = entries;
             this.data = data;
-            this.ownPower = ownPower;
             this.ownSubSystemPower = ownSubSystemPower;
-            this.power = power;
             this.subSystemPower = subSystemPower;
         }
     }
@@ -962,10 +1058,8 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         ensureConnectionsFresh();
         NetworkGraph graph = LPJunctionNetwork.writer().graph();
         PowerView last = powerView;
-        if (last != null && last.graph == graph
-                && last.ownPower == _powerAdjacent
-                && last.ownSubSystemPower == _subSystemPowerAdjacent) {
-            // every pipe polls this every 10 ticks: skip the route lookups while nothing in the graph changed
+        if (last != null && last.graph == graph && last.ownSubSystemPower == _subSystemPowerAdjacent) {
+            // supplier pipes poll this all the time: skip the route lookups while nothing in the graph changed
             return last;
         }
         List<JunctionId> targets = graph.dataJunctionsInComponentOf(junctionId);
@@ -989,7 +1083,6 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         }
         PowerView cached = powerView;
         if (cached != null && cached.targets.equals(targets)
-                && cached.ownPower == _powerAdjacent
                 && cached.ownSubSystemPower == _subSystemPowerAdjacent
                 && sameElements(cached.entries, entries)
                 && sameElements(cached.data, data)) {
@@ -1006,9 +1099,6 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
             RouteCacheEntry e = entries[i];
             return e == null || e.routes.isEmpty() ? Double.POSITIVE_INFINITY : e.routes.get(0).distance;
         }));
-        ArrayList<Pair<ILogisticsPowerProvider, List<IFilter>>> powerTable = _powerAdjacent != null
-                ? new ArrayList<>(_powerAdjacent)
-                : new ArrayList<>(5);
         ArrayList<Pair<ISubSystemPowerProvider, List<IFilter>>> subPowerTable = _subSystemPowerAdjacent != null
                 ? new ArrayList<>(_subSystemPowerAdjacent)
                 : new ArrayList<>(5);
@@ -1020,9 +1110,6 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
             for (RouteLabel label : entries[i].routes) {
                 @SuppressWarnings("unchecked")
                 List<IFilter> labelFilters = (List<IFilter>) label.filters;
-                if (label.has(RoutingFlags.CAN_POWER_FROM) && pd.power != null) {
-                    addPower(powerTable, pd.power, labelFilters);
-                }
                 if (label.has(RoutingFlags.CAN_POWER_SUB_SYSTEM_FROM) && pd.subSystemPower != null) {
                     addPower(subPowerTable, pd.subSystemPower, labelFilters);
                 }
@@ -1032,9 +1119,7 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
                 targets,
                 entries,
                 data,
-                _powerAdjacent,
                 _subSystemPowerAdjacent,
-                Collections.unmodifiableList(powerTable),
                 Collections.unmodifiableList(subPowerTable));
         view.graph = fresh ? graph : null;
         powerView = view;

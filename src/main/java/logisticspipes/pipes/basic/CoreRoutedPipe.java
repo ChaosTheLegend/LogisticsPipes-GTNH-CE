@@ -39,6 +39,7 @@ import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.asm.te.ILPTEInformation;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
+import logisticspipes.blocks.powertile.PowerPoolStorage;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IClientState;
 import logisticspipes.interfaces.IInventoryUtil;
@@ -1206,14 +1207,12 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
 
     /* Power System */
 
-    public List<Pair<ILogisticsPowerProvider, List<IFilter>>> getRoutedPowerProviders() {
-        if (MainProxy.isClient(getWorld())) {
+    /** The power pool this pipe draws from, or {@code null} (client, not placed yet, no pool). */
+    public PowerPoolStorage getPowerPool() {
+        if (MainProxy.isClient(getWorld()) || stillNeedReplace) {
             return null;
         }
-        if (stillNeedReplace) {
-            return null;
-        }
-        return getRouter().getPowerProvider();
+        return getRouter().getPowerPool();
     }
 
     @Override
@@ -1244,21 +1243,8 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         if (providersToIgnore != null && providersToIgnore.contains(this)) {
             return false;
         }
-        List<Pair<ILogisticsPowerProvider, List<IFilter>>> list = getRoutedPowerProviders();
-        if (list == null) {
-            return false;
-        }
-        outer: for (Pair<ILogisticsPowerProvider, List<IFilter>> provider : list) {
-            for (IFilter filter : provider.getValue2()) {
-                if (filter.blockPower()) {
-                    continue outer;
-                }
-            }
-            if (provider.getValue1().canUseEnergy(amount, providersToIgnore)) {
-                return true;
-            }
-        }
-        return false;
+        PowerPoolStorage pool = getPowerPool();
+        return pool != null && pool.canUseEnergy(amount);
     }
 
     @Override
@@ -1276,37 +1262,21 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         if (amount == 0) {
             return true;
         }
-        if (providersToIgnore == null) {
-            providersToIgnore = new ArrayList<>();
-        }
-        if (providersToIgnore.contains(this)) {
+        if (providersToIgnore != null && providersToIgnore.contains(this)) {
             return false;
         }
-        providersToIgnore.add(this);
-        List<Pair<ILogisticsPowerProvider, List<IFilter>>> list = getRoutedPowerProviders();
-        if (list == null) {
+        PowerPoolStorage pool = getPowerPool();
+        if (pool == null || !pool.useEnergy(amount)) {
             return false;
         }
-        outer: for (Pair<ILogisticsPowerProvider, List<IFilter>> provider : list) {
-            for (IFilter filter : provider.getValue2()) {
-                if (filter.blockPower()) {
-                    continue outer;
-                }
+        if (sparkles) {
+            int particlecount = amount;
+            if (particlecount > 10) {
+                particlecount = 10;
             }
-            if (provider.getValue1().canUseEnergy(amount, providersToIgnore)) {
-                if (provider.getValue1().useEnergy(amount, providersToIgnore)) {
-                    if (sparkles) {
-                        int particlecount = amount;
-                        if (particlecount > 10) {
-                            particlecount = 10;
-                        }
-                        spawnParticle(Particles.GoldParticle, particlecount);
-                    }
-                    return true;
-                }
-            }
+            spawnParticle(Particles.GoldParticle, particlecount);
         }
-        return false;
+        return true;
     }
 
     @Override

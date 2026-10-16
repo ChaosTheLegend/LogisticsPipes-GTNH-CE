@@ -14,7 +14,7 @@ public class LPConstants {
     /**
      * Debug mode, off unless the JVM runs with {@code -Dlogisticspipes.enableDebug=true}. Never hard-code it on: it
      * takes two {@code Thread.getStackTrace()} calls per pipe per tick (tens of microseconds each), and it unlocks
-     * debug-only cheats such as {@code PowerJunctionCheatPacket} and {@code /lp debug} for every player.
+     * debug-only cheats such as the power junction GUI's energy button and {@code /lp debug} for every player.
      */
     public static final boolean DEBUG = Boolean.getBoolean("logisticspipes.enableDebug");
 

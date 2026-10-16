@@ -50,10 +50,12 @@ public class PipeTileStatePacket extends CoordinatesPacket {
             return;
         }
         try {
+            boolean changed = pipe
+                    .receivedStateChanged(bytesRenderState, bytesCoreState, bytesBCPluggableState, bytesPipe);
             pipe.renderState.readData(new LPDataInputStream(bytesRenderState));
             pipe.coreState.readData(new LPDataInputStream(bytesCoreState));
             pipe.bcPlugableState.readData(new LPDataInputStream(bytesBCPluggableState));
-            pipe.afterStateUpdated();
+            pipe.afterStateUpdated(changed);
             pipe.pipe.readData(new LPDataInputStream(bytesPipe));
         } catch (IOException e) {
             throw new RuntimeException(e);

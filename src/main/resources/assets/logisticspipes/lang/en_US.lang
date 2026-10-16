@@ -610,7 +610,7 @@ gui.invsyscon.Waitingfor=Waiting for
 gui.invsyscon.Resistance=Resistance
 
 gui.powerjunction.LogisticsPowerJunction=Logistics Power Junction
-gui.powerjunction.StoredEnergy=Stored Energy
+gui.powerjunction.NetworkPower=Network Power:
 gui.powerjunction.ConversionEnergyRF=10 RF = 5 LP
 gui.powerjunction.ConversionEnergyEU=1 EU = 2 LP
 gui.powerjunction.PowerLevel=%s LP

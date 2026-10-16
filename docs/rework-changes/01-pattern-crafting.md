@@ -445,7 +445,7 @@ Flags are read once per tick through [PatternCraftingUpgradeCache](../../src/mai
   the upgrade nor the limits exist.
 - **Buffer upgrade** isn't implemented. Ingredient buffering is always on.
 - **The sneaky upgrade** still decides the insertion side (`getInsertionOrientation`). The design moves this to a
-  screwdriver per-connection setting.
+  per-connection sneaky-faces setting in the pipe GUI.
 - **The legacy crafter** was supposed to keep working simply and not get new features. Instead it got an unfinished
   blocking mode (below).
 - **New legacy GUI.** `CraftingMonitorGui` is a new `LogisticsBaseGuiScreen` GUI, while the rule is MUI for new GUIs.

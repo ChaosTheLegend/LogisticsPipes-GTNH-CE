@@ -55,8 +55,8 @@ Those decisions take precedence over this doc. What they mean for transport:
   - **Open:** how a controller's speed applies (the whole network or a region; what happens with several tiers in one
     network; whether it costs power), and whether the Default/Passive/Active modes keep different speeds.
   - With speed only changing at a controller, a run of pass-through junctions is always one scheduled hop.
-- **Sneaky upgrades are removed.** Holding a screwdriver shows a grid overlay on the pipe, and the sneaky side is set
-  per connection with it. **Side-block (disconnection) upgrades are removed**: shift+wrench shows the same overlay
+- **Sneaky upgrades are removed.** The sneaky faces are set per connection (per module on a chassis) in the pipe GUI;
+  several faces are tried in `ForgeDirection` order. **Side-block (disconnection) upgrades are removed**: shift+wrench shows the same overlay
   to connect or disconnect each side. The delivery step in
   `handleTileReachedServer` (sneaky orientation, `getCombinedSneakyOrientation`) and the scanner's connection checks
   read these per-side settings instead. Sneaky and disconnection upgrades already installed in old bases are migrated
@@ -149,6 +149,22 @@ is being dropped. Found:
   runs straight through it. Wanted: a random nearby exit there, so routing needs routed pipes at junctions.
 
 What's left to test (save/unload, config switch, spark) is in [testing-checklist.md](testing-checklist.md) §1.
+
+## Splitting stacks by destination room (2026-10-15)
+
+Problem: an extractor feeding a large grid of small inventories (GT++ Lead Lined Box: 15 slots of 1 item). A whole
+stack was sent to the first box, 15 items fit, and the rest bounced and was rerouted from there to the next box, once per
+box it filled. In-flight clumps did 10+ hops each, which tanked TPS.
+
+- `ModuleItemSink.replyIfRoom` caps the reply at the inventory's free room even when nothing is in transit yet. The
+  extractor already splits a stack by `maxNumberOfItems` and adds each destination to its jam list, so the stack is split
+  across boxes when it is extracted, one clump per box.
+- `RouteLayer` (called from `PTL.resolveRoutedDestination` with `splitOverflow`): when an item in a pipe is given a
+  destination that takes only part of the stack (`ILogisticsManager.assignDestinationWithLimit`), the rest is split off
+  and injected into the same pipe without a destination, so it is routed to the next box at once. This covers bounces,
+  clump arrivals and anything else that reroutes. Other callers (request tables) don't split.
+- Not covered: sink modules that don't check room at all (oredict, mod, polymorphic, creative tab, ...) still promise
+  unlimited room; chassis modules were already capped by `ChassiModule`.
 
 ## Later phases
 
