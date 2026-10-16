@@ -40,9 +40,10 @@ import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.Configs;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
+import logisticspipes.interfaces.IBlockShapedPipe;
+import logisticspipes.interfaces.IBlockShapedPipe.BlockTextures;
 import logisticspipes.interfaces.IRotationProvider;
 import logisticspipes.items.ItemLogisticsPipe;
-import logisticspipes.pipes.PipeBlockRequestTable;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.buildcraft.subproxies.IBCClickResult;
@@ -101,9 +102,8 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
         if (!(tile instanceof LogisticsTileGenericPipe)) {
             return null;
         }
-        if (((LogisticsTileGenericPipe) tile).pipe instanceof PipeBlockRequestTable) {
-            PipeBlockRequestTable table = (PipeBlockRequestTable) ((LogisticsTileGenericPipe) tile).pipe;
-            return table.getTextureFor(l);
+        if (((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
+            return getBlockShapedTexture((LogisticsTileGenericPipe) tile, l);
         }
         if (((LogisticsTileGenericPipe) tile).renderState.textureArray != null) {
             return ((LogisticsTileGenericPipe) tile).renderState.textureArray[l];
@@ -116,7 +116,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
             List<AxisAlignedBB> arraylist, Entity par7Entity) {
         TileEntity tile = world.getTileEntity(i, j, k);
         if (tile instanceof LogisticsTileGenericPipe
-                && ((LogisticsTileGenericPipe) tile).pipe instanceof PipeBlockRequestTable) {
+                && ((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
             setBlockBounds(0, 0, 0, 1, 1, 1);
             super.addCollisionBoxesToList(world, i, j, k, axisalignedbb, arraylist, par7Entity);
             return;
@@ -238,7 +238,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
     public AxisAlignedBB getSelectedBoundingBoxFromPool(World world, int x, int y, int z) {
         TileEntity tile = world.getTileEntity(x, y, z);
         if (tile instanceof LogisticsTileGenericPipe
-                && ((LogisticsTileGenericPipe) tile).pipe instanceof PipeBlockRequestTable) {
+                && ((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
             return AxisAlignedBB.getBoundingBox(
                     (double) x + 0,
                     (double) y + 0,
@@ -268,7 +268,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
     public MovingObjectPosition collisionRayTrace(World world, int x, int y, int z, Vec3 origin, Vec3 direction) {
         TileEntity tile = world.getTileEntity(x, y, z);
         if (tile instanceof LogisticsTileGenericPipe
-                && ((LogisticsTileGenericPipe) tile).pipe instanceof PipeBlockRequestTable) {
+                && ((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
             setBlockBoundsBasedOnState(world, x, y, z);
             origin = origin.addVector((-x), (-y), (-z));
             direction = direction.addVector((-x), (-y), (-z));
@@ -514,15 +514,47 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
                 && par1Vec3.yCoord <= maxY;
     }
 
-    public static IIcon getRequestTableTextureFromSide(int l) {
+    /**
+     * @return the texture of that side of a pipe that stands in the world as a block
+     */
+    @SideOnly(Side.CLIENT)
+    public static IIcon getBlockShapedTexture(LogisticsTileGenericPipe tile, int l) {
         ForgeDirection dir = ForgeDirection.getOrientation(l);
+        boolean connected = dir != ForgeDirection.UP && dir != ForgeDirection.DOWN
+                && tile.renderState.pipeConnectionMatrix.isConnected(dir);
+        boolean routed = connected && tile.renderState.textureMatrix.getTextureIndex(dir) == 1;
+        if (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()) {
+            if (!connected) {
+                return Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY;
+            }
+            return routed ? Textures.LOGISTICS_REQUEST_TABLE_NEW_ROUTED : Textures.LOGISTICS_REQUEST_TABLE_NEW_UNROUTED;
+        }
+        BlockTextures textures = ((IBlockShapedPipe) tile.pipe).getBlockTextures();
         switch (dir) {
             case UP:
-                return Textures.LOGISTICS_REQUEST_TABLE[0];
+                return textures.top;
             case DOWN:
-                return Textures.LOGISTICS_REQUEST_TABLE[1];
+                return textures.bottom;
             default:
-                return Textures.LOGISTICS_REQUEST_TABLE[4];
+                if (!connected) {
+                    return textures.emptySide;
+                }
+                return routed ? textures.routedSide : textures.unroutedSide;
+        }
+    }
+
+    /**
+     * @return the texture of that side of the item of a pipe that stands in the world as a block
+     */
+    public static IIcon getBlockShapedItemTexture(IBlockShapedPipe pipe, int l) {
+        BlockTextures textures = pipe.getBlockTextures();
+        switch (ForgeDirection.getOrientation(l)) {
+            case UP:
+                return textures.top;
+            case DOWN:
+                return textures.bottom;
+            default:
+                return textures.emptySide;
         }
     }
 
@@ -632,7 +664,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
         TileEntity tile = world.getTileEntity(x, y, z);
 
         if (tile instanceof LogisticsTileGenericPipe) {
-            if (((LogisticsTileGenericPipe) tile).pipe instanceof PipeBlockRequestTable) {
+            if (((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
                 return true;
             }
             return ((LogisticsTileGenericPipe) tile).isSolidOnSide(side);

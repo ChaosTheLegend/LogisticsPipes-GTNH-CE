@@ -22,9 +22,9 @@ import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.crafting.AutoCraftingInventory;
 import logisticspipes.crafting.PatternCraftingMonitorNode;
 import logisticspipes.crafting.PatternCraftingMonitorRegistry;
+import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.interfaces.IRequestWatcher;
-import logisticspipes.interfaces.IRotationProvider;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.network.GuiIDs;
@@ -54,7 +54,7 @@ import logisticspipes.utils.item.SimpleStackInventory;
 import logisticspipes.utils.tuples.Pair;
 
 public class PipeBlockRequestTable extends PipeItemsRequestLogistics
-        implements ISimpleInventoryEventHandler, IRequestWatcher, IGuiOpenControler, IRotationProvider {
+        implements ISimpleInventoryEventHandler, IRequestWatcher, IGuiOpenControler, IBlockShapedPipe {
 
     public SimpleStackInventory diskInv = new SimpleStackInventory(1, "Disk Slot", 1);
     public SimpleStackInventory inv = new SimpleStackInventory(27, "Crafting Resources", 64);
@@ -216,42 +216,14 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
         return Textures.empty_2;
     }
 
-    public IIcon getTextureFor(int l) {
-        ForgeDirection dir = ForgeDirection.getOrientation(l);
-        if (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()) {
-            switch (dir) {
-                case UP:
-                case DOWN:
-                    return Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY;
-                default:
-                    if (container.renderState.pipeConnectionMatrix.isConnected(dir)) {
-                        if (container.renderState.textureMatrix.getTextureIndex(dir) == 1) {
-                            return Textures.LOGISTICS_REQUEST_TABLE_NEW_ROUTED;
-                        } else {
-                            return Textures.LOGISTICS_REQUEST_TABLE_NEW_UNROUTED;
-                        }
-                    } else {
-                        return Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY;
-                    }
-            }
-        } else {
-            switch (dir) {
-                case UP:
-                    return Textures.LOGISTICS_REQUEST_TABLE[0];
-                case DOWN:
-                    return Textures.LOGISTICS_REQUEST_TABLE[1];
-                default:
-                    if (container.renderState.pipeConnectionMatrix.isConnected(dir)) {
-                        if (container.renderState.textureMatrix.getTextureIndex(dir) == 1) {
-                            return Textures.LOGISTICS_REQUEST_TABLE[2];
-                        } else {
-                            return Textures.LOGISTICS_REQUEST_TABLE[3];
-                        }
-                    } else {
-                        return Textures.LOGISTICS_REQUEST_TABLE[4];
-                    }
-            }
-        }
+    @Override
+    public BlockTextures getBlockTextures() {
+        return BlockTextures.of(Textures.LOGISTICS_REQUEST_TABLE);
+    }
+
+    @Override
+    public IIcon getBlockModelTexture() {
+        return Textures.LOGISTICS_REQUEST_TABLE_NEW;
     }
 
     @Override
@@ -261,6 +233,13 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
             toSortInv.dropContents(getWorld(), getX(), getY(), getZ());
             diskInv.dropContents(getWorld(), getX(), getY(), getZ());
         }
+    }
+
+    /**
+     * @return the recipe {@link #cacheRecipe} found for the crafting matrix, or null
+     */
+    protected IRecipe getCachedRecipe() {
+        return cache;
     }
 
     public void cacheRecipe() {

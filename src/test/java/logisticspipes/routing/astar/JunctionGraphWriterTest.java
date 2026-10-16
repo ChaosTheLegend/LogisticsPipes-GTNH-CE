@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+
+import logisticspipes.interfaces.routing.IFilter;
 
 class JunctionGraphWriterTest {
 
@@ -273,5 +276,100 @@ class JunctionGraphWriterTest {
         } finally {
             w.stopAsync();
         }
+    }
+
+    /** A firewall filter whose power flag can be flipped, like the GUI toggle. */
+    private static IFilter powerFilter(boolean[] blockPower) {
+        return (IFilter) Proxy.newProxyInstance(
+                IFilter.class.getClassLoader(),
+                new Class<?>[] { IFilter.class },
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "blockPower":
+                            return blockPower[0];
+                        case "equals":
+                            return proxy == args[0];
+                        case "hashCode":
+                            return System.identityHashCode(proxy);
+                        default:
+                            return method.getReturnType() == boolean.class ? false : null;
+                    }
+                });
+    }
+
+    @Test
+    void islandSharesOnePowerPool() {
+        JunctionGraphWriter w = line(5, 5, 5);
+        w.setData(id(1), "junction-power", true);
+        NetworkGraph g = w.graph();
+        PowerPool pool = g.powerPool(id(4));
+        assertNotNull(pool);
+        assertSame(pool, g.powerPool(id(1)));
+        assertEquals(Collections.singletonList("junction-power"), Arrays.asList(pool.data));
+
+        node(w, 9, 500, 64, 0); // a separate island has no providers
+        assertNull(w.graph().powerPool(id(9)));
+        assertNotEquals(w.graph().powerPoolOf(id(1)), w.graph().powerPoolOf(id(9)));
+    }
+
+    @Test
+    void powerBlockingFirewallSplitsThePool() {
+        // 1 - 2(firewall) - 3: the firewall's own corridors carry its filter
+        JunctionGraphWriter w = line(5, 5);
+        boolean[] blockPower = { true };
+        List<IFilter> filters = Collections.singletonList(powerFilter(blockPower));
+        w.setEdges(
+                id(2),
+                Arrays.asList(
+                        new EdgeSpec(id(1), 5, RoutingFlags.ALL, filters, 5, 6, 6, null),
+                        new EdgeSpec(id(3), 5, RoutingFlags.ALL, filters, 5, 6, 6, null)));
+        w.setData(id(1), "junction-power", true);
+        NetworkGraph g = w.graph();
+        assertTrue(g.sameComponent(id(1), id(3)));
+        assertNotNull(g.powerPool(id(1)));
+        assertNull(g.powerPool(id(3)));
+        assertNull(g.powerPool(id(2)));
+
+        // the flag is read live: a refresh is enough to join the pool again
+        blockPower[0] = false;
+        w.refreshPowerPools();
+        g = w.graph();
+        assertSame(g.powerPool(id(1)), g.powerPool(id(3)));
+        assertEquals(g.powerPoolOf(id(1)), g.powerPoolOf(id(2)));
+    }
+
+    @Test
+    void corridorWithoutPowerInEitherDirectionSplitsThePool() {
+        JunctionGraphWriter w = new JunctionGraphWriter();
+        for (int i = 1; i <= 3; i++) {
+            node(w, i, i * 10, 64, 0);
+        }
+        int noPower = RoutingFlags.ALL & ~RoutingFlags.CAN_POWER_FROM;
+        // 1 - 2: no power either way (inventory system connector); 2 - 3: power one way only (one-way pipe)
+        w.setEdges(id(1), Collections.singletonList(edge(2, 5, noPower)));
+        w.setEdges(id(2), Arrays.asList(edge(1, 5, noPower), edge(3, 5, noPower)));
+        w.setEdges(id(3), Collections.singletonList(edge(2, 5)));
+        w.setData(id(3), "junction-power", true);
+        NetworkGraph g = w.graph();
+        assertTrue(g.sameComponent(id(1), id(3)));
+        assertNull(g.powerPool(id(1)));
+        assertSame(g.powerPool(id(3)), g.powerPool(id(2)));
+        assertNotNull(g.powerPool(id(2)));
+    }
+
+    @Test
+    void poolsSharingAStoreAreJoined() {
+        // two separate islands whose junctions touch the same power junction
+        JunctionGraphWriter w = new JunctionGraphWriter();
+        node(w, 1, 0, 64, 0);
+        node(w, 2, 500, 64, 0);
+        Object store = new Object();
+        PowerPool.Member member = () -> Collections.singletonList(store);
+        w.setData(id(1), member, true);
+        w.setData(id(2), member, true);
+        NetworkGraph g = w.graph();
+        assertFalse(g.sameComponent(id(1), id(2)));
+        assertSame(g.powerPool(id(1)), g.powerPool(id(2)));
+        assertEquals(2, g.powerPool(id(1)).data.length);
     }
 }

@@ -55,8 +55,8 @@ Those decisions take precedence over this doc. What they mean for transport:
   - **Open:** how a controller's speed applies (the whole network or a region; what happens with several tiers in one
     network; whether it costs power), and whether the Default/Passive/Active modes keep different speeds.
   - With speed only changing at a controller, a run of pass-through junctions is always one scheduled hop.
-- **Sneaky upgrades are removed.** Holding a screwdriver shows a grid overlay on the pipe, and the sneaky side is set
-  per connection with it. **Side-block (disconnection) upgrades are removed**: shift+wrench shows the same overlay
+- **Sneaky upgrades are removed.** The sneaky faces are set per connection (per module on a chassis) in the pipe GUI;
+  several faces are tried in `ForgeDirection` order. **Side-block (disconnection) upgrades are removed**: shift+wrench shows the same overlay
   to connect or disconnect each side. The delivery step in
   `handleTileReachedServer` (sneaky orientation, `getCombinedSneakyOrientation`) and the scanner's connection checks
   read these per-side settings instead. Sneaky and disconnection upgrades already installed in old bases are migrated
@@ -100,7 +100,7 @@ Those decisions take precedence over this doc. What they mean for transport:
 
   Otherwise the item is simulated as before.
 - **Arrival** (processed in `updateEntity` when the tick is due). The *fast path* applies when:
-  - the pipe relays normally (`supportsFastRelay`: not entrance, ISC or fluid transport);
+  - the pipe relays normally (`supportsFastRelay`: not entrance or ISC; of the pipes with the fluid transport only the fluid pipes relay, the pattern crafting pipe does not);
   - it isn't the destination;
   - the next path edge still exists, is teleportable, carries `CAN_ROUTE_TO` and leads to an active junction;
   - the destination junction is still active.
@@ -150,6 +150,22 @@ is being dropped. Found:
 
 What's left to test (save/unload, config switch, spark) is in [testing-checklist.md](testing-checklist.md) §1.
 
+## Splitting stacks by destination room (2026-10-15)
+
+Problem: an extractor feeding a large grid of small inventories (GT++ Lead Lined Box: 15 slots of 1 item). A whole
+stack was sent to the first box, 15 items fit, and the rest bounced and was rerouted from there to the next box, once per
+box it filled. In-flight clumps did 10+ hops each, which tanked TPS.
+
+- `ModuleItemSink.replyIfRoom` caps the reply at the inventory's free room even when nothing is in transit yet. The
+  extractor already splits a stack by `maxNumberOfItems` and adds each destination to its jam list, so the stack is split
+  across boxes when it is extracted, one clump per box.
+- `RouteLayer` (called from `PTL.resolveRoutedDestination` with `splitOverflow`): when an item in a pipe is given a
+  destination that takes only part of the stack (`ILogisticsManager.assignDestinationWithLimit`), the rest is split off
+  and injected into the same pipe without a destination, so it is routed to the next box at once. This covers bounces,
+  clump arrivals and anything else that reroutes. Other callers (request tables) don't split.
+- Not covered: sink modules that don't check room at all (oredict, mod, polymorphic, creative tab, ...) still promise
+  unlimited room; chassis modules were already capped by `ChassiModule`.
+
 ## Later phases
 
 1. Skip pass-through junctions: one event per run of junctions that don't touch passing items (no pluggable, not a
@@ -189,7 +205,7 @@ earlier session is in the same working tree.
 | `transport/ClumpTransit.java` (new) | Chunk index of clumps in flight, `onPipeRemoved`, the break rule (`onBreak`), broken-corridor flags |
 | `pipes/basic/LogisticsBlockGenericPipe.java`, `LogisticsPipes.java` | `removePipe` calls `ClumpTransit.onPipeRemoved`; `ClumpTransit.clear()` on server stop |
 | `transport/LPTravelingItem.java` | static `nextId()`, client `extraStacks` + `plannedExits` |
-| `transport/EntrencsTransport`, `TransportInvConnection`, `PipeFluidTransportLogistics` | `supportsFastRelay() = false` |
+| `transport/EntrencsTransport`, `TransportInvConnection`, `PipeFluidTransportLogistics` | `supportsFastRelay() = false`; `PipeFluidTransportLogistics` returns true for the fluid pipes, they do not touch passing items |
 | `network/packets/pipe/ItemClumpPacket.java` (new) | S→C hop packet |
 | `renderer/LogisticsRenderPipe.java` | `placeItem` helper split out of `renderSolids`, trailing clump stacks |
 | `routing/astar/CorridorScanner.java` | direction stack + opaque-hop counter → `travelPathOf(route)` |

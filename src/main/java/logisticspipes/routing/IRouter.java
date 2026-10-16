@@ -11,6 +11,7 @@ import java.util.UUID;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import logisticspipes.api.ILogisticsPowerProvider;
+import logisticspipes.blocks.powertile.PowerPoolStorage;
 import logisticspipes.interfaces.ISubSystemPowerProvider;
 import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
@@ -85,6 +86,11 @@ public interface IRouter {
     void clearInterests();
 
     List<Pair<ILogisticsPowerProvider, List<IFilter>>> getPowerProvider();
+
+    /** The power pool this router's pipe draws network power from; {@code null} if it has none. */
+    default PowerPoolStorage getPowerPool() {
+        return null;
+    }
 
     List<Pair<ISubSystemPowerProvider, List<IFilter>>> getSubSystemPowerProvider();
 

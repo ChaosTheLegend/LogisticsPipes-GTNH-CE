@@ -34,6 +34,8 @@ import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IBufferItems;
+import logisticspipes.interfaces.IChassiItemReceiver;
+import logisticspipes.interfaces.IFluidContainerReceiver;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IItemAdvancedExistance;
 import logisticspipes.interfaces.IModuleInventory;
@@ -59,7 +61,6 @@ import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
-import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.buildcraft.LPRoutedBCTravelingItem;
@@ -387,7 +388,7 @@ public class PipeTransportLogistics {
             data.setDoNotBuffer(false);
             value = ForgeDirection.UNKNOWN;
         } else {
-            value = getRoutedPipe().getRouteLayer().getOrientationForItem(data, blocked);
+            value = getRoutedPipe().getRouteLayer().getOrientationForItem(data, blocked, true);
         }
         if (value == null && MainProxy.isClient(getWorld())) {
             return null;
@@ -409,7 +410,7 @@ public class PipeTransportLogistics {
             // out of retries: last effort is any default route with room, only then the item drops
             if (SimpleServiceLocator.logisticsManager
                     .assignDefaultRouteFor(data, getRoutedPipe().getRouter().getSimpleID())) {
-                ForgeDirection retry = getRoutedPipe().getRouteLayer().getOrientationForItem(data, null);
+                ForgeDirection retry = getRoutedPipe().getRouteLayer().getOrientationForItem(data, null, true);
                 if (retry != null) {
                     value = retry;
                 }
@@ -981,10 +982,23 @@ public class PipeTransportLogistics {
         if (MainProxy.isServer(getWorld()) && arrivingItem.getInfo() != null && arrivingItem.getArrived() && isRouted) {
             getRoutedPipe().notifyOfItemArival(arrivingItem.getInfo());
         }
-        if (getPipe() instanceof FluidRoutedPipe) {
-            if (((FluidRoutedPipe) getPipe()).endReached(arrivingItem, tile)) {
-                return;
-            }
+        // every item that leaves the pipe comes by here, also the ones on their way to another router and the fluid
+        // the pipe sends out itself: only what was sent to this pipe is taken
+        if (getPipe() instanceof IFluidContainerReceiver receiver && MainProxy.isServer(getWorld())
+                && getRoutedPipe().getRouter().getSimpleID() == arrivingItem.getDestination()
+                && receiver.endReached(arrivingItem, tile)) {
+            return;
+        }
+        // a chassis module that keeps what was sent to it, like the containers and the fluid of a fluid container
+        // supplier
+        if (MainProxy.isServer(getWorld()) && isRouted
+                && arrivingItem.getInfo() != null
+                && arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation target
+                && getRoutedPipe().getRouter().getSimpleID() == arrivingItem.getDestination()
+                && getRoutedPipe().getLogisticsModule() instanceof ChassiModule chassis
+                && chassis.getModule(target.getModuleSlot()) instanceof IChassiItemReceiver receiver
+                && receiver.receiveItem(arrivingItem.getItemIdentifierStack())) {
+            return;
         }
         boolean isSpecialConnectionInformationTransition = false;
         if (MainProxy.isServer(getWorld())) {

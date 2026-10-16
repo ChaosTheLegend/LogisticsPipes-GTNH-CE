@@ -79,6 +79,11 @@ public class Textures {
     public static TextureType LOGISTICSPIPE_CHASSI3_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CHASSI4_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CHASSI5_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI4_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_FLUID_CHASSI5_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CRAFTERMK2_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_REQUESTERMK2_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_PROVIDERMK2_TEXTURE = Textures.empty;
@@ -107,6 +112,8 @@ public class Textures {
     public static IIcon LOGISTICS_REQUEST_TABLE_NEW_ROUTED = null;
     public static IIcon LOGISTICS_REQUEST_TABLE_NEW_UNROUTED = null;
     public static IIcon LOGISTICS_REQUEST_TABLE_NEW_EMPTY = null;
+    public static IIcon[] LOGISTICS_FLUID_FILLER = new IIcon[0];
+    public static IIcon LOGISTICS_FLUID_FILLER_NEW = null;
 
     public static int LOGISTICSPIPE_LIQUID_CONNECTOR = 0;
     public static IIcon LOGISTICSACTIONTRIGGERS_DISABLED;
@@ -172,6 +179,11 @@ public class Textures {
     public static String LOGISTICSPIPE_CHASSI3_TEXTURE_FILE = "pipes/chassi/chassi_mk3";
     public static String LOGISTICSPIPE_CHASSI4_TEXTURE_FILE = "pipes/chassi/chassi_mk4";
     public static String LOGISTICSPIPE_CHASSI5_TEXTURE_FILE = "pipes/chassi/chassi_mk5";
+    public static String LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk1";
+    public static String LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk2";
+    public static String LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk3";
+    public static String LOGISTICSPIPE_FLUID_CHASSI4_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk4";
+    public static String LOGISTICSPIPE_FLUID_CHASSI5_TEXTURE_FILE = "pipes/chassi/fluid_chassi_mk5";
 
     // Chassi status overlay
     public static String LOGISTICSPIPE_CHASSI_ROUTED_TEXTURE_FILE = "pipes/chassi/status_overlay/routed";
@@ -357,6 +369,21 @@ public class Textures {
         Textures.LOGISTICSPIPE_CHASSI5_TEXTURE = registerTexture(
                 par1IIconRegister,
                 Textures.LOGISTICSPIPE_CHASSI5_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI1_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI2_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI3_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI4_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI4_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_FLUID_CHASSI5_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_FLUID_CHASSI5_TEXTURE_FILE);
 
         // Transport
         Textures.LOGISTICSPIPE_BASIC_TRANSPORT_TEXTURE = registerSmallTexture(
@@ -376,6 +403,12 @@ public class Textures {
             Textures.LOGISTICS_REQUEST_TABLE_NEW_UNROUTED = par1IIconRegister
                     .registerIcon("logisticspipes:requesttable/unrouted");
             Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY = par1IIconRegister.registerIcon("logisticspipes:empty");
+            Textures.LOGISTICS_FLUID_FILLER = new IIcon[5];
+            for (int i = 0; i < 5; i++) {
+                Textures.LOGISTICS_FLUID_FILLER[i] = par1IIconRegister.registerIcon("logisticspipes:fluidfiller/" + i);
+            }
+            Textures.LOGISTICS_FLUID_FILLER_NEW = par1IIconRegister
+                    .registerIcon("logisticspipes:fluidfiller/fillerTexture");
         }
 
         if (LPConstants.DEBUG) {

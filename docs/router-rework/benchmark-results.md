@@ -120,3 +120,7 @@ feed (the usual layout) invalidate far fewer routers.
 Possible follow-up: power tables only need reachability and filters, not the shortest route, so reachable providers
 could be kept while their route is still traversable, re-searching only unreachable ones on improvements. This would
 make power polling nearly free during building, at the cost of power routes not always being the shortest.
+Superseded (2026-10-15) by pooled network power: all power junctions of an island share one pool and pipes don't
+route to providers at all; only power-blocking firewalls split a pool (see "Pooled network power" in
+[../roadmap.md](../roadmap.md)). Filtered routes are the main cost multiplier in searches, and firewalls are their main
+source, so firewalls are marked "use sparingly".

@@ -53,8 +53,20 @@ Details: [lag-investigation.md](lag-investigation.md), and the known issues in [
 - [ ] Debug off really is off in a normal run: `/lp debug` and `PowerJunctionCheatPacket` are refused, no
       `TOOLTIP_INFO`.
 - [ ] Debug on with `-Dlogisticspipes.enableDebug=true` still works for a debug session.
-- [ ] **Power view reuse (§4):** pipes still show powered/unpowered correctly, and update when a power junction is
-      added, removed, runs dry or gets reconnected.
+- [ ] **Pooled power (roadmap):** pipes still show powered/unpowered correctly, and update when a power junction is
+      added, removed, runs dry or gets reconnected. Every pipe of an island is powered by a junction anywhere in it,
+      including across one-way pipes. Several junctions in one island drain evenly.
+- [ ] Pooled power and firewalls: a firewall with "block power" on splits the island's power; turning it off joins the
+      power again without touching any pipe, and turning it back on splits it again.
+- [ ] Pooled power and ISC: two networks joined only by an inventory system connector don't share power.
+- [ ] Pool storage: the junction GUI/HUD shows the pool's level and capacity (N junctions = N × 2,000,000). Charging
+      any junction fills the shared pool.
+- [ ] Energy is conserved: join two charged networks, split them again, break one junction (its share is lost),
+      unload and reload the chunk of a junction (its share comes back). Totals before and after should match.
+- [ ] Save and reload the world: each pool comes back with the same energy.
+- [ ] A junction touching two separate networks powers both, as one pool.
+- [ ] "Needs more power" gate trigger on a junction follows the pool level.
+- [ ] Power supplier upgrades (RF/EU) still work: they keep the old route-based path.
 - [ ] **Load lag (B10):** loading a large network no longer freezes the client or server (the router managers use a
       position index now). Profile it with spark on the client and the server.
 - [ ] Confirm the ranking of TPS causes in lag-investigation §1 with spark (it was found by reading the code only).

@@ -1,17 +1,16 @@
 package logisticspipes.gui.modularUI.pipes;
 
-import com.cleanroommc.modularui.utils.Alignment;
-import com.cleanroommc.modularui.value.sync.SyncHandlers;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
-import com.cleanroommc.modularui.widgets.TextWidget;
-import com.cleanroommc.modularui.widgets.layout.Column;
-import com.cleanroommc.modularui.widgets.slot.FluidSlot;
 
+import logisticspipes.gui.modularUI.FluidSinkWidgets;
 import logisticspipes.gui.modularUI.LogisticsPipeMUI;
 import logisticspipes.pipes.PipeFluidBasic;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 
+/**
+ * Same page as the fluid sink module of the fluid chassis.
+ */
 public class PipeFluidBasicMui extends LogisticsPipeMUI {
 
     public PipeFluidBasicMui(CoreRoutedPipe pipe) {
@@ -20,22 +19,15 @@ public class PipeFluidBasicMui extends LogisticsPipeMUI {
 
     @Override
     public String getId() {
-        return "pipe_satellite";
+        return "pipe_fluid_basic";
     }
 
     @Override
     public ParentWidget addWidgets(ParentWidget widget, boolean addPlayerInventory) {
 
-        PipeFluidBasic providerPipe = (PipeFluidBasic) pipe;
-
         if (addPlayerInventory) widget.child(SlotGroupWidget.playerInventory(true));
 
-        widget.child(
-                new Column().coverChildren().top(4).left(9).crossAxisAlignment(Alignment.CrossAxis.START)
-                        .childPadding(4).child(new TextWidget<>("Fluid filter")).child(
-                                new FluidSlot().syncHandler(
-                                        SyncHandlers.fluidSlot(providerPipe.filterTank).phantom(true)
-                                                .controlsAmount(false))));
+        widget.child(FluidSinkWidgets.sinkPage((PipeFluidBasic) pipe, null, getId()));
 
         return widget;
     }

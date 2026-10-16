@@ -44,9 +44,10 @@ public class TravelingItemRenderer {
             if (block instanceof BlockPane) {
                 GL11.glScalef(0.5F, 0.5F, 0.5F);
             }
-        } else if (item == LogisticsPipes.logisticsRequestTable || item == LogisticsPipes.logisticsNewRequestTable) {
-            GL11.glScalef(0.5F, 0.5F, 0.5F);
-        }
+        } else if (item == LogisticsPipes.logisticsRequestTable || item == LogisticsPipes.logisticsNewRequestTable
+                || item == LogisticsPipes.logisticsRequestTableMk3) {
+                    GL11.glScalef(0.5F, 0.5F, 0.5F);
+                }
 
         renderItem.doRender(entityItem, 0.0d, 0.0d, 0.0d, 0.0F, partialTickTime);
     }
