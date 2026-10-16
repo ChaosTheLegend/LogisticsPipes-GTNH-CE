@@ -58,13 +58,22 @@ upgrades.
 
 **2a. Cleanup**
 - [ ] Deprecate unused/useless upgrades (removal warning; installed ones are migrated or keep working):
-  - [ ] 🟡 Sneaky upgrade, replaced by the screwdriver overlay below. Migrate installed ones to the per-side setting
+  - [ ] 🟡 Sneaky upgrade, replaced by the sneaky-faces setting in the pipe GUI below; the faces are stored in the
+    pipe per connection. Migrate installed ones to that setting
+  - [ ] 🟡 Extractor sneaky directions: drop the direction setting from the extractor modules
+    (`LogisticsSneakyDirectionModule`) and migrate modules that have one to the plain extractor, moving the direction
+    into the sneaky-faces setting (per module on a chassis). See "Compatibility with old bases" in
+    rework-design-decisions.md
+  - [ ] 🟡 Combined sneaky upgrade: becomes the set of faces it held, tried in the fixed order (custom order is lost,
+    listed in [behaviour-changes.md](behaviour-changes.md))
   - [ ] 🟡 Side-block (disconnection) upgrades, replaced by the shift+wrench overlay below. Migrate installed ones to
     the per-side setting
   - [ ] 🟢 Advanced satellite upgrade; its behaviour becomes the default
   - [ ] 🟢 Opaque upgrade; a client config option turns off item rendering instead
 - [ ] 🟡 Shift+wrench grid overlay: right click connects/disconnects that side
-- [ ] 🟡 Screwdriver grid overlay: sets the sneaky side per connection
+- [ ] 🟡 Sneaky-faces section in the pipe GUI (per module in chassis module GUIs): add/remove the faces of the
+  connected inventory the pipe interacts with. Default: only the touching face. Several faces are tried in
+  `ForgeDirection` order (down, up, north, south, west, east)
 - [ ] 🟢 Deprecate the "upgrade module upgrade" and make chassis upgradable by default. Settle per-module vs. shared chassis
   upgrades first
 - [ ] 🟢 4 upgrade slots per module/pipe, insertable through the side upgrade GUI without a pipe controller
@@ -199,7 +208,12 @@ without a wrench or button spam.
 
 - [ ] 🟠 Rewrite every GUI with ModularUI, adding controls for the decided features where old GUIs lack them
   ([migration-status.md](../.claude/modularUI-docs/migration-status.md)). Deprecated modules keep their legacy GUI
-  instead (the exception to the MUI rule) until they are deleted
+  instead (the exception to the MUI rule) until they are deleted. Checklist of what is left (pipes, modules, blocks,
+  items) is in migration-status.md
+  - [ ] 🟢 Quick wins: `PipeItemsBasicLogistics` (its item sink module already has an MUI) and
+    `ModuleTypeFilterItemSink` (same GUI as the migrated string-based sinks)
+  - [ ] 🟢 Delete the dead legacy GUI paths listed there (`GuiUpgradeManager`, `GuiProviderPipe`, `GuiCardManager`,
+    `ModuleCraftingMuiDynamic`)
 - [ ] 🟠 Compatibility with old bases: a world from the last released version loads and keeps working after the
   update. Removal warnings on deprecated blocks, items, modules and upgrades. NBT migrations for every changed save
   format

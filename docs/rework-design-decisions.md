@@ -7,7 +7,13 @@
 - Pipe speed no longer controlled by upgrades, speed upgrades are gonna be reworked to instead affect extraction speed/crafting table speed
 
 ## Upgrades
-- Sneaky upgrades - remove. The sneaky behaviour can be changed with GT screwdriver
+- Sneaky upgrades - remove. The sneaky behaviour is configured in the pipe GUI (see Interactions). The sneaky faces
+  are stored in the pipe itself, per connection (per module on a chassis), instead of in upgrade items. The combined
+  sneaky upgrade goes too: several faces can be selected, tried in a fixed order
+- Extractor sneaky directions - remove entirely. Extractor modules (`ModuleExtractor`, `ModuleAdvancedExtractor` and
+  their Mk2/Mk3) lose their own direction setting (`LogisticsSneakyDirectionModule`, the direction picker in their GUI)
+  and use the sneaky-faces setting (per module on a chassis) like every other module. Old worlds: the modules are migrated to their
+  plain extractor counterparts (see "Compatibility with old bases")
 - Side block upgrades - remove. Sides are connected/disconnected with shift + wrench (see Interactions)
 - Speed upgrades - no longer increase item travel speed, increase extraction speed/strack size for extractor/provider modules, speeds up the pattern crafting table
 - Buffer upgrade (new) - allows the pipe to hold 1 set of requested items inside itself, this skips travel time and allows the pipe to transfer items instantly when needed, applied to supplier and crafting pipes
@@ -59,7 +65,19 @@
 ## Interactions
 
 - Shift + wrench in hand shows a grid overlay over the pipe (like the one on gt pipes) and allows to connect/disconect pipes from those sides on right click, works like old disconnect upgrades
-- Similarly, holding a screwdriver shows the same grid overlay and allows to configure sneaky behaviour to each connection, like sneaky upgrade
+- Sneaky faces (2026-10-16) - configured **only in the pipe GUI**; there is no screwdriver interaction or world overlay
+  for them
+  - What "sneaky" means: the pipe always works on the block it is connected to; the sneaky face is the *face of that
+    block* the pipe pretends to touch. It only matters for sided inventories (furnace, GT machines with per-side I/O),
+    e.g. a pipe on the side of a furnace with sneaky face DOWN reaches only the output slot
+  - The pipe GUI has a sneaky-faces section listing the faces of the connected inventory. By default only the face
+    the pipe touches is selected; the player can add or remove faces
+  - With several faces selected the pipe tries them in a **fixed order**, Minecraft's built-in direction order
+    (`ForgeDirection`: down, up, north, south, west, east). The order isn't configurable (the old combined sneaky
+    upgrade's custom order is dropped, see [behaviour-changes.md](behaviour-changes.md))
+  - The setting is stored in the pipe, per connection, and applies to insertion and extraction alike (sinks,
+    suppliers, extractors, providers, crafting)
+  - **Chassis:** the setting is per module, not per pipe (configured in each module's GUI)
 
 ## QoL
 
@@ -89,8 +107,13 @@ doc means *deprecate first, delete one major pack version later*.
 - Old crafting modules (`ModuleCrafter`, the legacy crafting pipe) keep crafting, at least in a simple, non-blocking
   way. They don't need the new features.
 - Removed upgrades (sneaky, side-block/disconnection, advanced satellite, opaque) in existing pipes are migrated to the new
-  behaviour where there is one (sneaky side → screwdriver setting, disconnected sides → shift+wrench setting), or keep
+  behaviour where there is one (sneaky side → sneaky-faces setting in the pipe GUI, disconnected sides → shift+wrench setting), or keep
   working until the player replaces them.
+- Extractor modules with a sneaky direction set are migrated to their plain extractor counterparts: the direction is
+  dropped from the extractor's own NBT (`sneakydirection`, and the older `sneakyorientation`) and moved into the
+  sneaky-faces setting (per module on a chassis, per connection on a pipe), so it keeps extracting from the same face.
+- Per-module sneaky upgrades in a chassis become that module's sneaky-faces setting. The combined sneaky upgrade
+  becomes the set of faces it held; its order is lost (see [behaviour-changes.md](behaviour-changes.md)).
 - Saved data needs migrations, not silent drops: new NBT formats read the old ones.
 
 ## Clarifications (2026-09-29)

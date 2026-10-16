@@ -55,8 +55,8 @@ Those decisions take precedence over this doc. What they mean for transport:
   - **Open:** how a controller's speed applies (the whole network or a region; what happens with several tiers in one
     network; whether it costs power), and whether the Default/Passive/Active modes keep different speeds.
   - With speed only changing at a controller, a run of pass-through junctions is always one scheduled hop.
-- **Sneaky upgrades are removed.** Holding a screwdriver shows a grid overlay on the pipe, and the sneaky side is set
-  per connection with it. **Side-block (disconnection) upgrades are removed**: shift+wrench shows the same overlay
+- **Sneaky upgrades are removed.** The sneaky faces are set per connection (per module on a chassis) in the pipe GUI;
+  several faces are tried in `ForgeDirection` order. **Side-block (disconnection) upgrades are removed**: shift+wrench shows the same overlay
   to connect or disconnect each side. The delivery step in
   `handleTileReachedServer` (sneaky orientation, `getCombinedSneakyOrientation`) and the scanner's connection checks
   read these per-side settings instead. Sneaky and disconnection upgrades already installed in old bases are migrated

@@ -453,7 +453,7 @@ Still legacy (no MUI yet): `RequestTableGui`.
   - Crafting pipes get a toggle to mark ingredients that aren't consumed or that lose durability (tools). That is the
     player-side answer to D7 (re-extracting catalysts and containers) and part of C8 (permanent contents keep
     BLOCKING locked).
-  - The sneaky upgrade is removed. The insertion side is set per connection with a screwdriver (grid overlay), so
+  - The sneaky upgrade is removed. The insertion side is set per connection in the pipe GUI (sneaky faces), so
     `getInsertionOrientation` (D2) and the extraction side (C20) will read it from there.
   - Upgrades go in without a pipe controller through the side upgrade GUI, at most 4.
   - The **Legacy Wrench** is for debugging only and isn't craftable. It does not bring back the legacy GUIs deleted in
