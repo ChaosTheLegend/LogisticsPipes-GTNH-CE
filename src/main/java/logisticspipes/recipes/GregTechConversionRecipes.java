@@ -7,34 +7,61 @@ import net.minecraft.item.ItemStack;
 
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
+import gregtech.api.enums.Materials;
+import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
 import gregtech.api.recipe.RecipeMaps;
+import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
 import logisticspipes.items.ItemModule;
 
 /**
  * GregTech recipes for converting legacy items into their pattern crafting counterparts, for the fluid chassis and its
- * modules and for the request table Mk2. Kept apart from {@link RecipeManager} so GregTech classes only load when
- * GregTech is installed.
+ * modules, for the request table Mk2, the inventory system connector and the frequency card. Kept apart from
+ * {@link RecipeManager} so GregTech classes only load when GregTech is installed.
  */
 final class GregTechConversionRecipes {
 
-    static final int CONVERSION_CIRCUIT = 3;
     // the circuit the pack uses for its Logistics Pipes assembler recipes
     static final int PACK_CIRCUIT = 18;
 
     private GregTechConversionRecipes() {}
 
-    /** Assembler: {@code input} + programmed circuit 3 → {@code output}. */
+    /** Assembler: {@code input} + programmed circuit 18 → {@code output}. */
     static void addAssemblerConversion(ItemStack input, ItemStack output) {
-        GTValues.RA.stdBuilder().itemInputs(input, GTUtility.getIntegratedCircuit(CONVERSION_CIRCUIT))
-                .itemOutputs(output).duration(5 * 20).eut(TierEU.RECIPE_ULV).addTo(RecipeMaps.assemblerRecipes);
+        GTValues.RA.stdBuilder().itemInputs(input, GTUtility.getIntegratedCircuit(PACK_CIRCUIT)).itemOutputs(output)
+                .duration(5 * 20).eut(TierEU.RECIPE_ULV).addTo(RecipeMaps.assemblerRecipes);
     }
 
-    /** Assembler: request table + fluid request pipe + programmed circuit 18 → request table Mk3, at MV. */
-    static void addRequestTableMk3(ItemStack table, ItemStack fluidRequestPipe, ItemStack output) {
+    /** Assembler: request table + fluid request pipe + programmed circuit 18 → request table Mk2, at MV. */
+    static void addRequestTableMk2(ItemStack table, ItemStack fluidRequestPipe, ItemStack output) {
         GTValues.RA.stdBuilder().itemInputs(table, fluidRequestPipe, GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
                 .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_MV).addTo(RecipeMaps.assemblerRecipes);
+    }
+
+    /** Assembler: 2 basic logistics pipes + HV emitter + HV sensor + programmed circuit 18 → 2 connectors, at HV. */
+    static void addInvSysConnector(ItemStack basicPipes, ItemStack output) {
+        GTValues.RA.stdBuilder()
+                .itemInputs(
+                        basicPipes,
+                        ItemList.Emitter_HV.get(1L),
+                        ItemList.Sensor_HV.get(1L),
+                        GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
+                .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_HV).addTo(RecipeMaps.assemblerRecipes);
+    }
+
+    /**
+     * Assembler: 2 blank modules + 4 ender eye plates + 2 HV circuits of any kind + programmed circuit 18 → 2 frequency
+     * cards, at HV.
+     */
+    static void addFrequencyCard(ItemStack blankModules, ItemStack output) {
+        GTValues.RA.stdBuilder()
+                .itemInputs(
+                        blankModules,
+                        GTOreDictUnificator.get(OrePrefixes.plate, Materials.EnderEye, 4L),
+                        GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 2L),
+                        GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
+                .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_HV).addTo(RecipeMaps.assemblerRecipes);
     }
 
     /**

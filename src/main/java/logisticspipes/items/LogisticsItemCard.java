@@ -51,6 +51,14 @@ public class LogisticsItemCard extends LogisticsItem implements IItemAdvancedExi
     }
 
     @Override
+    @SideOnly(Side.CLIENT)
+    public boolean hasEffect(ItemStack stack) {
+        // a linked frequency card glows
+        return stack.getItemDamage() == LogisticsItemCard.FREQ_CARD && stack.hasTagCompound()
+                && stack.getTagCompound().hasKey("UUID");
+    }
+
+    @Override
     public boolean getShareTag() {
         return true;
     }

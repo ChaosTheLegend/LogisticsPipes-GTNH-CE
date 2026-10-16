@@ -816,7 +816,10 @@ public class LogisticsPipes {
                 MinecraftForgeClient.registerItemRenderer(res, MainProxy.proxy.getPipeItemRenderer());
             }
         }
-        if (clas != PipeItemsBasicLogistics.class && CoreRoutedPipe.class.isAssignableFrom(clas)) {
+        // the request table Mk2 and Mk3 swap into each other in the crafting grid, a reset recipe would match the same
+        // grid
+        boolean swapsInGrid = clas == RequestTablePipe.class || clas == RequestTableMk3Pipe.class;
+        if (clas != PipeItemsBasicLogistics.class && !swapsInGrid && CoreRoutedPipe.class.isAssignableFrom(clas)) {
             if (clas != PipeFluidBasic.class && PipeFluidBasic.class.isAssignableFrom(clas)) {
                 registerShapelessResetRecipe(res, 0, LogisticsPipes.LogisticsFluidBasicPipe, 0);
             } else {

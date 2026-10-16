@@ -9,6 +9,7 @@ import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
+import net.minecraft.item.crafting.IRecipe;
 import net.minecraftforge.oredict.RecipeSorter;
 import net.minecraftforge.oredict.ShapelessOreRecipe;
 
@@ -18,6 +19,7 @@ import logisticspipes.config.Configs;
 import logisticspipes.items.ItemModule;
 import logisticspipes.items.ItemPipeComponents;
 import logisticspipes.items.ItemUpgrade;
+import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.items.RemoteOrderer;
 import logisticspipes.proxy.interfaces.ICraftingParts;
 
@@ -44,6 +46,10 @@ public class RecipeManager {
 
         public void addShapelessResetRecipe(Item item, int meta) {
             craftingManager.getRecipeList().add(new ShapelessResetRecipe(item, meta));
+        }
+
+        public void addRecipe(IRecipe recipe) {
+            craftingManager.getRecipeList().add(recipe);
         }
 
         public static class ShapelessOrdererRecipe extends ShapelessOreRecipe {
@@ -78,6 +84,11 @@ public class RecipeManager {
                 "logisticspipes:shapelessore", LPShapelessOreRecipe.class, SHAPELESS, "after:minecraft:shapeless");
         RecipeSorter.register(
                 "logisticspipes:shapelessreset", ShapelessResetRecipe.class, SHAPELESS, "after:minecraft:shapeless");
+        RecipeSorter.register(
+                "logisticspipes:frequencycardlink",
+                FrequencyCardLinkRecipe.class,
+                SHAPELESS,
+                "after:minecraft:shapeless");
         RecipeSorter.register(
                 "logisticspipes:shapelessorderer",
                 LocalCraftingManager.ShapelessOrdererRecipe.class,
@@ -2944,10 +2955,17 @@ public class RecipeManager {
         }
 
         loadPatternCraftingConversionRecipes();
-        loadRequestTableMk3Recipe();
+        loadRequestTableRecipes();
+        RecipeManager.craftingManager.addRecipe(new FrequencyCardLinkRecipe());
 
         if (LogisticsPipes.isGTNH) {
             loadFluidChassisAssemblerRecipes();
+            GregTechConversionRecipes.addInvSysConnector(
+                    new ItemStack(LogisticsPipes.LogisticsBasicPipe, 2),
+                    new ItemStack(LogisticsPipes.LogisticsInvSysConPipe, 2));
+            GregTechConversionRecipes.addFrequencyCard(
+                    new ItemStack(LogisticsPipes.ModuleItem, 2, ItemModule.BLANK),
+                    new ItemStack(LogisticsPipes.LogisticsItemCard, 2, LogisticsItemCard.FREQ_CARD));
         }
 
         for (int moduleId : LogisticsPipes.ModuleItem.getRegisteredModulesIDs()) {
@@ -2970,7 +2988,7 @@ public class RecipeManager {
 
     /**
      * Converts legacy crafting pipes, satellites, crafting tables and crafter modules into their pattern crafting
-     * counterparts. With GregTech the pipes and tables convert in the assembler (programmed circuit 3), since a lone
+     * counterparts. With GregTech the pipes and tables convert in the assembler (programmed circuit 18), since a lone
      * pipe in the crafting grid clashes with other recipes.
      */
     private static void loadPatternCraftingConversionRecipes() {
@@ -3015,23 +3033,27 @@ public class RecipeManager {
     }
 
     /**
-     * The request table Mk3 is the request table with a fluid request pipe built in: it requests fluids too. With
-     * GregTech the two go into the assembler, like the other pipes of the pack.
+     * The request table Mk2 is the request table with a fluid request pipe built in: it requests fluids too. With
+     * GregTech the two go into the assembler, like the other pipes of the pack. The Mk3 has no recipe of its own, it
+     * swaps with the Mk2 in the crafting grid.
      */
-    private static void loadRequestTableMk3Recipe() {
+    private static void loadRequestTableRecipes() {
+        ItemStack mk2 = new ItemStack(LogisticsPipes.logisticsNewRequestTable, 1);
         ItemStack mk3 = new ItemStack(LogisticsPipes.logisticsRequestTableMk3, 1);
         if (LogisticsPipes.isGregTech) {
-            GregTechConversionRecipes.addRequestTableMk3(
+            GregTechConversionRecipes.addRequestTableMk2(
                     new ItemStack(LogisticsPipes.logisticsRequestTable, 1),
                     new ItemStack(LogisticsPipes.LogisticsFluidRequestPipe, 1),
-                    mk3);
+                    mk2);
         } else {
             RecipeManager.craftingManager.addShapelessRecipe(
-                    mk3,
+                    mk2,
                     CraftingDependency.Fast_Crafting,
                     LogisticsPipes.logisticsRequestTable,
                     LogisticsPipes.LogisticsFluidRequestPipe);
         }
+        RecipeManager.craftingManager.addShapelessRecipe(mk3, CraftingDependency.Fast_Crafting, mk2.copy());
+        RecipeManager.craftingManager.addShapelessRecipe(mk2.copy(), CraftingDependency.Fast_Crafting, mk3.copy());
     }
 
     private static boolean isCrafterModule(int moduleId) {
