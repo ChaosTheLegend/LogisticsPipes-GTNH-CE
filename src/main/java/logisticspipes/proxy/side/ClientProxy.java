@@ -37,7 +37,7 @@ import logisticspipes.blocks.stats.LogisticsStatisticsTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.crafting.CraftingMonitorTileEntity;
 import logisticspipes.crafting.PatternLogisticsCraftingTableTileEntity;
-import logisticspipes.crafting.requesttable.RequestTableGui;
+import logisticspipes.crafting.requesttable.gui.RequestTableGui;
 import logisticspipes.gui.GuiCraftingPipe;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.GuiSupplierPipe;
@@ -417,6 +417,12 @@ public class ClientProxy implements IProxy {
         if (RequestTableResultPopup.offer(packet.getItems(), packet.isFlag(), packet.getCrafted())) {
             return;
         }
+        if (Configs.DISPLAY_POPUP
+                && FMLClientHandler.instance().getClient().currentScreen instanceof RequestTableGui gui) {
+            gui.handleRequestAnswer(packet.getItems(), packet.isFlag(), gui, player);
+            return;
+        }
+
         if (Configs.DISPLAY_POPUP && FMLClientHandler.instance().getClient().currentScreen instanceof GuiOrderer) {
             ((GuiOrderer) FMLClientHandler.instance().getClient().currentScreen).handleRequestAnswer(
                     packet.getItems(),

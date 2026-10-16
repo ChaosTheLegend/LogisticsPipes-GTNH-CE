@@ -50,6 +50,14 @@ public class RequestHandler {
     }
 
     /**
+     * @param showMessages false to keep the result of the request quiet: no popup and no chat lines
+     */
+    public static void request(final EntityPlayer player, final ItemIdentifierStack stack, final CoreRoutedPipe pipe,
+            final boolean showMessages) {
+        request(player, stack, pipe, null, showMessages);
+    }
+
+    /**
      * @param info comes back with the requested items when they arrive, may be null
      */
     public static void request(final EntityPlayer player, final ItemIdentifierStack stack, final CoreRoutedPipe pipe,

@@ -4,6 +4,7 @@
 /.vscode/
 /run/
 /build/
+__pycache__/
 /eclipse/
 .classpath
 .project

@@ -1,4 +1,4 @@
-package logisticspipes.crafting.requesttable;
+package logisticspipes.crafting.requesttable.settings;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,8 +19,7 @@ public class RequestTableDisplaySettingsStore {
     private final Map<UUID, RequestTableDisplaySettings> settingsByPlayer = new HashMap<>();
 
     public RequestTableDisplaySettings get(UUID playerId) {
-        RequestTableDisplaySettings settings = settingsByPlayer.get(playerId);
-        return settings == null ? RequestTableDisplaySettings.DEFAULT : settings;
+        return settingsByPlayer.getOrDefault(playerId, RequestTableDisplaySettings.DEFAULT);
     }
 
     /**
@@ -44,7 +43,7 @@ public class RequestTableDisplaySettingsStore {
             try {
                 UUID playerId = UUID.fromString(entry.getString(NBT_PLAYER));
                 RequestTableDisplaySettings settings = RequestTableDisplaySettings
-                        .readFromNBT(entry.getCompoundTag(NBT_SETTINGS));
+                    .readFromNBT(entry.getCompoundTag(NBT_SETTINGS));
                 if (!RequestTableDisplaySettings.DEFAULT.equals(settings)) {
                     settingsByPlayer.put(playerId, settings);
                 }

@@ -4,7 +4,7 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidTank;
 
-import logisticspipes.crafting.requesttable.RequestTableFluidStorage;
+import logisticspipes.crafting.requesttable.storage.RequestTableFluidStorage;
 
 /**
  * One slot of the fluid storage of the request table as a tank, so a fluid slot widget can show and change it.

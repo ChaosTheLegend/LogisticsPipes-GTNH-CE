@@ -351,6 +351,7 @@ public class LogisticsPipes {
 
         NetworkRegistry.INSTANCE.registerGuiHandler(LogisticsPipes.instance, new GuiHandler());
         FMLCommonHandler.instance().bus().register(new LPTickHandler());
+        FMLCommonHandler.instance().bus().register(logisticspipes.crafting.monitor.CraftingMonitorService.INSTANCE);
 
         if (event.getSide().equals(Side.CLIENT)) {
             FMLCommonHandler.instance().bus().register(new RenderTickHandler());
@@ -619,6 +620,7 @@ public class LogisticsPipes {
 
     @EventHandler
     public void cleanup(FMLServerStoppingEvent event) {
+        logisticspipes.crafting.monitor.CraftingMonitorService.INSTANCE.clear();
         SimpleServiceLocator.routerManager.serverStopClean();
         QueuedTasks.clearAllTasks();
         HudUpdateTick.clearUpdateFlags();

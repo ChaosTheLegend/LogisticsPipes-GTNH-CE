@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.item.ItemStack;
@@ -14,7 +15,7 @@ import codechicken.nei.PositionedStack;
 import codechicken.nei.api.IOverlayHandler;
 import codechicken.nei.recipe.IRecipeHandler;
 import cpw.mods.fml.client.FMLClientHandler;
-import logisticspipes.crafting.requesttable.RequestTableGui;
+import logisticspipes.crafting.requesttable.gui.RequestTableGui;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.orderer.GuiRequestTable;
 import logisticspipes.gui.popup.GuiRecipeImport;
@@ -40,9 +41,9 @@ public class LogisticsCraftingOverlayHandler implements IOverlayHandler {
         } else if (firstGui instanceof GuiRequestTable) {
             tile = ((GuiRequestTable) firstGui)._table.container;
             gui = (GuiRequestTable) firstGui;
-        } else if (firstGui instanceof RequestTableGui) {
-            tile = ((RequestTableGui) firstGui).getTable().container;
-            gui = (RequestTableGui) firstGui;
+        } else if (firstGui instanceof RequestTableGui tableGui) {
+            tile = tableGui.getTable().container;
+            gui = tableGui;
         } else {
             return;
         }
@@ -60,27 +61,25 @@ public class LogisticsCraftingOverlayHandler implements IOverlayHandler {
                         .sendChatMessage("Internal Error. This button is broken.");
                 return;
             }
-            if (slot < 9) {
-                stack[slot] = ps.items[0];
-                List<ItemStack> list = new ArrayList<>(Arrays.asList(ps.items));
-                Iterator<ItemStack> iter = list.iterator();
-                while (iter.hasNext()) {
-                    ItemStack wildCardCheckStack = iter.next();
-                    if (wildCardCheckStack.getItemDamage() == OreDictionary.WILDCARD_VALUE) {
-                        iter.remove();
-                        wildCardCheckStack.getItem().getSubItems(
-                                wildCardCheckStack.getItem(),
-                                wildCardCheckStack.getItem().getCreativeTab(),
-                                list);
-                        iter = list.iterator();
-                    }
+            stack[slot] = ps.items[0];
+            List<ItemStack> list = new ArrayList<>(Arrays.asList(ps.items));
+            Iterator<ItemStack> iter = list.iterator();
+            while (iter.hasNext()) {
+                ItemStack wildCardCheckStack = iter.next();
+                if (wildCardCheckStack.getItemDamage() == OreDictionary.WILDCARD_VALUE) {
+                    iter.remove();
+                    Objects.requireNonNull(wildCardCheckStack.getItem()).getSubItems(
+                        wildCardCheckStack.getItem(),
+                        wildCardCheckStack.getItem().getCreativeTab(),
+                        list);
+                    iter = list.iterator();
                 }
-                stacks[slot] = list.toArray(new ItemStack[0]);
-                if (stacks[slot].length > 1) {
-                    hasCanidates = true;
-                } else if (stacks[slot].length == 1) {
-                    stack[slot] = stacks[slot][0];
-                }
+            }
+            stacks[slot] = list.toArray(new ItemStack[0]);
+            if (stacks[slot].length > 1) {
+                hasCanidates = true;
+            } else if (stacks[slot].length == 1) {
+                stack[slot] = stacks[slot][0];
             }
         }
         if (hasCanidates) {

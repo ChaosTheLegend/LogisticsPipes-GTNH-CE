@@ -1,13 +1,13 @@
 package logisticspipes.crafting.requesttable.upgrades;
 
-import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.upgrades.IPipeUpgrade;
 
 /**
- * Base implementation for upgrades that only apply to the request tables Mk2 and Mk3.
+ * Base implementation for upgrades that only apply to the request table Mk3. The Mk2 table gets its storage from
+ * its own upgrade board and accepts no upgrade items.
  */
 abstract class RequestTableStorageUpgrade implements IPipeUpgrade {
 
@@ -18,7 +18,7 @@ abstract class RequestTableStorageUpgrade implements IPipeUpgrade {
 
     @Override
     public boolean isAllowedForPipe(CoreRoutedPipe pipe) {
-        return pipe instanceof RequestTablePipe || pipe instanceof RequestTableMk3Pipe;
+        return pipe instanceof RequestTableMk3Pipe;
     }
 
     @Override
@@ -28,7 +28,7 @@ abstract class RequestTableStorageUpgrade implements IPipeUpgrade {
 
     @Override
     public String[] getAllowedPipes() {
-        return new String[] { "newRequestTable", "requestTableMk3" };
+        return new String[] { "requestTableMk3" };
     }
 
     @Override

@@ -1,4 +1,8 @@
-package logisticspipes.crafting.requesttable;
+package logisticspipes.crafting.requesttable.storage;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
@@ -8,17 +12,20 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
 
-import logisticspipes.config.Configs;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableStorageUpgradeConfig;
+import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeBranch;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
+import lombok.Getter;
 
 /**
  * Fixed-slot fluid storage for the new request table.
  * <p>
- * The storage exposes an {@link IInventory} view for GUI synchronization. The returned item stacks are display
- * containers only; the authoritative data stays in the {@link FluidStack} array.
+ * The storage exposes an {@link IInventory} view for GUI slots. The returned item stacks are display containers only;
+ * synchronization and authoritative storage use the {@link FluidStack} array.
  */
 public class RequestTableFluidStorage implements IInventory {
 
@@ -26,10 +33,16 @@ public class RequestTableFluidStorage implements IInventory {
     private static final String NBT_INDEX = "index";
     private static final String NBT_SIZE = "size";
     private static final String NBT_CAPACITY = "capacity";
-
-    private FluidStack[] fluids;
-    private int slotCapacity;
     private final String name;
+    private final List<ISimpleInventoryEventHandler> listeners = new ArrayList<>();
+    private FluidStack[] fluids;
+    /**
+     * -- GETTER --
+     *
+     * @return capacity of a single fluid slot in millibuckets
+     */
+    @Getter
+    private int slotCapacity;
 
     /**
      * Creates a new fixed-size fluid storage.
@@ -45,13 +58,14 @@ public class RequestTableFluidStorage implements IInventory {
     }
 
     /**
-     * Creates the default one-row request-table fluid storage.
+     * Creates the base fluid storage from the same configurable progression used by the upgrade board.
      */
     public static RequestTableFluidStorage createDefault() {
+        RequestTableStorageUpgradeConfig config = RequestTableStorageUpgradeConfig.getConfigured(true);
         return new RequestTableFluidStorage(
-                9,
-                "Request Table Fluids",
-                Configs.MAX_LOGISTICS_FLUID_TRANSPORT_INNER_CAPACITY);
+            config.getTotal(RequestTableUpgradeBranch.FLUID_SLOT_COUNT, 0),
+            "Request Table Fluids",
+            config.getTotal(RequestTableUpgradeBranch.FLUID_SLOT_SIZE, 0));
     }
 
     /**
@@ -88,13 +102,6 @@ public class RequestTableFluidStorage implements IInventory {
             }
         }
         markDirty();
-    }
-
-    /**
-     * @return capacity of a single fluid slot in millibuckets
-     */
-    public int getSlotCapacity() {
-        return slotCapacity;
     }
 
     /**
@@ -218,11 +225,46 @@ public class RequestTableFluidStorage implements IInventory {
         return fluids[slot].copy();
     }
 
+    /** Creates an isolated storage for planning cell transfers without notifying live viewers. */
+    RequestTableFluidStorage copy() {
+        RequestTableFluidStorage copy = new RequestTableFluidStorage(fluids.length, name, slotCapacity);
+        for (int slot = 0; slot < fluids.length; slot++) {
+            copy.fluids[slot] = getFluid(slot);
+        }
+        return copy;
+    }
+
+    void copyFrom(RequestTableFluidStorage source) {
+        fluids = new FluidStack[source.fluids.length];
+        slotCapacity = source.slotCapacity;
+        for (int slot = 0; slot < fluids.length; slot++) {
+            fluids[slot] = source.getFluid(slot);
+        }
+        markDirty();
+    }
+
+    /** Replaces client storage with a server snapshot without compacting its slots. */
+    public void applySnapshot(int capacity, List<FluidStack> contents) {
+        slotCapacity = Math.max(1, capacity);
+        fluids = new FluidStack[contents.size()];
+        for (int slot = 0; slot < fluids.length; slot++) {
+            FluidStack fluid = contents.get(slot);
+            fluids[slot] = fluid == null ? null : fluid.copy();
+        }
+        markDirty();
+    }
+
+    public void addListener(ISimpleInventoryEventHandler listener) {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
     /**
      * @return currently stored fluid amount in millibuckets
      */
-    public int getStoredAmount() {
-        int stored = 0;
+    public long getStoredAmount() {
+        long stored = 0;
         for (FluidStack fluid : fluids) {
             if (fluid != null) {
                 stored += fluid.amount;
@@ -231,11 +273,21 @@ public class RequestTableFluidStorage implements IInventory {
         return stored;
     }
 
+    /** Checks each tank without summing amounts, which can overflow with many capacity upgrades. */
+    public boolean isEmpty() {
+        for (FluidStack fluid : fluids) {
+            if (fluid != null && fluid.amount > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * @return total fluid capacity in millibuckets
      */
-    public int getTotalCapacity() {
-        return fluids.length * slotCapacity;
+    public long getTotalCapacity() {
+        return (long) fluids.length * slotCapacity;
     }
 
     /**
@@ -265,9 +317,7 @@ public class RequestTableFluidStorage implements IInventory {
             resize(tag.getInteger(prefix + NBT_SIZE), tag.getInteger(prefix + NBT_CAPACITY), null, 0, 0, 0);
         }
         NBTTagList list = tag.getTagList(prefix + NBT_FLUIDS, tag.getId());
-        for (int i = 0; i < fluids.length; i++) {
-            fluids[i] = null;
-        }
+        Arrays.fill(fluids, null);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound fluidTag = list.getCompoundTagAt(i);
             int index = fluidTag.getInteger(NBT_INDEX);
@@ -331,7 +381,7 @@ public class RequestTableFluidStorage implements IInventory {
             return;
         }
         FluidStack fluid = SimpleServiceLocator.logisticsFluidManager
-                .getFluidFromContainer(ItemIdentifierStack.getFromStack(stack));
+            .getFluidFromContainer(ItemIdentifierStack.getFromStack(stack));
         fluids[slot] = fluid == null || fluid.amount <= 0 ? null : fluid;
         markDirty();
     }
@@ -352,7 +402,11 @@ public class RequestTableFluidStorage implements IInventory {
     }
 
     @Override
-    public void markDirty() {}
+    public void markDirty() {
+        for (ISimpleInventoryEventHandler listener : listeners) {
+            listener.InventoryChanged(this);
+        }
+    }
 
     @Override
     public boolean isUseableByPlayer(EntityPlayer player) {
@@ -360,10 +414,12 @@ public class RequestTableFluidStorage implements IInventory {
     }
 
     @Override
-    public void openInventory() {}
+    public void openInventory() {
+    }
 
     @Override
-    public void closeInventory() {}
+    public void closeInventory() {
+    }
 
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack) {

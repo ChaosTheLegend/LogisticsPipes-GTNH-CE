@@ -14,6 +14,7 @@ import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.interfaces.IPipeUpgradeManager;
 import logisticspipes.interfaces.ISlotUpgradeManager;
@@ -302,16 +303,8 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
 
         // Pipe slots
         for (int pipeSlot = 0; pipeSlot < 8; pipeSlot++) {
-            dummy.addRestrictedSlot(pipeSlot, inv, 8 + pipeSlot * 18, 18, itemStack -> {
-                if (itemStack == null) {
-                    return false;
-                }
-                if (itemStack.getItem() == LogisticsPipes.UpgradeItem) {
-                    return LogisticsPipes.UpgradeItem.getUpgradeForItem(itemStack, null).isAllowedForPipe(pipe);
-                } else {
-                    return false;
-                }
-            });
+            int slot = pipeSlot;
+            dummy.addRestrictedSlot(pipeSlot, inv, 8 + pipeSlot * 18, 18, stack -> isUpgradeAllowed(slot, stack));
         }
         // Static slot for Security Cards
         dummy.addStaticRestrictedSlot(0, secInv, 8 + 8 * 18, 18, itemStack -> {
@@ -372,7 +365,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
             }
             IPipeUpgrade upgrade = LogisticsPipes.UpgradeItem
                     .getUpgradeForItem(entityplayer.getCurrentEquippedItem(), null);
-            if (upgrade.isAllowedForPipe(pipe)) {
+            if (upgrade != null && upgrade.isAllowedForPipe(pipe)) {
                 if (isCombinedSneakyUpgrade) {
                     if (upgrade instanceof SneakyUpgrade) {
                         if (insertIntInv(entityplayer, sneakyInv)) {
@@ -403,6 +396,9 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
 
     private boolean insertIntInv(EntityPlayer entityplayer, SimpleStackInventory inv) {
         for (int i = 0; i < inv.getSizeInventory(); i++) {
+            if (inv == this.inv && !isUpgradeAllowed(i, entityplayer.getCurrentEquippedItem())) {
+                continue;
+            }
             ItemStack item = inv.getStackInSlot(i);
             if (item == null) {
                 inv.setInventorySlotContents(i, entityplayer.getCurrentEquippedItem().splitStack(1));
@@ -419,6 +415,18 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
             }
         }
         return false;
+    }
+
+    /** Applies the table's permanent-upgrade rules to GUI and held-card insertion. */
+    public boolean isUpgradeAllowed(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= inv.getSizeInventory()
+                || stack == null
+                || stack.getItem() != LogisticsPipes.UpgradeItem) {
+            return false;
+        }
+        IPipeUpgrade upgrade = LogisticsPipes.UpgradeItem.getUpgradeForItem(stack, null);
+        return upgrade != null && upgrade.isAllowedForPipe(pipe)
+            && (!(pipe instanceof RequestTablePipe table) || table.isUpgradeAllowed());
     }
 
     public UUID getSecurityID() {
@@ -499,7 +507,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
 
     @Override
     public boolean hasCraftingMonitoringUpgrade() {
-        return hasCraftingMonitoringUpgrade;
+        return pipe instanceof RequestTablePipe table ? table.hasMonitoringUpgrade() : hasCraftingMonitoringUpgrade;
     }
 
     @Override

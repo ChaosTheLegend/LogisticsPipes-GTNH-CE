@@ -28,7 +28,7 @@ import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.blocks.crafting.AutoCraftingInventory;
 import logisticspipes.compat.ModularUIHelper;
 import logisticspipes.config.Configs;
-import logisticspipes.crafting.requesttable.RequestTableFluidStorage;
+import logisticspipes.crafting.requesttable.storage.RequestTableFluidStorage;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.requesttable.RequestTableMui;
 import logisticspipes.interfaces.routing.IRequestFluid;

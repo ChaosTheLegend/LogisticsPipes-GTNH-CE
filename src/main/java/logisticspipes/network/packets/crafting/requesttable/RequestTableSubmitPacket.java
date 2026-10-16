@@ -39,13 +39,14 @@ public class RequestTableSubmitPacket extends RequestPacket {
     @Override
     public void processPacket(EntityPlayer player) {
         RequestTablePipe table = PacketGuards.getOpenRequestTable(player);
-        if (table == null) {
+        if (table == null || (fluid && !table.isFluidEnabled())) {
             return;
         }
+        boolean messages = table.getDisplaySettings(player).isRequestMessagesEnabled();
         if (fluid) {
-            RequestHandler.requestFluid(player, getStack(), table, table);
+            RequestHandler.requestFluid(player, getStack(), table, table, messages);
         } else {
-            RequestHandler.request(player, getStack(), table);
+            RequestHandler.request(player, getStack(), table, messages);
         }
     }
 
