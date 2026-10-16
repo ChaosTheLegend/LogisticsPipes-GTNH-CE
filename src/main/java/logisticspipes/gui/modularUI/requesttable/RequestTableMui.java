@@ -51,12 +51,12 @@ import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.compat.ModularUIHelper;
-import logisticspipes.crafting.requesttable.storage.RequestTableFluidStorage;
 import logisticspipes.crafting.requesttable.RequestTableView;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.FluidUnit;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3DisplaySettings.SearchMemory;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
+import logisticspipes.crafting.requesttable.storage.RequestTableFluidStorage;
 import logisticspipes.gui.modularUI.LogisticsPipeMUI;
 
 /**

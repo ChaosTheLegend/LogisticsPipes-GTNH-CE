@@ -49,7 +49,8 @@ import lombok.Getter;
         @Optional.Interface(modid = "BuildCraft|Transport", iface = "buildcraft.api.power.IPowerReceptor"), })
 @CCType(name = "LogisticsPowerJunction")
 public class LogisticsPowerJunctionTileEntity extends LogisticsSolidTileEntity implements IGuiHolder<PosGuiData>,
-        ILogisticsPowerProvider, IPowerLevelDisplay, IHeadUpDisplayBlockRendererProvider, IBlockWatchingHandler, IEnergySink, IEnergyHandler, PowerPoolStorage.Member {
+        ILogisticsPowerProvider, IPowerLevelDisplay, IHeadUpDisplayBlockRendererProvider, IBlockWatchingHandler,
+        IEnergySink, IEnergyHandler, PowerPoolStorage.Member {
 
     public Object OPENPERIPHERAL_IGNORE; // Tell OpenPeripheral to ignore this class
 

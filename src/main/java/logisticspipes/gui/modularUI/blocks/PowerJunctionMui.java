@@ -73,10 +73,9 @@ public class PowerJunctionMui {
 
         if (LPConstants.DEBUG) {
             panel.child(
-                    new ButtonWidget<>().pos(140, 20).size(20, 20).overlay(IKey.str("+"))
-                            .syncHandler(new InteractionSyncHandler().setOnMousePressed(i -> {
-                                if (i.mouseButton == 0) tile.addEnergy(100000);
-                            })));
+                    new ButtonWidget<>().pos(140, 20).size(20, 20).overlay(IKey.str("+")).syncHandler(
+                            new InteractionSyncHandler()
+                                    .setOnMousePressed(i -> { if (i.mouseButton == 0) tile.addEnergy(100000); })));
         }
 
         panel.child(SlotGroupWidget.playerInventory(true));

@@ -6,8 +6,8 @@ import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.upgrades.IPipeUpgrade;
 
 /**
- * Base implementation for upgrades that only apply to the request table Mk3. The Mk2 table gets its storage from
- * its own upgrade board and accepts no upgrade items.
+ * Base implementation for upgrades that only apply to the request table Mk3. The Mk2 table gets its storage from its
+ * own upgrade board and accepts no upgrade items.
  */
 abstract class RequestTableStorageUpgrade implements IPipeUpgrade {
 
