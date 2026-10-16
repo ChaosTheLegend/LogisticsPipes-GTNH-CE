@@ -75,7 +75,7 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
     static int iterated = 0; // used pseudo-random to spread interest checks over the tick range
 
     // things this pipe is interested in (either providing or sinking)
-    Set<ItemIdentifier> _hasInterestIn = new TreeSet<>();
+    final Set<ItemIdentifier> _hasInterestIn = new TreeSet<>();
     boolean _hasGenericInterest;
     int ticksUntillNextInventoryCheck = 0;
 
@@ -1239,7 +1239,9 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
                     InterestRegistry.add(i, this);
                 }
             }
-            _hasInterestIn = newInterests;
+            // copied: the set belongs to the pipe, which may hand out its cache or a set that can't be changed
+            _hasInterestIn.clear();
+            _hasInterestIn.addAll(newInterests);
         }
     }
 

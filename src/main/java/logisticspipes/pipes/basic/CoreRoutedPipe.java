@@ -1426,6 +1426,23 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         return _inTransitToMe.count(it);
     }
 
+    /**
+     * @return the amount of that fluid on its way to this pipe in fluid containers
+     */
+    public int countOnRoute(FluidIdentifier ident) {
+        int amount = 0;
+        for (ItemRoutingInformation next : _inTransitToMe) {
+            ItemIdentifierStack item = next.getItem();
+            if (item.getItem().isFluidContainer()) {
+                FluidStack liquid = SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(item);
+                if (liquid != null && FluidIdentifier.get(liquid).equals(ident)) {
+                    amount += liquid.amount;
+                }
+            }
+        }
+        return amount;
+    }
+
     @Override
     public final int getIconIndex(ForgeDirection connection) {
         TextureType texture = getTextureType(connection);

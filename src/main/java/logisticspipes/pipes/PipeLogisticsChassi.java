@@ -165,7 +165,7 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         }
     }
 
-    private boolean isValidOrientation(ForgeDirection connection) {
+    protected boolean isValidOrientation(ForgeDirection connection) {
         if (connection == ForgeDirection.UNKNOWN) {
             return false;
         }
@@ -187,6 +187,13 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     public IInventory getModuleInventory() {
         return _moduleInventory;
+    }
+
+    /**
+     * @return true if that module item can be installed in this kind of chassis
+     */
+    public boolean isModuleAllowed(ItemStack stack) {
+        return stack != null && stack.getItem() instanceof ItemModule && !ItemModule.isFluidModule(stack);
     }
 
     public ModuleUpgradeManager getModuleUpgradeManager(int slot) {
@@ -361,6 +368,14 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
                 LogisticsModule current = _module.getModule(i);
                 LogisticsModule next = ((ItemModule) stack.getItem())
                         .getModuleForItem(stack, _module.getModule(i), this, this);
+                if (next == null) {
+                    // a module that no longer exists, the item of it stays in the slot and does nothing
+                    if (_module.hasModule(i)) {
+                        _module.removeModule(i);
+                        reInitGui = true;
+                    }
+                    continue;
+                }
                 next.registerPosition(ModulePositionType.SLOT, i);
                 next.registerCCEventQueuer(this);
                 if (current != next) {
@@ -461,7 +476,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         }
 
         if (!entityplayer.isSneaking() && entityplayer.getCurrentEquippedItem().getItem() == LogisticsPipes.ModuleItem
-                && entityplayer.getCurrentEquippedItem().getItemDamage() != ItemModule.BLANK) {
+                && entityplayer.getCurrentEquippedItem().getItemDamage() != ItemModule.BLANK
+                && isModuleAllowed(entityplayer.getCurrentEquippedItem())) {
             if (MainProxy.isServer(getWorld())) {
                 if (settings == null || settings.openGui) {
                     return tryInsertingModule(entityplayer);

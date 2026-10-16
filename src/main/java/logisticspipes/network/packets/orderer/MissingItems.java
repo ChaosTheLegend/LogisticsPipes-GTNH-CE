@@ -3,6 +3,7 @@ package logisticspipes.network.packets.orderer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import net.minecraft.entity.player.EntityPlayer;
 
@@ -26,6 +27,11 @@ public class MissingItems extends ModernPacket {
     @Getter
     private boolean flag;
 
+    /** for each of the requested items how much of it is crafted, empty if nobody counted */
+    @Getter
+    @Setter
+    private List<Integer> crafted = new ArrayList<>();
+
     public MissingItems(int id) {
         super(id);
     }
@@ -44,11 +50,13 @@ public class MissingItems extends ModernPacket {
     public void writeData(LPDataOutputStream data) throws IOException {
         data.writeCollection(items, LPDataOutputStream::writeIResource);
         data.writeBoolean(isFlag());
+        data.writeCollection(crafted, (out, amount) -> out.writeInt(amount));
     }
 
     @Override
     public void readData(LPDataInputStream data) throws IOException {
         items = data.readList(LPDataInputStream::readIResource);
         setFlag(data.readBoolean());
+        crafted = data.readList(LPDataInputStream::readInt);
     }
 }

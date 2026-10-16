@@ -16,6 +16,10 @@ import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.api.IMUICompatiblePipeV2;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
+import logisticspipes.gui.modularUI.pipes.PipeItemsFluidSupplierMui;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.interfaces.routing.IRequireReliableTransport;
@@ -37,7 +41,8 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
-public class PipeItemsFluidSupplier extends CoreRoutedPipe implements IRequestItems, IRequireReliableTransport {
+public class PipeItemsFluidSupplier extends CoreRoutedPipe
+        implements IRequestItems, IRequireReliableTransport, IMUICompatiblePipeV2 {
 
     private boolean _lastRequestFailed = false;
 
@@ -320,5 +325,10 @@ public class PipeItemsFluidSupplier extends CoreRoutedPipe implements IRequestIt
     /*** GUI ***/
     public ItemIdentifierInventory getDummyInventory() {
         return dummyInventory;
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromMui(new PipeItemsFluidSupplierMui(this));
     }
 }

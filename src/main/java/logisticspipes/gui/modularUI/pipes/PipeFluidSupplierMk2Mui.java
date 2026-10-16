@@ -56,9 +56,11 @@ public class PipeFluidSupplierMk2Mui extends LogisticsPipeMUI {
                                         .child(
                                                 new TextFieldWidget().marginLeft(6).width(80)
                                                         .setNumbers(0, Integer.MAX_VALUE).value(
-                                                                SyncHandlers.intNumber(
-                                                                        () -> supplierPipe.amount,
-                                                                        value -> supplierPipe.amount = value)))
+                                                                SyncHandlers
+                                                                        .intNumber(
+                                                                                () -> supplierPipe.amount,
+                                                                                value -> supplierPipe.amount = value)
+                                                                        .allowC2S()))
                                         .child(IKey.str("mB").asWidget().marginLeft(3)))
                         .child(
                                 new Row().mainAxisAlignment(Alignment.MainAxis.CENTER)
@@ -68,17 +70,19 @@ public class PipeFluidSupplierMk2Mui extends LogisticsPipeMUI {
                                                 IKey.comp(IKey.lang("gui.fluidsuppliermk2.partial"), IKey.str(":"))
                                                         .asWidget())
                                         .child(
-                                                new CycleButtonWidget().marginLeft(6).width(24)
-                                                        .value(
-                                                                SyncHandlers.bool(
+                                                new CycleButtonWidget().marginLeft(6).width(24).value(
+                                                        SyncHandlers
+                                                                .bool(
                                                                         () -> supplierPipe.requestPartials,
-                                                                        value -> supplierPipe.requestPartials = value))
+                                                                        value -> supplierPipe.requestPartials = value)
+                                                                .allowC2S())
                                                         .overlay(
                                                                 IKey.lang(
                                                                         () -> supplierPipe.requestPartials
                                                                                 ? "gui.fluidsuppliermk2.partial.yes"
                                                                                 : "gui.fluidsuppliermk2.partial.no"))
                                                         .tooltipBuilder((tooltip -> {
+                                                            tooltip.setAutoUpdate(true);
                                                             tooltip.addLine(
                                                                     IKey.lang("gui.fluidsuppliermk2.partial.tip"));
 
@@ -104,9 +108,11 @@ public class PipeFluidSupplierMk2Mui extends LogisticsPipeMUI {
                                         .coverChildrenHeight()
                                         .child(
                                                 new TextFieldWidget().width(80).setNumbers(0, Integer.MAX_VALUE).value(
-                                                        SyncHandlers.intNumber(
-                                                                () -> supplierPipe.refillThreshold,
-                                                                value -> supplierPipe.refillThreshold = value))
+                                                        SyncHandlers
+                                                                .intNumber(
+                                                                        () -> supplierPipe.refillThreshold,
+                                                                        value -> supplierPipe.refillThreshold = value)
+                                                                .allowC2S())
 
                                         ).child(IKey.str("mB").asWidget().marginLeft(3))
                                         .child(IKey.str("§9[?]").asWidget().marginLeft(6).tooltipBuilder(tooltip -> {

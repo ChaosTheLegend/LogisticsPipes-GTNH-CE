@@ -2,6 +2,7 @@ package logisticspipes.pipes;
 
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
@@ -19,14 +20,15 @@ import logisticspipes.interfaces.routing.IRequestFluid;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.migration.LegacyHelper;
 import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
+import logisticspipes.pipes.basic.fluid.PendingFluids;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
-import logisticspipes.transport.PipeFluidTransportLogistics;
 import logisticspipes.utils.AdjacentTile;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.WorldUtil;
 import lombok.extern.log4j.Log4j2;
 
@@ -87,21 +89,40 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
 
     private final TObjectIntMap<FluidIdentifier> _requestedItems = new TObjectIntHashMap<>(8, 0.5f, -1);
 
+    /**
+     * @return how much of the fluid that tile holds. For a tile with a special tank handler, like an ME interface, that
+     *         is what the handler reports, so for an ME network the content of the whole network.
+     */
+    private long getStoredAmount(TileEntity tile, FluidIdentifier fluid) {
+        return FluidTankUtil.getStored(tile, ForgeDirection.UNKNOWN, fluid);
+    }
+
+    /**
+     * @return true if the supplier can keep that tile stocked
+     */
+    private boolean isSupplyTarget(TileEntity tile) {
+        if (SimpleServiceLocator.pipeInformationManager.isItemPipe(tile)) {
+            return false;
+        }
+        if (SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile) != null) {
+            return true;
+        }
+        if (!(tile instanceof IFluidHandler handler)) {
+            return false;
+        }
+        FluidTankInfo[] tanks = handler.getTankInfo(ForgeDirection.UNKNOWN);
+        return tanks != null && tanks.length > 0;
+    }
+
     @Override
-    protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, IFluidHandler tile) {
+    protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, TileEntity tile) {
         if (phantomTank.getFluid() == null) {
             // shouldn't happen, but ok
             return;
         }
         // check if this tank need more fluid
-        int have = 0;
-
-        for (FluidTankInfo info : tile.getTankInfo(ForgeDirection.UNKNOWN)) {
-            if (info.fluid != null && info.fluid.isFluidEqual(phantomTank.getFluid())) {
-                have += info.fluid.amount;
-            }
-        }
-        int vacant = amount - have;
+        long have = getStoredAmount(tile, FluidIdentifier.get(phantomTank.getFluid()));
+        int vacant = (int) Math.max(0, amount - have);
         if (vacant <= 0)
             // too much fluid..
             return;
@@ -118,7 +139,7 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
         // it won't be wasted
         FluidStack filled = toFill.copy();
         filled.amount = Math.min(filled.amount, vacant);
-        toFill.amount -= tile.fill(tankLocation.getOpposite(), filled, true);
+        toFill.amount -= fillTank(tile, tankLocation, filled, true);
     }
 
     @Override
@@ -135,46 +156,22 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
         }
 
         TObjectIntMap<FluidIdentifier> requestDiscount = new TObjectIntHashMap<>(_requestedItems);
-        FluidTank centerTank = ((PipeFluidTransportLogistics) transport).internalTank;
-        if (centerTank != null && centerTank.getFluid() != null) {
-            requestDiscount.adjustOrPutValue(
-                    FluidIdentifier.get(centerTank.getFluid()),
-                    centerTank.getFluid().amount,
-                    centerTank.getFluid().amount);
+        // what waits at the pipe for room in a tank is not requested again
+        for (PendingFluids.Entry pending : getPendingFluids()) {
+            requestDiscount
+                    .adjustOrPutValue(FluidIdentifier.get(pending.fluid), pending.fluid.amount, pending.fluid.amount);
         }
 
         WorldUtil worldUtil = new WorldUtil(getWorld(), getX(), getY(), getZ());
         for (AdjacentTile tile : worldUtil.getAdjacentTileEntities(true)) {
-            if (!(tile.tile instanceof IFluidHandler)
-                    || SimpleServiceLocator.pipeInformationManager.isItemPipe(tile.tile)) {
-                continue;
-            }
-            IFluidHandler container = (IFluidHandler) tile.tile;
-            if (container.getTankInfo(ForgeDirection.UNKNOWN) == null
-                    || container.getTankInfo(ForgeDirection.UNKNOWN).length == 0) {
+            if (!isSupplyTarget(tile.tile)) {
                 continue;
             }
 
             // How much should I request?
             TObjectIntMap<FluidIdentifier> wantFluids = new TObjectIntHashMap<>(8);
             FluidIdentifier fIdent = FluidIdentifier.get(phantomTank.getFluid());
-            wantFluids.put(fIdent, amount);
-
-            FluidTankInfo[] result = container.getTankInfo(ForgeDirection.UNKNOWN);
-            for (FluidTankInfo slot : result) {
-                if (slot == null || slot.fluid == null || slot.fluid.getFluidID() == 0) {
-                    continue;
-                }
-                wantFluids.adjustValue(FluidIdentifier.get(slot.fluid), -slot.fluid.amount);
-            }
-
-            // What does our sided internal tank have
-            if (tile.orientation.ordinal() < ((PipeFluidTransportLogistics) transport).sideTanks.length) {
-                FluidTank sideTank = ((PipeFluidTransportLogistics) transport).sideTanks[tile.orientation.ordinal()];
-                if (sideTank != null && sideTank.getFluid() != null) {
-                    wantFluids.adjustValue(FluidIdentifier.get(sideTank.getFluid()), -sideTank.getFluid().amount);
-                }
-            }
+            wantFluids.put(fIdent, (int) Math.max(0, amount - getStoredAmount(tile.tile, fIdent)));
 
             // Reduce what have been requested already
             for (TObjectIntIterator<FluidIdentifier> iter = requestDiscount.iterator(); iter.hasNext();) {

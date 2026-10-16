@@ -527,7 +527,7 @@ public class LogisticsNewRenderPipe {
                         LogisticsNewRenderPipe.texturePlate_Outer.get(dir).add(
                                 LogisticsNewRenderPipe.compute(
                                         entry.getValue().backfacedCopy().apply(new LPTranslation(0.0, 0.0, 1.0))
-                                                .apply(new LPTranslation(-0.5, -0.5, -0.5)).apply(new LPScale(1.001D))
+                                                .apply(new LPTranslation(-0.5, -0.5, -0.5)).apply(new LPScale(1.01D))
                                                 .apply(new LPTranslation(0.5, 0.5, 0.5))));
                     }
                 }

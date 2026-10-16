@@ -64,4 +64,9 @@ public class BuildCraftTankHandler implements ISpecialTankAccessHandler {
         tile = ((TileTank) tile).getBottomTank();
         return ((IFluidHandler) tile).drain(ForgeDirection.UNKNOWN, ident.makeFluidStack(amount), drain);
     }
+
+    @Override
+    public int fillInto(TileEntity tile, FluidStack stack, boolean fill) {
+        return ((IFluidHandler) tile).fill(ForgeDirection.UNKNOWN, stack, fill);
+    }
 }

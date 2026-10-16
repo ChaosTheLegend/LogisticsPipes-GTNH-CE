@@ -287,6 +287,13 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
         return false;
     }
 
+    /**
+     * @return true if the pipe is drawn with the glass body of the fluid pipes
+     */
+    public boolean hasFluidPipeLook() {
+        return isFluidPipe();
+    }
+
     @Override
     public void setCCType(Object type) {
         ccType = type;

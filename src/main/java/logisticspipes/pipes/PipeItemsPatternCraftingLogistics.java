@@ -445,6 +445,14 @@ public class PipeItemsPatternCraftingLogistics extends FluidRoutedPipe
     }
 
     /**
+     * Every item that comes through is routed here, as before the fluid pipes started to relay clumps.
+     */
+    @Override
+    public boolean relaysClumps() {
+        return false;
+    }
+
+    /**
      * Disables the background side-tank transfer behavior from {@link FluidRoutedPipe}.
      * <p>
      * The selected adjacent inventory or fluid handler is managed explicitly by {@link ModulePatternCrafting}.
