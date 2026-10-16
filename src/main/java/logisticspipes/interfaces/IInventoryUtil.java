@@ -9,6 +9,8 @@ import logisticspipes.utils.item.ItemIdentifier;
 
 public interface IInventoryUtil {
 
+    boolean isEmpty();
+
     int itemCount(ItemIdentifier item);
 
     Map<ItemIdentifier, Integer> getItemsAndCount();

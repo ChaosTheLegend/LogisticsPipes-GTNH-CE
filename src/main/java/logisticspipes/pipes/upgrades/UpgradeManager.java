@@ -10,6 +10,9 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
+import com.cleanroommc.modularui.utils.item.InvWrapper;
+
 import logisticspipes.LogisticsPipes;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.interfaces.IGuiOpenControler;
@@ -52,6 +55,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
     private int speedUpgradeCount = 0;
     private final EnumSet<ForgeDirection> disconnectedSides = EnumSet.noneOf(ForgeDirection.class);
     private boolean isAdvancedCrafter = false;
+    private boolean hasInstantSatelliteUpgrade = false;
     private boolean isFuzzyUpgrade = false;
     private boolean isCombinedSneakyUpgrade = false;
     private int liquidCrafter = 0;
@@ -132,6 +136,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
         sneakyOrientation = ForgeDirection.UNKNOWN;
         speedUpgradeCount = 0;
         isAdvancedCrafter = false;
+        hasInstantSatelliteUpgrade = false;
         isFuzzyUpgrade = false;
         boolean combinedBuffer = isCombinedSneakyUpgrade;
         isCombinedSneakyUpgrade = false;
@@ -159,6 +164,8 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
                 disconnectedSides.add(((ConnectionUpgrade) upgrade).getSide());
             } else if (upgrade instanceof AdvancedSatelliteUpgrade) {
                 isAdvancedCrafter = true;
+            } else if (upgrade instanceof InstantSatelliteUpgrade) {
+                hasInstantSatelliteUpgrade = true;
             } else if (upgrade instanceof FuzzyUpgrade) {
                 isFuzzyUpgrade = true;
             } else if (upgrade instanceof CombinedSneakyUpgrade && sneakyOrientation == ForgeDirection.UNKNOWN) {
@@ -259,6 +266,11 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
     @Override
     public ForgeDirection[] getCombinedSneakyOrientation() {
         return combinedSneakyOrientation;
+    }
+
+    @Override
+    public IItemHandlerModifiable getUpgradeInventory() {
+        return new InvWrapper(inv);
     }
 
     public void openGui(EntityPlayer entityplayer, CoreRoutedPipe pipe) {
@@ -446,6 +458,11 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
     @Override
     public boolean isAdvancedSatelliteCrafter() {
         return isAdvancedCrafter;
+    }
+
+    @Override
+    public boolean hasInstantSatelliteUpgrade() {
+        return hasInstantSatelliteUpgrade;
     }
 
     @Override

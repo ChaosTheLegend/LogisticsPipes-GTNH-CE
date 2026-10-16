@@ -144,6 +144,10 @@ public class DummyContainer extends Container {
         return addSlotToContainer(new FluidSlot(inventory, slotId, xCoord, yCoord));
     }
 
+    public Slot addFluidSlot(int slotId, int xCoord, int yCoord) {
+        return addFluidSlot(slotId, _dummyInventory, xCoord, yCoord);
+    }
+
     public Slot addColorSlot(int slotId, IInventory inventory, int xCoord, int yCoord) {
         return addSlotToContainer(new ColorSlot(inventory, slotId, xCoord, yCoord));
     }

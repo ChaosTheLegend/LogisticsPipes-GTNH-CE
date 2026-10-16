@@ -13,12 +13,11 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import logisticspipes.gui.hud.modules.HUDStringBasedItemSink;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleModBasedItemSinkMuiDynamic;
 import logisticspipes.interfaces.IClientInformationProvider;
-import logisticspipes.interfaces.IHUDModuleHandler;
-import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IModuleWatchReciver;
-import logisticspipes.interfaces.IStringBasedModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
@@ -27,8 +26,6 @@ import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.module.inhand.StringBasedItemSinkModuleGuiInHand;
 import logisticspipes.network.guis.module.inpipe.StringBasedItemSinkModuleGuiSlot;
-import logisticspipes.network.packets.hud.HUDStartModuleWatchingPacket;
-import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ItemSinkListPacket;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.proxy.MainProxy;
@@ -36,14 +33,18 @@ import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
+import logisticspipes.utils.item.ItemIdentifierInventory;
 
 public class ModuleModBasedItemSink extends LogisticsGuiModule
-        implements IStringBasedModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
+        implements IClientInformationProvider, IModuleWatchReciver, IMUICompatibleModule {
+
+    public static final int MAX_ENTRIES = 9;
 
     public final List<String> modList = new LinkedList<>();
     private final Set<String> modIdSet = new HashSet<>();
 
-    private final IHUDModuleRenderer HUD = new HUDStringBasedItemSink(this);
+    // scratch, single-slot inventory used only by the MUI to identify an item's owning mod - never persisted
+    private final ItemIdentifierInventory analyseInventory = new ItemIdentifierInventory(1, "Analyse Slot", 1);
 
     private final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
@@ -130,16 +131,6 @@ public class ModuleModBasedItemSink extends LogisticsGuiModule
     }
 
     @Override
-    public void startHUDWatching() {
-        MainProxy.sendPacketToServer(PacketHandler.getPacket(HUDStartModuleWatchingPacket.class).setModulePos(this));
-    }
-
-    @Override
-    public void stopHUDWatching() {
-        MainProxy.sendPacketToServer(PacketHandler.getPacket(HUDStopModuleWatchingPacket.class).setModulePos(this));
-    }
-
-    @Override
     public void startWatching(EntityPlayer player) {
         localModeWatchers.add(player);
         NBTTagCompound nbt = new NBTTagCompound();
@@ -152,27 +143,6 @@ public class ModuleModBasedItemSink extends LogisticsGuiModule
     @Override
     public void stopWatching(EntityPlayer player) {
         localModeWatchers.remove(player);
-    }
-
-    @Override
-    public void listChanged() {
-        if (MainProxy.isServer(_world.getWorld())) {
-            NBTTagCompound nbt = new NBTTagCompound();
-            writeToNBT(nbt);
-            MainProxy.sendToPlayerList(
-                    PacketHandler.getPacket(ItemSinkListPacket.class).setNbt(nbt).setModulePos(this),
-                    localModeWatchers);
-        } else {
-            NBTTagCompound nbt = new NBTTagCompound();
-            writeToNBT(nbt);
-            MainProxy.sendPacketToServer(
-                    PacketHandler.getPacket(ItemSinkListPacket.class).setNbt(nbt).setModulePos(this));
-        }
-    }
-
-    @Override
-    public IHUDModuleRenderer getHUDRenderer() {
-        return HUD;
     }
 
     @Override
@@ -206,13 +176,35 @@ public class ModuleModBasedItemSink extends LogisticsGuiModule
         return register.registerIcon("logisticspipes:itemModule/ModuleModBasedItemSink");
     }
 
-    @Override
-    public List<String> getStringList() {
-        return modList;
+    public ItemIdentifierInventory getAnalyseInventory() {
+        return analyseInventory;
+    }
+
+    public void addMod(String mod) {
+        if (!modList.contains(mod) && modList.size() < MAX_ENTRIES) {
+            modList.add(mod);
+            buildModIdSet();
+        }
+    }
+
+    public void removeMod(String mod) {
+        if (modList.remove(mod)) {
+            buildModIdSet();
+        }
     }
 
     @Override
-    public String getStringForItem(ItemIdentifier ident) {
-        return ident.getModName();
+    public LogisticsModularUI getHandGui() {
+        return new ModuleModBasedItemSinkMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleModBasedItemSinkMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleModBasedItemSinkMuiDynamic(this, prefix);
     }
 }

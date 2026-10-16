@@ -15,6 +15,11 @@ public class EntrencsTransport extends PipeTransportLogistics {
         super(true);
     }
 
+    @Override
+    protected boolean supportsFastRelay() {
+        return false;
+    }
+
     public PipeItemsSystemEntranceLogistics pipe;
 
     @Override

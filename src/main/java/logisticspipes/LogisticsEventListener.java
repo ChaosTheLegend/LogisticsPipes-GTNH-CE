@@ -25,6 +25,7 @@ import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent.Action;
+import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.event.world.ChunkWatchEvent.UnWatch;
 import net.minecraftforge.event.world.ChunkWatchEvent.Watch;
 import net.minecraftforge.event.world.WorldEvent;
@@ -36,6 +37,7 @@ import cpw.mods.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.commands.commands.debug.DebugGuiController;
 import logisticspipes.config.PlayerConfig;
 import logisticspipes.interfaces.IItemAdvancedExistance;
 import logisticspipes.modules.ModuleQuickSort;
@@ -51,6 +53,7 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.renderer.LogisticsGuiOverrenderer;
 import logisticspipes.renderer.LogisticsHUDRenderer;
+import logisticspipes.routing.astar.LPJunctionNetwork;
 import logisticspipes.utils.AdjacentTile;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.PlayerIdentifier;
@@ -180,6 +183,19 @@ public class LogisticsEventListener {
             int dim = MainProxy.getDimensionForWorld(event.world);
             SimpleServiceLocator.routerManager.dimensionUnloaded(dim);
         }
+        if (MainProxy.isClient(event.world)) {
+            DebugGuiController.instance().clearClientDebuggers();
+        }
+    }
+
+    @SubscribeEvent
+    public void chunkUnload(ChunkEvent.Unload event) {
+        if (event.world != null && MainProxy.isServer(event.world)) {
+            LPJunctionNetwork.onChunkUnload(
+                    MainProxy.getDimensionForWorld(event.world),
+                    event.getChunk().xPosition,
+                    event.getChunk().zPosition);
+        }
     }
 
     @SubscribeEvent
@@ -215,6 +231,7 @@ public class LogisticsEventListener {
     @SubscribeEvent
     public void onPlayerLogout(PlayerLoggedOutEvent event) {
         SimpleServiceLocator.serverBufferHandler.clear(event.player);
+        DebugGuiController.instance().clearServerDebuggers(event.player);
         PlayerIdentifier ident = PlayerIdentifier.get(event.player);
         PlayerConfig config = LogisticsEventListener.playerConfigs.get(ident);
         if (config != null) {
@@ -285,6 +302,7 @@ public class LogisticsEventListener {
     @SubscribeEvent
     public void clientLoggedIn(ClientConnectedToServerEvent event) {
         SimpleServiceLocator.clientBufferHandler.clear();
+        DebugGuiController.instance().clearClientDebuggers();
     }
 
     public static void serverShutdown() {

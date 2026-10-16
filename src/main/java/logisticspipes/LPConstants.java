@@ -5,12 +5,17 @@ public class LPConstants {
     private LPConstants() {}
 
     public static final float FACADE_THICKNESS = 2F / 16F;
-    public static final float PIPE_NORMAL_SPEED = 0.01F;
+    public static float PIPE_NORMAL_SPEED = 0.01F;
     public static final float PIPE_MIN_POS = 0.1875F;
     public static final float PIPE_MAX_POS = 0.8125F;
     public static final float BC_PIPE_MIN_POS = 0.25F;
     public static final float BC_PIPE_MAX_POS = 0.75F;
 
+    /**
+     * Debug mode, off unless the JVM runs with {@code -Dlogisticspipes.enableDebug=true}. Never hard-code it on: it
+     * takes two {@code Thread.getStackTrace()} calls per pipe per tick (tens of microseconds each), and it unlocks
+     * debug-only cheats such as the power junction GUI's energy button and {@code /lp debug} for every player.
+     */
     public static final boolean DEBUG = Boolean.getBoolean("logisticspipes.enableDebug");
 
     public static int pipeModel = -1;

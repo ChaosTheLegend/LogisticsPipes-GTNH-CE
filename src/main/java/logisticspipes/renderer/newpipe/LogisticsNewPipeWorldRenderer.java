@@ -14,7 +14,7 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 import logisticspipes.LPConstants;
-import logisticspipes.pipes.PipeBlockRequestTable;
+import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.buildcraft.subproxies.IBCPipePluggable;
@@ -23,10 +23,10 @@ import logisticspipes.proxy.object3d.interfaces.IModel3D;
 import logisticspipes.proxy.object3d.operation.LPScale;
 import logisticspipes.proxy.object3d.operation.LPTranslation;
 import logisticspipes.renderer.IIconProvider;
+import logisticspipes.renderer.LogisticsRenderPipe;
 import logisticspipes.renderer.newpipe.LogisticsNewSolidBlockWorldRenderer.BlockRotation;
 import logisticspipes.renderer.newpipe.LogisticsNewSolidBlockWorldRenderer.CoverSides;
 import logisticspipes.renderer.state.PipeRenderState;
-import logisticspipes.textures.Textures;
 import logisticspipes.utils.tuples.LPPosition;
 
 public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandler {
@@ -44,7 +44,7 @@ public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandl
         LogisticsTileGenericPipe pipeTile = (LogisticsTileGenericPipe) tile;
         PipeRenderState renderState = pipeTile.renderState;
 
-        if (pipeTile.pipe instanceof PipeBlockRequestTable) {
+        if (pipeTile.pipe instanceof IBlockShapedPipe) {
             if (ForgeHooksClient.getWorldRenderPass() != 0) {
                 return false;
             }
@@ -64,7 +64,7 @@ public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandl
             SimpleServiceLocator.cclProxy.getRenderState().setUseNormals(true);
             SimpleServiceLocator.cclProxy.getRenderState().setAlphaOverride(0xff);
 
-            BlockRotation rotation = BlockRotation.getRotation(((PipeBlockRequestTable) pipeTile.pipe).getRotation());
+            BlockRotation rotation = BlockRotation.getRotation(((IBlockShapedPipe) pipeTile.pipe).getRotation());
 
             int brightness = new LPPosition(x, y, z).getBlock(world).getMixedBrightnessForBlock(world, x, y, z);
 
@@ -72,7 +72,7 @@ public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandl
             tess.setBrightness(brightness);
 
             IIconTransformation icon = SimpleServiceLocator.cclProxy
-                    .createIconTransformer(Textures.LOGISTICS_REQUEST_TABLE_NEW);
+                    .createIconTransformer(((IBlockShapedPipe) pipeTile.pipe).getBlockModelTexture());
 
             requestBlock.get(rotation).render(new LPTranslation(x, y, z), icon);
 
@@ -125,6 +125,12 @@ public class LogisticsNewPipeWorldRenderer implements ISimpleBlockRenderingHandl
             renderer.renderStandardBlock(block, x, y, z);
 
             block.setBlockBounds(0, 0, 0, 1, 1, 1);
+        }
+
+        // the pipe body is opaque, bake it once into the solid pass
+        if (pipeTile.pipe != null && ForgeHooksClient.getWorldRenderPass() == 0) {
+            LogisticsRenderPipe.secondRenderer.renderWorldBlock(pipeTile, world, block, x, y, z);
+            hasRendered = true;
         }
         return hasRendered;
     }

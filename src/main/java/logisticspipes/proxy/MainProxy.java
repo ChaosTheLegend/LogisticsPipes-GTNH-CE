@@ -29,6 +29,7 @@ import logisticspipes.network.PacketHandler;
 import logisticspipes.network.PacketInboundHandler;
 import logisticspipes.network.abstractpackets.ModernPacket;
 import logisticspipes.proxy.interfaces.IProxy;
+import logisticspipes.routing.astar.JunctionRoutingThread;
 import logisticspipes.routing.debug.RoutingTableDebugUpdateThread;
 import logisticspipes.routing.pathfinder.IPipeInformationProvider;
 import logisticspipes.ticks.RoutingTableUpdateThread;
@@ -69,6 +70,7 @@ public class MainProxy {
 
     private static Side getEffectiveSide(Thread thr) {
         if (thr.getName().equals("Server thread") || (thr instanceof RoutingTableUpdateThread)
+                || (thr instanceof JunctionRoutingThread)
                 || (thr instanceof RoutingTableDebugUpdateThread)) {
             return Side.SERVER;
         }

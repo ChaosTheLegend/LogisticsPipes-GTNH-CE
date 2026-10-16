@@ -2,6 +2,8 @@ package logisticspipes.interfaces;
 
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
+
 public interface IPipeUpgradeManager {
 
     boolean hasPowerPassUpgrade();
@@ -25,4 +27,6 @@ public interface IPipeUpgradeManager {
     boolean hasCombinedSneakyUpgrade();
 
     ForgeDirection[] getCombinedSneakyOrientation();
+
+    IItemHandlerModifiable getUpgradeInventory();
 }

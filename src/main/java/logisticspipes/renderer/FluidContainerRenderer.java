@@ -1,6 +1,7 @@
 package logisticspipes.renderer;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.entity.RenderItem;
@@ -27,6 +28,9 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 
 @SideOnly(Side.CLIENT)
 public class FluidContainerRenderer implements IItemRenderer {
+
+    private static final float FLUID_AMOUNT_SCALE = 0.75F;
+    private static final String[] FLUID_AMOUNT_SUFFIXES = { "", "k", "m", "b", "t", "q" };
 
     private final EntityItem dummyEntityItem = new EntityItem(null);
     private boolean useThis = true;
@@ -78,6 +82,7 @@ public class FluidContainerRenderer implements IItemRenderer {
             }
             doRenderFluid(liquid, mc, type, data);
             doRenderItem(item, mc, type, data);
+            renderFluidAmount(liquid, mc, type);
         } else if (item.getItem() instanceof LogisticsItemCard) {
             doRenderItem(item, mc, type, data);
             NBTTagCompound nbt = item.getTagCompound();
@@ -111,6 +116,38 @@ public class FluidContainerRenderer implements IItemRenderer {
             }
         }
         GL11.glPopMatrix();
+    }
+
+    private void renderFluidAmount(FluidStack liquid, Minecraft mc, ItemRenderType type) {
+        if (type != ItemRenderType.INVENTORY || liquid.amount <= 0) {
+            return;
+        }
+
+        String amount = formatFluidAmount(liquid.amount);
+        FontRenderer fontRenderer = mc.fontRenderer;
+        GL11.glPushMatrix();
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glTranslatef(0.0F, 0.0F, 200.0F);
+        GL11.glScalef(FLUID_AMOUNT_SCALE, FLUID_AMOUNT_SCALE, 1.0F);
+
+        int x = Math.round((16.0F / FLUID_AMOUNT_SCALE) - fontRenderer.getStringWidth(amount));
+        int y = Math.round(16.0F / FLUID_AMOUNT_SCALE) - 8;
+        fontRenderer.drawStringWithShadow(amount, x, y, 0xFFFFFF);
+
+        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GL11.glEnable(GL11.GL_LIGHTING);
+        GL11.glPopMatrix();
+    }
+
+    private String formatFluidAmount(long amount) {
+        int suffix = 0;
+        long displayAmount = amount;
+        while (displayAmount >= 1000 && suffix < FLUID_AMOUNT_SUFFIXES.length - 1) {
+            displayAmount /= 1000;
+            suffix++;
+        }
+        return displayAmount + FLUID_AMOUNT_SUFFIXES[suffix];
     }
 
     public void doRenderFluid(FluidStack liquid, Minecraft mc, ItemRenderType type, Object[] data) {

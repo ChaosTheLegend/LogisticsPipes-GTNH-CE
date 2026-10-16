@@ -34,22 +34,14 @@ public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
 
     private class PipeRenderSettings extends TabSubGui {
 
-        private SearchBar renderDistance;
         private SearchBar contentRenderDistance;
-        private GuiCheckBox useVBORendererButton;
         private GuiCheckBox useNewRendererButton;
-        private GuiCheckBox useFallbackRendererButton;
 
         private PipeRenderSettings() {}
 
         @Override
         public void initTab() {
             PlayerConfig config = LogisticsPipes.getClientPlayerConfig();
-            if (renderDistance == null) {
-                renderDistance = new SearchBar(fontRendererObj, getBaseScreen(), 15, 95, 30, 15, false, true, true);
-                renderDistance.searchinput1 = config.getRenderPipeDistance() + "";
-            }
-            renderDistance.reposition(15, 94, 30, 15);
             if (contentRenderDistance == null) {
                 contentRenderDistance = new SearchBar(
                         fontRendererObj,
@@ -63,13 +55,9 @@ public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
                         true);
                 contentRenderDistance.searchinput1 = config.getRenderPipeContentDistance() + "";
             }
-            contentRenderDistance.reposition(15, 114, 30, 15);
+            contentRenderDistance.reposition(15, 54, 30, 15);
             useNewRendererButton = (GuiCheckBox) addButton(
                     new GuiCheckBox(0, guiLeft + 15, guiTop + 30, 16, 16, config.isUseNewRenderer()));
-            useVBORendererButton = (GuiCheckBox) addButton(
-                    new GuiCheckBox(0, guiLeft + 15, guiTop + 50, 16, 16, config.isUseVBORenderer()));
-            useFallbackRendererButton = (GuiCheckBox) addButton(
-                    new GuiCheckBox(0, guiLeft + 15, guiTop + 70, 16, 16, config.isUseFallbackRenderer()));
         }
 
         @Override
@@ -94,49 +82,34 @@ public class GuiLogisticsSettings extends LogisticsBaseTabGuiScreen {
             if (button == useNewRendererButton) {
                 useNewRendererButton.change();
             }
-            if (button == useVBORendererButton) {
-                useVBORendererButton.change();
-            }
-            if (button == useFallbackRendererButton) {
-                useFallbackRendererButton.change();
-            }
         }
 
         @Override
         public void renderForgroundContent() {
-            renderDistance.renderSearchBar();
             contentRenderDistance.renderSearchBar();
             fontRendererObj.drawString(StringUtils.translate(PREFIX + "pipenewrenderer"), 38, 34, 0x404040);
-            fontRendererObj.drawString(StringUtils.translate(PREFIX + "pipevborenderer"), 38, 54, 0x404040);
-            fontRendererObj.drawString(StringUtils.translate(PREFIX + "pipefallbackrenderer"), 38, 74, 0x404040);
-            fontRendererObj.drawString(StringUtils.translate(PREFIX + "piperenderdistance"), 53, 98, 0x404040);
-            fontRendererObj.drawString(StringUtils.translate(PREFIX + "pipecontentrenderdistance"), 53, 118, 0x404040);
+            fontRendererObj.drawString(StringUtils.translate(PREFIX + "pipecontentrenderdistance"), 53, 58, 0x404040);
         }
 
         @Override
         public boolean handleClick(int x, int y, int type) {
-            boolean val1 = renderDistance.handleClick(x - guiLeft, y - guiTop, type);
-            boolean val2 = contentRenderDistance.handleClick(x - guiLeft, y - guiTop, type);
-            return val1 || val2;
+            return contentRenderDistance.handleClick(x - guiLeft, y - guiTop, type);
         }
 
         @Override
         public boolean handleKey(int code, char c) {
-            return renderDistance.handleKey(c, code) || contentRenderDistance.handleKey(c, code);
+            return contentRenderDistance.handleKey(c, code);
         }
 
         @Override
         public void guiClose() {
             PlayerConfig config = LogisticsPipes.getClientPlayerConfig();
             try {
-                config.setRenderPipeDistance(Integer.parseInt(renderDistance.getContent()));
                 config.setRenderPipeContentDistance(Integer.parseInt(contentRenderDistance.getContent()));
             } catch (Exception e) {
                 e.printStackTrace();
             }
             config.setUseNewRenderer(useNewRendererButton.getState());
-            config.setUseVBORenderer(useVBORendererButton.getState());
-            config.setUseFallbackRenderer(useFallbackRendererButton.getState());
             config.sendUpdate();
         }
     }

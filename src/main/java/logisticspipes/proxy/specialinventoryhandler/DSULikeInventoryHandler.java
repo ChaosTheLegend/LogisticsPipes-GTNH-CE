@@ -142,7 +142,7 @@ abstract class DSULikeInventoryHandler extends SpecialInventoryHandler {
      * @return return false if this does not have anything inside, including ghosts with 0 stack size. return true
      *         otherwise
      */
-    abstract boolean isEmpty();
+    public abstract boolean isEmpty();
 
     abstract int getSize();
 

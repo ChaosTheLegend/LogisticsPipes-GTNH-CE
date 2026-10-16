@@ -24,6 +24,11 @@ public class LogisticsDictPromise extends LogisticsPromise {
     }
 
     @Override
+    public LogisticsDictPromise copy() {
+        return new LogisticsDictPromise(resource.clone(), numberOfItems, sender, type);
+    }
+
+    @Override
     public IExtraPromise split(int more) {
         numberOfItems -= more;
         this.resource.stack.setStackSize(numberOfItems);

@@ -20,8 +20,14 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
-import logisticspipes.LogisticsPipes;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import logisticspipes.api.IMUICompatiblePipeV2;
+import logisticspipes.crafting.IStagedProviderReservation;
 import logisticspipes.gui.hud.HUDProvider;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
 import logisticspipes.interfaces.IChangeListener;
 import logisticspipes.interfaces.IChestContentReceiver;
 import logisticspipes.interfaces.IHeadUpDisplayRenderer;
@@ -38,13 +44,10 @@ import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.modules.ModuleProvider;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.network.GuiIDs;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.hud.ChestContent;
 import logisticspipes.network.packets.hud.HUDStartWatchingPacket;
 import logisticspipes.network.packets.hud.HUDStopWatchingPacket;
-import logisticspipes.network.packets.modules.ProviderPipeInclude;
-import logisticspipes.network.packets.modules.ProviderPipeMode;
 import logisticspipes.network.packets.orderer.OrdererManagerContent;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
@@ -72,12 +75,15 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
-public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvideItems, IHeadUpDisplayRendererProvider,
-        IChestContentReceiver, IChangeListener, IOrderManagerContentReceiver {
+public class PipeItemsProviderLogistics extends CoreRoutedPipe
+        implements IProvideItems, IHeadUpDisplayRendererProvider, IChestContentReceiver, IChangeListener,
+        IOrderManagerContentReceiver, IMUICompatiblePipeV2, IStagedProviderReservation {
 
+    private static final Logger log = LogManager.getLogger(PipeItemsProviderLogistics.class);
     public final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
     private final Map<ItemIdentifier, Integer> displayMap = new TreeMap<>();
+    private final Map<ItemIdentifier, Integer> stagedCraftingReservations = new TreeMap<>();
     public final ArrayList<ItemIdentifierStack> displayList = new ArrayList<>();
     private final ArrayList<ItemIdentifierStack> oldList = new ArrayList<>();
 
@@ -92,6 +98,8 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 
     public PipeItemsProviderLogistics(Item item) {
         super(item);
+        myModule = new ModuleProvider();
+        myModule.registerHandler(this, this);
     }
 
     public PipeItemsProviderLogistics(Item item, LogisticsItemOrderManager logisticsOrderManager) {
@@ -249,7 +257,7 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
         if (!isEnabled()) {
             return 0;
         }
-        return getTotalItemCount(item) - _orderManager.totalItemsCountInOrders(item);
+        return getTotalItemCount(item) - _orderManager.totalItemsCountInOrders(item) - getReservedStagedCrafting(item);
     }
 
     @Override
@@ -348,6 +356,7 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
     public LogisticsOrder fullFill(LogisticsPromise promise, IRequestItems destination,
             IAdditionalTargetInformation info) {
         spawnParticle(Particles.WhiteParticle, 2);
+        releaseStagedCrafting(promise.item, promise.numberOfItems);
         return _orderManager.addOrder(
                 new ItemIdentifierStack(promise.item, promise.numberOfItems),
                 destination,
@@ -396,13 +405,49 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 
         // Reduce what has been reserved, add.
         for (Entry<ItemIdentifier, Integer> item : addedItems.entrySet()) {
-            int remaining = item.getValue() - _orderManager.totalItemsCountInOrders(item.getKey());
+            int remaining = item.getValue() - _orderManager.totalItemsCountInOrders(item.getKey())
+                    - getReservedStagedCrafting(item.getKey());
             if (remaining < 1) {
                 continue;
             }
 
             items.put(item.getKey(), remaining);
         }
+    }
+
+    /**
+     * Tracks provider stock that belongs to a staged crafting tree but has not been sent yet.
+     */
+    @Override
+    public void reserveStagedCrafting(ItemIdentifier item, int amount) {
+        if (item == null || amount <= 0) {
+            return;
+        }
+        stagedCraftingReservations.put(item, getReservedStagedCrafting(item) + amount);
+    }
+
+    /**
+     * Releases staged provider stock before the real provider order is inserted into this pipe's order manager.
+     */
+    @Override
+    public void releaseStagedCrafting(ItemIdentifier item, int amount) {
+        if (item == null || amount <= 0) {
+            return;
+        }
+        int remaining = getReservedStagedCrafting(item) - amount;
+        if (remaining <= 0) {
+            stagedCraftingReservations.remove(item);
+        } else {
+            stagedCraftingReservations.put(item, remaining);
+        }
+    }
+
+    /**
+     * Returns the staged reservation amount for an item.
+     */
+    private int getReservedStagedCrafting(ItemIdentifier item) {
+        Integer reserved = stagedCraftingReservations.get(item);
+        return reserved != null ? reserved : 0;
     }
 
     @Override
@@ -543,73 +588,68 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
         return (_orderManager.totalAmountCountInAllOrders() + 63) / 64.0;
     }
 
-    // import from logic
-    private final ItemIdentifierInventory providingInventory = new ItemIdentifierInventory(9, "", 1);
-    private boolean _filterIsExclude;
-    private ExtractionMode _extractionMode = ExtractionMode.Normal;
-
-    @Override
-    public void onWrenchClicked(EntityPlayer entityplayer) {
-        entityplayer.openGui(LogisticsPipes.instance, GuiIDs.GUI_ProviderPipe_ID, getWorld(), getX(), getY(), getZ());
-        MainProxy.sendPacketToPlayer(
-                PacketHandler.getPacket(ProviderPipeMode.class).setInteger(getExtractionMode().ordinal())
-                        .setPosX(getX()).setPosY(getY()).setPosZ(getZ()),
-                entityplayer);
-        MainProxy.sendPacketToPlayer(
-                PacketHandler.getPacket(ProviderPipeInclude.class).setInteger(isExcludeFilter() ? 1 : 0).setPosX(getX())
-                        .setPosY(getY()).setPosZ(getZ()),
-                entityplayer);
-    }
-
     /*** GUI ***/
     public ItemIdentifierInventory getprovidingInventory() {
-        return providingInventory;
+        return (ItemIdentifierInventory) myModule.getFilterInventory();
     }
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {
         super.readFromNBT(nbttagcompound);
-        providingInventory.readFromNBT(nbttagcompound, "");
-        _filterIsExclude = nbttagcompound.getBoolean("filterisexclude");
-        _extractionMode = ExtractionMode.getMode(nbttagcompound.getInteger("extractionMode"));
+        myModule.readFromNBT(nbttagcompound);
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
         super.writeToNBT(nbttagcompound);
-        providingInventory.writeToNBT(nbttagcompound, "");
-        nbttagcompound.setBoolean("filterisexclude", _filterIsExclude);
-        nbttagcompound.setInteger("extractionMode", _extractionMode.ordinal());
+        myModule.writeToNBT(nbttagcompound);
     }
 
     /**
      * INTERFACE TO PIPE
      **/
     public boolean hasFilter() {
-        return !providingInventory.isEmpty();
+        return !((ItemIdentifierInventory) myModule.getFilterInventory()).isEmpty();
     }
 
     public boolean itemIsFiltered(ItemIdentifier item) {
-        return providingInventory.containsItem(item);
+        return ((ItemIdentifierInventory) myModule.getFilterInventory()).containsItem(item);
     }
 
     public boolean isExcludeFilter() {
-        return _filterIsExclude;
+        return myModule.isExcludeFilter();
     }
 
+    @Deprecated
+    /*
+     * replaced by modular ui handlers
+     */
     public void setFilterExcluded(boolean isExcluded) {
-        _filterIsExclude = isExcluded;
+        return;
     }
 
     public ExtractionMode getExtractionMode() {
-        return _extractionMode;
+        return myModule.getExtractionMode();
     }
 
+    @Deprecated
+    /*
+     * replaced by modular ui handlers
+     */
     public void setExtractionMode(int id) {
-        _extractionMode = ExtractionMode.getMode(id);
+        return;
     }
 
+    @Deprecated
+    /*
+     * replaced by modular ui handlers
+     */
     public void nextExtractionMode() {
-        _extractionMode = _extractionMode.next();
+        return;
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromModule(this, myModule);
     }
 }

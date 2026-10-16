@@ -129,7 +129,7 @@ public class GuiCraftingPipe extends ModuleBaseGui {
         inventorySlots = dummy;
         _pipe = module;
         _pipe.setFluidAmount(amount);
-        normalButtonArray = new GuiButton[8];
+        normalButtonArray = new GuiButton[10];
         advancedSatButtonArray = new GuiButton[9][2];
         for (int i = 0; i < 9; i++) {
             advancedSatButtonArray[i] = new GuiButton[2];
@@ -178,6 +178,14 @@ public class GuiCraftingPipe extends ModuleBaseGui {
                             28,
                             10,
                             StringUtils.translate(GuiCraftingPipe.PREFIX + "Open")));
+            addButton(
+                    normalButtonArray[8] = new SmallGuiButton(
+                            5,
+                            (width - xSize) / 2 + 6,
+                            (height - ySize) / 2 + 62,
+                            28,
+                            10,
+                            StringUtils.translate(GuiCraftingPipe.PREFIX + "Blocking")));
             addButton(
                     normalButtonArray[4] = new SmallGuiButton(
                             20,
@@ -494,6 +502,9 @@ public class GuiCraftingPipe extends ModuleBaseGui {
                 // LogisticsEventListener.addGuiToReopen(_pipe.getX(), _pipe.getY(), _pipe.getZ(), 0); //TODO reactivate
                 // this
                 return;
+            case 5:
+                _pipe.setBlockingMode(true);
+                break;
             case 20:
                 _pipe.priorityUp(_player);
                 return;

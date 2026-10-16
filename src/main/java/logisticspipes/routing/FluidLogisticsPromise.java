@@ -22,7 +22,8 @@ public class FluidLogisticsPromise implements IPromise {
     @Getter
     private final FluidIdentifier liquid;
     @Getter
-    private final int amount;
+    private int amount;
+    @Getter
     private final IProvideFluids sender;
     @Getter
     private final ResourceType type;
@@ -39,6 +40,14 @@ public class FluidLogisticsPromise implements IPromise {
         return new FluidLogisticsPromise(liquid, amount, sender, type);
     }
 
+    public FluidLogisticsPromise copyWithAmount(int amount) {
+        return new FluidLogisticsPromise(liquid, amount, sender, type);
+    }
+
+    protected void setAmount(int amount) {
+        this.amount = amount;
+    }
+
     @Override
     public boolean matches(IResource requestType) {
         if (requestType instanceof FluidResource) {
@@ -50,8 +59,8 @@ public class FluidLogisticsPromise implements IPromise {
 
     @Override
     public IExtraPromise split(int more) {
-        // TODO Add When Fluid crafing is supported
-        throw new UnsupportedOperationException("Fluid Promises can't be split");
+        amount -= more;
+        return new FluidExtraPromise(liquid, more, sender, false);
     }
 
     @Override

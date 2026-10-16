@@ -23,6 +23,10 @@ public abstract class BaseCraftingTemplate implements IReqCraftingTemplate {
         ingredients.add(new Pair<>(requirement, info));
     }
 
+    public List<Pair<IResource, IAdditionalTargetInformation>> getIngredients() {
+        return ingredients;
+    }
+
     @Override
     public List<Pair<IResource, IAdditionalTargetInformation>> getComponents(int nCraftingSetsNeeded) {
         List<Pair<IResource, IAdditionalTargetInformation>> stacks = new ArrayList<>(ingredients.size());

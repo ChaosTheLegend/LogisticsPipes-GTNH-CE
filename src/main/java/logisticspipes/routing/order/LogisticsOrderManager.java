@@ -150,6 +150,15 @@ public abstract class LogisticsOrderManager<T extends LogisticsOrder, I> impleme
         listen();
     }
 
+    public void removeOrder(T order) {
+        if (order == null || !_orders.remove(order)) {
+            return;
+        }
+        order.setFinished(true);
+        order.setInProgress(false);
+        listen();
+    }
+
     @SuppressWarnings("unchecked")
     public void deferSend() {
         _orders.addLast((T) _orders.removeFirst().setInProgress(false));

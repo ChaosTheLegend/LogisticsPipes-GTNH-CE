@@ -65,6 +65,9 @@ public class PipeItemsCraftingLogistics extends CoreRoutedPipe implements ICraft
     private final HUDCrafting HUD = new HUDCrafting(this);
 
     private boolean doContentUpdate = true;
+    private boolean blockingModeEnabled = false;
+    private boolean isBlocked = false;
+    private final LinkedList<ItemIdentifierStack> blockingBuffer = new LinkedList<>();
 
     public PipeItemsCraftingLogistics(Item item) {
         super(item);
@@ -251,12 +254,16 @@ public class PipeItemsCraftingLogistics extends CoreRoutedPipe implements ICraft
     public void readFromNBT(NBTTagCompound nbttagcompound) {
         super.readFromNBT(nbttagcompound);
         craftingModule.readFromNBT(nbttagcompound);
+        blockingModeEnabled = nbttagcompound.getBoolean("blockingModeEnabled");
+        // TODO: Load blockingBuffer from NBT if needed
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
         super.writeToNBT(nbttagcompound);
         craftingModule.writeToNBT(nbttagcompound);
+        nbttagcompound.setBoolean("blockingModeEnabled", blockingModeEnabled);
+        // TODO: Save blockingBuffer to NBT if needed
     }
 
     @Override
@@ -265,12 +272,35 @@ public class PipeItemsCraftingLogistics extends CoreRoutedPipe implements ICraft
         craftingModule.tick();
     }
 
-    @Override
-    public void itemArrived(ItemIdentifierStack item, IAdditionalTargetInformation info) {
-        craftingModule.itemArrived(item, info);
+    public void setBlockingMode(boolean blockingMode) {
+        this.blockingModeEnabled = blockingMode;
     }
 
     @Override
+    public void itemArrived(ItemIdentifierStack item, IAdditionalTargetInformation info) {
+        craftingModule.itemArrived(item, info);
+        if (blockingModeEnabled) {
+            blockingBuffer.add(item);
+            tryInsertBufferedItems();
+        } else {
+            craftingModule.itemArrived(item, info);
+        }
+    }
+
+    private void tryInsertBufferedItems() {
+        if (!isBlocked && !blockingBuffer.isEmpty()) {
+            IInventory target = getRealInventory();
+            if (target != null) {
+                for (ItemIdentifierStack stack : blockingBuffer) {
+                    // Insert stack into target inventory (implement actual insertion logic)
+                    // This is a placeholder: you must implement the actual insertion logic
+                }
+                blockingBuffer.clear();
+                isBlocked = true; // Block until sinksItem() returns true
+            }
+        }
+    }
+
     public void itemLost(ItemIdentifierStack item, IAdditionalTargetInformation info) {
         craftingModule.itemLost(item, info);
     }

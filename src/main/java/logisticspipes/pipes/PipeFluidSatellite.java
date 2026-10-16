@@ -18,7 +18,11 @@ import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.gui.hud.HUDSatellite;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
+import logisticspipes.gui.modularUI.pipes.PipeSatelliteMui;
 import logisticspipes.interfaces.IChestContentReceiver;
 import logisticspipes.interfaces.IHeadUpDisplayRenderer;
 import logisticspipes.interfaces.IHeadUpDisplayRendererProvider;
@@ -44,9 +48,11 @@ import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
+import lombok.Getter;
+import lombok.Setter;
 
 public class PipeFluidSatellite extends FluidRoutedPipe implements IRequestFluid, IRequireReliableFluidTransport,
-        IHeadUpDisplayRendererProvider, IChestContentReceiver {
+        IHeadUpDisplayRendererProvider, ISatellitePipe, IChestContentReceiver, IMUICompatiblePipeV2 {
 
     public final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
     public final LinkedList<ItemIdentifierStack> itemList = new LinkedList<>();
@@ -191,6 +197,8 @@ public class PipeFluidSatellite extends FluidRoutedPipe implements IRequestFluid
 
     protected final Map<FluidIdentifier, Integer> _lostItems = new HashMap<>();
 
+    @Setter
+    @Getter
     public int satelliteId;
 
     @Override
@@ -315,8 +323,11 @@ public class PipeFluidSatellite extends FluidRoutedPipe implements IRequestFluid
         }
     }
 
-    public void setSatelliteId(int integer) {
-        satelliteId = integer;
+    @Override
+    public void setNextFreeId() {
+        var potentialId = findId(1);
+        ensureAllSatelliteStatus();
+        setSatelliteId(potentialId);
     }
 
     @Override
@@ -339,5 +350,10 @@ public class PipeFluidSatellite extends FluidRoutedPipe implements IRequestFluid
     @Override
     public boolean canReceiveFluid() {
         return false;
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromMui(new PipeSatelliteMui(this));
     }
 }

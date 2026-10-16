@@ -6,15 +6,21 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import logisticspipes.crafting.IStagedCraftingProvider;
+import logisticspipes.crafting.PatternByproductPromise;
+import logisticspipes.crafting.PatternByproductTarget;
+import logisticspipes.crafting.PatternCraftingBranch;
 import logisticspipes.interfaces.IStack;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.ICraft;
@@ -24,15 +30,18 @@ import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree.ActiveRequestType;
 import logisticspipes.request.RequestTree.workWeightedSorter;
+import logisticspipes.request.resources.DictResource;
 import logisticspipes.request.resources.IResource;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
-import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.InterestRegistry;
+import logisticspipes.routing.astar.JunctionRouter;
 import logisticspipes.routing.order.IOrderInfoProvider;
 import logisticspipes.routing.order.IOrderInfoProvider.ResourceType;
 import logisticspipes.routing.order.LinkedLogisticsOrderList;
 import logisticspipes.routing.order.LogisticsOrderManager;
+import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.tuples.Pair;
 import lombok.Getter;
 
@@ -85,7 +94,10 @@ public class RequestTreeNode {
     private final List<IExtraPromise> byproducts = new ArrayList<>();
     private final SortedSet<ICraftingTemplate> usedCrafters = new TreeSet<>();
     private final Set<LogisticsOrderManager<?, ?>> usedExtrasFromManager = new HashSet<>();
+    private final Map<ItemIdentifier, List<IPromise>> collectedSameItemPromises = new LinkedHashMap<>();
     private ICraftingTemplate lastCrafterTried = null;
+    private boolean collectingSameItemPromises;
+    private ItemIdentifier sameItemLockedItem;
 
     private int promiseAmount = 0;
 
@@ -112,6 +124,19 @@ public class RequestTreeNode {
         return promiseAmount;
     }
 
+    /**
+     * @return how much of the request the network crafts, the rest comes from what it has
+     */
+    public int getCraftedAmount() {
+        int provided = 0;
+        for (IPromise promise : promises) {
+            if (promise.getType() == ResourceType.PROVIDER) {
+                provided += promise.getAmount();
+            }
+        }
+        return Math.max(0, promiseAmount - provided);
+    }
+
     public int getMissingAmount() {
         return requestType.getRequestedAmount() - promiseAmount;
     }
@@ -119,6 +144,13 @@ public class RequestTreeNode {
     public void addPromise(IPromise promise) {
         if (!promise.matches(requestType)) {
             throw new IllegalArgumentException("wrong item");
+        }
+        if (collectingSameItemPromises && isSameItemDictRequest()) {
+            collectSameItemPromise(promise);
+            return;
+        }
+        if (isSameItemDictRequest() && !acceptSameItemPromise(promise)) {
+            return;
         }
         if (getMissingAmount() == 0) {
             throw new IllegalArgumentException("zero count needed, promises not needed.");
@@ -163,6 +195,22 @@ public class RequestTreeNode {
         for (RequestTreeNode subNode : subRequests) {
             subNode.removeSubPromisses();
         }
+    }
+
+    /** Counts claims on one exact registered pattern byproduct without including new crafts of the same resource. */
+    public int getPromisedByproductAmount(IProvide provider, ItemIdentifier item, PatternByproductTarget target) {
+        int amount = 0;
+        for (IPromise promise : promises) {
+            if (promise instanceof PatternByproductPromise byproduct && promise.getProvider() == provider
+                    && item.equals(promise.getItemType())
+                    && Objects.equals(target, byproduct.getByproductTarget())) {
+                amount += promise.getAmount();
+            }
+        }
+        for (RequestTreeNode child : subRequests) {
+            amount += child.getPromisedByproductAmount(provider, item, target);
+        }
+        return amount;
     }
 
     protected void checkForExtras(IResource item, HashMap<IProvide, List<IExtraPromise>> extraMap) {
@@ -210,6 +258,9 @@ public class RequestTreeNode {
     }
 
     protected LinkedLogisticsOrderList fullFill() {
+        if (hasStagedCraftingPromise()) {
+            return fullFillStaged();
+        }
         LinkedLogisticsOrderList list = new LinkedLogisticsOrderList();
         for (RequestTreeNode subNode : subRequests) {
             list.getSubOrders().add(subNode.fullFill());
@@ -230,6 +281,107 @@ public class RequestTreeNode {
             logisticspipes.crafting.monitor.CraftingMonitorService.INSTANCE.observe(requestType, list);
         }
         return list;
+    }
+
+    /**
+     * Returns true when this node has at least one promise that should be fulfilled by staged crafting.
+     */
+    private boolean hasStagedCraftingPromise() {
+        for (IPromise promise : promises) {
+            if (isStagedCraftingPromise(promise)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether a promise belongs to a staged pattern crafting provider.
+     */
+    private boolean isStagedCraftingPromise(IPromise promise) {
+        return promise.getType() == ResourceType.CRAFTING && promise.getProvider() instanceof IStagedCraftingProvider;
+    }
+
+    /**
+     * Starts a staged request by handing each staged crafting promise a branch of the already-built request tree.
+     * <p>
+     * Provider promises inside that branch are reserved before the branch is handed off, then released later when the
+     * staged pipe places real provider orders for the ingredients it can currently store.
+     */
+    private LinkedLogisticsOrderList fullFillStaged() {
+        LinkedLogisticsOrderList list = new LinkedLogisticsOrderList();
+        PatternCraftingBranch branch = toPatternCraftingBranch();
+        for (IPromise promise : promises) {
+            IOrderInfoProvider result;
+            if (isStagedCraftingPromise(promise)) {
+                IPromise promiseCopy = promise.copy();
+                PatternCraftingBranch stagedBranch = branch.copyForAmount(promise.getAmount());
+                stagedBranch.reserveProviderPromises();
+                result = ((IStagedCraftingProvider) promise.getProvider()).fullFillStagedCrafting(
+                        promiseCopy,
+                        requestType.copyForDisplayWith(promise.getAmount()),
+                        info,
+                        stagedBranch);
+                if (result == null) {
+                    stagedBranch.releaseProviderPromises();
+                } else {
+                    branch.reserve(promise.getAmount());
+                }
+            } else {
+                result = promise.fullFill(requestType.copyForDisplayWith(promise.getAmount()), info);
+                if (result != null) {
+                    branch.reserve(promise.getAmount());
+                }
+            }
+            if (result != null) {
+                list.add(result);
+            }
+        }
+        for (IExtraPromise promise : extrapromises) {
+            promise.registerExtras(requestType);
+        }
+        for (IExtraPromise promise : byproducts) {
+            // Staged providers register these byproducts only when their ingredient sets are dispatched.
+            if (!(promise.getProvider() instanceof IStagedCraftingProvider)) {
+                promise.registerExtras(requestType);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Converts this request node and all descendants into a staged crafting branch.
+     */
+    private PatternCraftingBranch toPatternCraftingBranch() {
+        List<IPromise> promiseCopies = new ArrayList<>();
+        for (IPromise promise : promises) {
+            promiseCopies.add(promise.copy());
+        }
+        List<IExtraPromise> extraCopies = copyExtraPromises(extrapromises);
+        List<IExtraPromise> byproductCopies = copyExtraPromises(byproducts);
+        List<PatternCraftingBranch> children = new ArrayList<>();
+        for (RequestTreeNode subRequest : subRequests) {
+            children.add(subRequest.toPatternCraftingBranch());
+        }
+        return new PatternCraftingBranch(
+                requestType.copyForDisplayWith(requestType.getRequestedAmount()),
+                info,
+                promiseCopies,
+                extraCopies,
+                byproductCopies,
+                children);
+    }
+
+    /**
+     * Copies extra promises into a staged crafting branch so branch fulfilment can register the matching extra output
+     * later.
+     */
+    private List<IExtraPromise> copyExtraPromises(List<IExtraPromise> promises) {
+        List<IExtraPromise> copies = new ArrayList<>();
+        for (IExtraPromise promise : promises) {
+            copies.add(promise.copy());
+        }
+        return copies;
     }
 
     protected void buildMissingMap(Map<IResource, Integer> missing) {
@@ -279,6 +431,7 @@ public class RequestTreeNode {
         if (thisPipe == null) {
             return false;
         }
+        beginSameItemPromiseCollection();
         for (Pair<IProvide, List<IFilter>> provider : RequestTreeNode
                 .getProviders(requestType.getRouter(), getRequestType())) {
             if (isDone()) {
@@ -292,26 +445,103 @@ public class RequestTreeNode {
                 provider.getValue1().canProvide(this, root, provider.getValue2());
             }
         }
+        finishSameItemPromiseCollection();
         return isDone();
+    }
+
+    private void beginSameItemPromiseCollection() {
+        if (!isSameItemDictRequest()) {
+            return;
+        }
+        collectedSameItemPromises.clear();
+        collectingSameItemPromises = true;
+    }
+
+    private void finishSameItemPromiseCollection() {
+        if (!collectingSameItemPromises) {
+            return;
+        }
+        collectingSameItemPromises = false;
+        List<IPromise> selected = null;
+        for (List<IPromise> promises : collectedSameItemPromises.values()) {
+            if (totalPromiseAmount(promises) >= getMissingAmount()) {
+                selected = promises;
+                break;
+            }
+        }
+        collectedSameItemPromises.clear();
+        if (selected == null) {
+            return;
+        }
+        for (IPromise promise : selected) {
+            if (isDone()) {
+                break;
+            }
+            addPromise(promise);
+        }
+    }
+
+    private void collectSameItemPromise(IPromise promise) {
+        if (promise.getAmount() <= 0) {
+            throw new IllegalArgumentException("zero count ... again");
+        }
+        collectedSameItemPromises.computeIfAbsent(promise.getItemType(), k -> new ArrayList<>()).add(promise.copy());
+    }
+
+    private boolean isSameItemDictRequest() {
+        return requestType instanceof DictResource && ((DictResource) requestType).match_same_item;
+    }
+
+    private boolean acceptSameItemPromise(IPromise promise) {
+        if (sameItemLockedItem == null) {
+            sameItemLockedItem = promise.getItemType();
+            return true;
+        }
+        return sameItemLockedItem.equals(promise.getItemType());
+    }
+
+    private int totalPromiseAmount(List<IPromise> promises) {
+        int amount = 0;
+        for (IPromise promise : promises) {
+            amount += Math.max(0, promise.getAmount());
+        }
+        return amount;
+    }
+
+    /**
+     * Routes from {@code source} to every router in {@code routersIndex} that has a loaded pipe. With the junction
+     * router this is one one-to-many search instead of a separate route query per candidate.
+     */
+    private static List<ExitRoute> routesToInterestedRouters(IRouter source, BitSet routersIndex) {
+        List<IRouter> targets = new ArrayList<>();
+        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
+            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
+            if (r == null || !r.isValidCache()) {
+                continue; // Skip Routers without a valid pipe
+            }
+            targets.add(r);
+        }
+        List<ExitRoute> routes = new ArrayList<>();
+        if (source instanceof JunctionRouter) {
+            for (List<ExitRoute> e : ((JunctionRouter) source).getDistancesTo(targets).values()) {
+                routes.addAll(e);
+            }
+        } else {
+            for (IRouter r : targets) {
+                List<ExitRoute> e = source.getDistanceTo(r);
+                if (e != null) {
+                    routes.addAll(e);
+                }
+            }
+        }
+        return routes;
     }
 
     private static List<Pair<IProvide, List<IFilter>>> getProviders(IRouter destination, IResource item) {
 
         // get all the routers
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn(item);
-        List<ExitRoute> validSources = new ArrayList<>(); // get the routing table
-        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
-            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
-
-            if (!r.isValidCache()) {
-                continue; // Skip Routers without a valid pipe
-            }
-
-            List<ExitRoute> e = destination.getDistanceTo(r);
-            if (e != null) {
-                validSources.addAll(e);
-            }
-        }
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(item);
+        List<ExitRoute> validSources = routesToInterestedRouters(destination, routersIndex);
         // closer providers are good
         validSources.sort(new workWeightedSorter(1.0));
 
@@ -338,16 +568,16 @@ public class RequestTreeNode {
                 continue;
             }
             boolean valid = false;
-            List<ExitRoute> sources = extraPromise.getProvider().getRouter().getRouteTable()
-                    .get(getRequestType().getRouter().getSimpleID());
+            IRouter providerRouter = extraPromise.getProvider().getRouter();
+            IRouter requesterRouter = getRequestType().getRouter();
+            // the provider can send to the requester, and the requester can request from the provider
+            List<ExitRoute> sources = providerRouter.getDistanceTo(requesterRouter);
             outer: for (ExitRoute source : sources) {
                 if (source != null && source.containsFlag(PipeRoutingConnectionType.canRouteTo)) {
-                    for (ExitRoute node : getRequestType().getRouter().getIRoutersByCost()) {
-                        if (node.destination == extraPromise.getProvider().getRouter()) {
-                            if (node.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
-                                valid = true;
-                                break outer;
-                            }
+                    for (ExitRoute node : requesterRouter.getDistanceTo(providerRouter)) {
+                        if (node.containsFlag(PipeRoutingConnectionType.canRequestFrom)) {
+                            valid = true;
+                            break outer;
                         }
                     }
                 }
@@ -363,20 +593,8 @@ public class RequestTreeNode {
     private boolean checkCrafting() {
 
         // get all the routers
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn(getRequestType());
-        List<ExitRoute> validSources = new ArrayList<>(); // get the routing table
-        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
-            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
-
-            if (!r.isValidCache()) {
-                continue; // Skip Routers without a valid pipe
-            }
-
-            List<ExitRoute> e = getRequestType().getRouter().getDistanceTo(r);
-            if (e != null) {
-                validSources.addAll(e);
-            }
-        }
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(getRequestType());
+        List<ExitRoute> validSources = routesToInterestedRouters(getRequestType().getRouter(), routersIndex);
         workWeightedSorter wSorter = new workWeightedSorter(0); // distance doesn't matter, because ingredients have to
         // be delivered to the crafter, and we can't
         // tell how long that will take.
@@ -738,5 +956,86 @@ public class RequestTreeNode {
             resources.add(entry.getKey().copyForDisplayWith(entry.getValue()));
         }
         return resources;
+    }
+
+    @Override
+    public String toString() {
+        var out = new StringBuilder();
+
+        appendToString(out, "", true, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
+
+        return out.toString();
+    }
+
+    private void appendToString(StringBuilder out, String prefix, boolean isLast,
+            java.util.Set<RequestTreeNode> visited) {
+        out.append(prefix).append(isLast ? "└── " : "├── ")
+                .append(parentNode == null ? "RequestTree@" : "RequestTreeNode@")
+                .append(Integer.toHexString(System.identityHashCode(this))).append(" ").append(requestType)
+                .append(" promised=").append(promiseAmount).append("/").append(requestType.getRequestedAmount());
+
+        if (getMissingAmount() > 0) {
+            out.append(" missing=").append(getMissingAmount());
+        }
+
+        if (info != null) {
+            out.append(" info=").append(info);
+        }
+
+        if (lastCrafterTried != null) {
+            out.append(" lastCrafterTried=").append(lastCrafterTried);
+        }
+
+        if (!visited.add(this)) {
+            out.append(" (already shown)\n");
+            return;
+        }
+
+        out.append("\n");
+
+        var childPrefix = prefix + (isLast ? "    " : "│   ");
+
+        var details = new java.util.ArrayList<String>();
+
+        if (!promises.isEmpty()) {
+            details.add("Promises: " + formatPromises(promises, true));
+        }
+
+        if (!extrapromises.isEmpty()) {
+            details.add("Extras: " + formatPromises(extrapromises, false));
+        }
+
+        if (!byproducts.isEmpty()) {
+            details.add("Byproducts: " + formatPromises(byproducts, false));
+        }
+
+        if (!usedCrafters.isEmpty()) {
+            details.add("Used crafters: " + usedCrafters);
+        }
+
+        for (int i = 0; i < details.size(); i++) {
+            boolean detailIsLast = subRequests.isEmpty() && i == details.size() - 1;
+
+            out.append(childPrefix).append(detailIsLast ? "└── " : "├── ").append(details.get(i)).append("\n");
+        }
+
+        for (int i = 0; i < subRequests.size(); i++) {
+            var child = subRequests.get(i);
+            boolean childIsLast = i == subRequests.size() - 1;
+
+            child.appendToString(out, childPrefix, childIsLast, visited);
+        }
+    }
+
+    private String formatPromises(java.util.Collection<? extends IPromise> promises, boolean includeType) {
+        return promises.stream().map(promise -> {
+            var text = promise.getAmount() + "x " + promise.getItemType();
+
+            if (includeType) {
+                text += " " + promise.getType();
+            }
+
+            return text;
+        }).collect(java.util.stream.Collectors.joining(", "));
     }
 }

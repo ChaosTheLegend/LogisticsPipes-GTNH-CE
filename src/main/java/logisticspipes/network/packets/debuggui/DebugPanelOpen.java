@@ -53,8 +53,4 @@ public class DebugPanelOpen extends ModernPacket {
         }
     }
 
-    @Override
-    public boolean isCompressable() {
-        return true;
-    }
 }

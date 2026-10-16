@@ -17,6 +17,7 @@ import ic2.api.recipe.Recipes;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.LogisticsSolidBlock;
 import logisticspipes.config.Configs;
+import logisticspipes.interfaces.IModuleInventory;
 import logisticspipes.items.ItemModule;
 import logisticspipes.items.ItemPipeComponents;
 import logisticspipes.items.ItemUpgrade;
@@ -527,5 +528,10 @@ public class IC2Proxy implements IIC2Proxy {
     @Override
     public double injectEnergyUnits(TileEntity tile, ForgeDirection opposite, double d) {
         return ((IEnergySink) tile).injectEnergy(opposite, d, 1); // TODO check the voltage
+    }
+
+    @Override
+    public IModuleInventory getElectricItemInventory(TileEntity tile, ForgeDirection side) {
+        return null;
     }
 }

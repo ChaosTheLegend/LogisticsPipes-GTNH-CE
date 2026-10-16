@@ -84,6 +84,11 @@ public class ModuleQuickSort extends LogisticsGuiModule {
 
         if (invUtil instanceof SpecialInventoryHandler) {
             Map<ItemIdentifier, Integer> items = invUtil.getItemsAndCount();
+            if (items.isEmpty()) {
+                // nothing to sort, poll at the slower stalled rate until something shows up
+                stalled = true;
+                return;
+            }
             if (lastSuceededStack >= items.size()) {
                 lastSuceededStack = 0;
             }

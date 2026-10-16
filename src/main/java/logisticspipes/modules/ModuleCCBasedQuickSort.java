@@ -42,7 +42,7 @@ import logisticspipes.proxy.specialinventoryhandler.SpecialInventoryHandler;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
-import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.InterestRegistry;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
@@ -71,7 +71,8 @@ public class ModuleCCBasedQuickSort extends ModuleQuickSort
         if (sourceRouter == null) {
             return;
         }
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn((ItemIdentifier) null); // get only pipes with generic
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn((ItemIdentifier) null); // get only pipes with
+                                                                                              // generic
         // interest
         List<ExitRoute> validDestinations = new ArrayList<>(); // get the routing table
         for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {

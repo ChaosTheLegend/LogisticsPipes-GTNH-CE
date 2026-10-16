@@ -20,6 +20,11 @@ public abstract class SpecialInventoryHandler implements IInventoryUtil, ITransa
             boolean hideOne, int cropStart, int cropEnd);
 
     @Override
+    public boolean isEmpty() {
+        return getItemsAndCount().isEmpty();
+    }
+
+    @Override
     public int itemCount(ItemIdentifier itemIdent) {
         Map<ItemIdentifier, Integer> map = getItemsAndCount();
         Integer count = map.get(itemIdent);

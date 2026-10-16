@@ -8,6 +8,7 @@ import net.minecraft.tileentity.TileEntity;
 import com.google.common.collect.Lists;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.interfaces.ISpecialTankAccessHandler;
 import logisticspipes.interfaces.ISpecialTankHandler;
 
 public class SpecialTankHandler {
@@ -46,6 +47,21 @@ public class SpecialTankHandler {
             }
         }
         return false;
+    }
+
+    /**
+     * @return the handler that reads and changes the content of that tile, or null
+     */
+    public ISpecialTankAccessHandler getAccessHandlerFor(TileEntity tile) {
+        if (tile == null) {
+            return null;
+        }
+        for (ISpecialTankHandler handler : handlers) {
+            if (handler instanceof ISpecialTankAccessHandler access && handler.isType(tile)) {
+                return access;
+            }
+        }
+        return null;
     }
 
     public ISpecialTankHandler getTankHandlerFor(TileEntity tile) {

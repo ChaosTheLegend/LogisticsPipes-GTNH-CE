@@ -30,7 +30,8 @@ import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
-import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.InterestRegistry;
+import logisticspipes.routing.astar.RouterIds;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -54,7 +55,7 @@ public class LogisticsManager implements ILogisticsManager {
         if (sourceRouter == null) {
             return null;
         }
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn(stack);
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(stack);
         List<ExitRoute> validDestinations = new ArrayList<>(); // get the routing table
         for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
             IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
@@ -234,19 +235,25 @@ public class LogisticsManager implements ILogisticsManager {
      */
     @Override
     public IRoutedItem assignDestinationFor(IRoutedItem item, int sourceRouterID, boolean excludeSource) {
+        assignDestinationWithLimit(item, sourceRouterID, excludeSource);
+        return item;
+    }
+
+    @Override
+    public int assignDestinationWithLimit(IRoutedItem item, int sourceRouterID, boolean excludeSource) {
 
         // Assert: only called server side.
 
         // If we for some reason can't get the router we can't do anything either
         IRouter sourceRouter = SimpleServiceLocator.routerManager.getRouterUnsafe(sourceRouterID, false);
         if (sourceRouter == null) {
-            return item;
+            return 0;
         }
 
         // Wipe current destination
         item.clearDestination();
 
-        BitSet routersIndex = ServerRouter.getRoutersInterestedIn(item.getItemIdentifierStack().getItem());
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(item.getItemIdentifierStack().getItem());
         List<ExitRoute> validDestinations = new ArrayList<>(); // get the routing table
         for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
             IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
@@ -269,7 +276,7 @@ public class LogisticsManager implements ILogisticsManager {
             if (bestReply.getValue1() != null && bestReply.getValue1() != 0) {
                 item.setDestination(bestReply.getValue1());
             }
-            return item;
+            return 0;
         } else {
             Triplet<Integer, SinkReply, List<IFilter>> bestReply = getBestReply(
                     item.getItemIdentifierStack().getItem(),
@@ -281,6 +288,12 @@ public class LogisticsManager implements ILogisticsManager {
                     true);
             if (bestReply.getValue1() != null && bestReply.getValue1() != 0) {
                 item.setDestination(bestReply.getValue1());
+                // count it as in transit to the new destination, so sinks don't promise the same room twice
+                IRouter destination = SimpleServiceLocator.routerManager.getRouterUnsafe(bestReply.getValue1(), false);
+                CoreRoutedPipe destinationPipe = destination != null ? destination.getCachedPipe() : null;
+                if (destinationPipe != null && item.getInfo() != null) {
+                    destinationPipe.notifyOfRerouteTo(item.getInfo());
+                }
                 if (bestReply.getValue2().isPassive) {
                     if (bestReply.getValue2().isDefault) {
                         item.setTransportMode(TransportMode.Default);
@@ -291,9 +304,61 @@ public class LogisticsManager implements ILogisticsManager {
                     item.setTransportMode(TransportMode.Active);
                 }
                 item.setAdditionalTargetInformation(bestReply.getValue2().addInfo);
+                return Math.max(0, bestReply.getValue2().maxNumberOfItems);
             }
-            return item;
+            return 0;
         }
+    }
+
+    @Override
+    public boolean assignDefaultRouteFor(IRoutedItem item, int sourceRouterID) {
+        IRouter sourceRouter = SimpleServiceLocator.routerManager.getRouterUnsafe(sourceRouterID, false);
+        if (sourceRouter == null || item.getItemIdentifierStack() == null) {
+            return false;
+        }
+        ItemIdentifier stack = item.getItemIdentifierStack().getItem();
+        BitSet routersIndex = InterestRegistry.getRoutersInterestedIn(stack);
+        ExitRoute best = null;
+        SinkReply bestReply = null;
+        for (int i = routersIndex.nextSetBit(0); i >= 0; i = routersIndex.nextSetBit(i + 1)) {
+            IRouter r = SimpleServiceLocator.routerManager.getRouterUnsafe(i, false);
+            if (r == null) {
+                continue;
+            }
+            LogisticsModule module = r.getLogisticsModule();
+            CoreRoutedPipe crp = r.getPipe();
+            if (module == null || crp == null || !crp.isEnabled() || !module.recievePassive()) {
+                continue;
+            }
+            outer: for (ExitRoute e : sourceRouter.getDistanceTo(r)) {
+                if (!e.containsFlag(PipeRoutingConnectionType.canRouteTo) || (best != null && e.compareTo(best) >= 0)) {
+                    continue;
+                }
+                for (IFilter filter : e.filters) {
+                    if (filter.blockRouting() || (filter.isBlocked() == filter.isFilteredItem(stack))) {
+                        continue outer;
+                    }
+                }
+                // includeInTransit = false: only the room that's physically there counts
+                SinkReply reply = module.sinksItem(stack, -1, 0, true, false);
+                if (reply != null && reply.isDefault) {
+                    best = e;
+                    bestReply = reply;
+                }
+            }
+        }
+        if (best == null) {
+            return false;
+        }
+        item.clearDestination();
+        item.setDestination(best.destination.getSimpleID());
+        item.setTransportMode(TransportMode.Default);
+        item.setAdditionalTargetInformation(bestReply.addInfo);
+        CoreRoutedPipe destinationPipe = best.destination.getCachedPipe();
+        if (destinationPipe != null && item.getInfo() != null) {
+            destinationPipe.notifyOfRerouteTo(item.getInfo());
+        }
+        return true;
     }
 
     /**
@@ -337,11 +402,11 @@ public class LogisticsManager implements ILogisticsManager {
     @Override
     public HashMap<ItemIdentifier, Integer> getAvailableItems(List<ExitRoute> validDestinations) {
         // TODO: Replace this entire function wiht a fetch from the pre-built arrays (path incoming later)
-        List<Map<ItemIdentifier, Integer>> items = new ArrayList<>(ServerRouter.getBiggestSimpleID());
-        for (int i = 0; i < ServerRouter.getBiggestSimpleID(); i++) {
+        List<Map<ItemIdentifier, Integer>> items = new ArrayList<>(RouterIds.getBiggestSimpleID());
+        for (int i = 0; i < RouterIds.getBiggestSimpleID(); i++) {
             items.add(new HashMap<>());
         }
-        BitSet used = new BitSet(ServerRouter.getBiggestSimpleID());
+        BitSet used = new BitSet(RouterIds.getBiggestSimpleID());
         outer: for (ExitRoute r : validDestinations) {
             if (r == null) {
                 continue;
@@ -378,7 +443,7 @@ public class LogisticsManager implements ILogisticsManager {
     @Override
     public LinkedList<ItemIdentifier> getCraftableItems(List<ExitRoute> validDestinations) {
         LinkedList<ItemIdentifier> craftableItems = new LinkedList<>();
-        BitSet used = new BitSet(ServerRouter.getBiggestSimpleID());
+        BitSet used = new BitSet(RouterIds.getBiggestSimpleID());
         outer: for (ExitRoute r : validDestinations) {
             if (r == null) {
                 continue;
@@ -419,11 +484,11 @@ public class LogisticsManager implements ILogisticsManager {
     @Override
     public int getAmountFor(ItemIdentifier itemType, List<ExitRoute> validDestinations) {
         // TODO: Replace this entire function wiht a fetch from the pre-built arrays (path incoming later)
-        List<Map<ItemIdentifier, Integer>> items = new ArrayList<>(ServerRouter.getBiggestSimpleID());
-        for (int i = 0; i < ServerRouter.getBiggestSimpleID(); i++) {
+        List<Map<ItemIdentifier, Integer>> items = new ArrayList<>(RouterIds.getBiggestSimpleID());
+        for (int i = 0; i < RouterIds.getBiggestSimpleID(); i++) {
             items.add(new HashMap<>());
         }
-        BitSet used = new BitSet(ServerRouter.getBiggestSimpleID());
+        BitSet used = new BitSet(RouterIds.getBiggestSimpleID());
         outer: for (ExitRoute r : validDestinations) {
             if (r == null) {
                 continue;

@@ -13,7 +13,10 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
 import logisticspipes.gui.hud.modules.HUDSimpleFilterModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleTerminusMuiDynamic;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
@@ -39,8 +42,9 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.string.StringUtils;
 
 @CCType(name = "Terminus Module")
-public class ModuleTerminus extends LogisticsSimpleFilterModule implements IClientInformationProvider,
-        IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
+public class ModuleTerminus extends LogisticsSimpleFilterModule
+        implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler,
+        IModuleInventoryReceive, IMUICompatibleModule {
 
     private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(
             9,
@@ -198,5 +202,20 @@ public class ModuleTerminus extends LogisticsSimpleFilterModule implements IClie
     @SideOnly(Side.CLIENT)
     public IIcon getIconTexture(IIconRegister register) {
         return register.registerIcon("logisticspipes:itemModule/ModuleTerminus");
+    }
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return new ModuleTerminusMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleTerminusMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleTerminusMuiDynamic(this, prefix);
     }
 }

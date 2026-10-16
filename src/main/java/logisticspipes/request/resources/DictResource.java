@@ -28,6 +28,8 @@ public class DictResource implements IResource {
     public boolean ignore_nbt = false;
     // match all items with same oredict prefix
     public boolean use_category = false;
+    // require one concrete item identity to satisfy this resource
+    public boolean match_same_item = false;
 
     public DictResource(ItemIdentifierStack stack, IRequestItems requester) {
         this.stack = stack;
@@ -42,6 +44,7 @@ public class DictResource implements IResource {
         ignore_dmg = bits.get(1);
         ignore_nbt = bits.get(2);
         use_category = bits.get(3);
+        match_same_item = bits.get(4);
     }
 
     @Override
@@ -52,6 +55,7 @@ public class DictResource implements IResource {
         bits.set(1, ignore_dmg);
         bits.set(2, ignore_nbt);
         bits.set(3, use_category);
+        bits.set(4, match_same_item);
         data.writeBitSet(bits);
     }
 
@@ -112,6 +116,7 @@ public class DictResource implements IResource {
         clone.ignore_dmg = ignore_dmg;
         clone.ignore_nbt = ignore_nbt;
         clone.use_category = use_category;
+        clone.match_same_item = match_same_item;
         return clone;
     }
 
@@ -121,6 +126,7 @@ public class DictResource implements IResource {
         clone.ignore_dmg = ignore_dmg;
         clone.ignore_nbt = ignore_nbt;
         clone.use_category = use_category;
+        clone.match_same_item = match_same_item;
         return clone;
     }
 
@@ -154,11 +160,12 @@ public class DictResource implements IResource {
     public IResource copyForDisplayWith(int amount) {
         ItemIdentifierStack stack = this.stack.clone();
         stack.setStackSize(amount);
-        DictResource clone = new DictResource(stack, null);
+        DictResource clone = new DictResource(stack, requester);
         clone.use_od = use_od;
         clone.ignore_dmg = ignore_dmg;
         clone.ignore_nbt = ignore_nbt;
         clone.use_category = use_category;
+        clone.match_same_item = match_same_item;
         return clone;
     }
 
@@ -248,8 +255,7 @@ public class DictResource implements IResource {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj instanceof Identifier) {
-                Identifier id = (Identifier) obj;
+            if (obj instanceof Identifier id) {
                 return id.getItem().equals(getItem()) && id.getBitSet().equals(getBitSet());
             }
             return false;

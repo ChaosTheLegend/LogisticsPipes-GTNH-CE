@@ -3,6 +3,7 @@ package logisticspipes.modules;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +15,10 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
 import logisticspipes.gui.hud.modules.HUDItemSink;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleItemSinkMuiDynamic;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
@@ -51,7 +55,7 @@ import logisticspipes.utils.tuples.Pair;
 
 @CCType(name = "ItemSink Module")
 public class ModuleItemSink extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler,
-        IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
+        IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive, IMUICompatibleModule {
 
     private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(
             9,
@@ -114,6 +118,107 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                 new ChassiTargetInformation(getPositionInt()));
     }
 
+    /**
+     * How long an answer about room in the target inventory is trusted. Matches the router's interest refresh, so a
+     * full sink drops out of the interest registry on the next refresh and comes back once room frees up.
+     */
+    private static final int ROOM_CACHE_TICKS = 20;
+
+    private final Map<ItemIdentifier, Boolean> roomCache = new HashMap<>();
+    private long roomCacheExpiry = 0;
+    private Boolean hasFreeSlot;
+
+    private void expireRoomCache() {
+        long now = _world.getWorld().getTotalWorldTime();
+        if (now >= roomCacheExpiry) {
+            roomCache.clear();
+            hasFreeSlot = null;
+            roomCacheExpiry = now + ROOM_CACHE_TICKS;
+        }
+    }
+
+    /**
+     * The inventory items are inserted into. Basic pipes have no pointed direction, so fall back to the pipe's pointed
+     * inventory lookup, which searches the adjacent inventories.
+     */
+    private IInventoryUtil targetInventory() {
+        IInventoryUtil inv = _service.getSneakyInventory(false, slot, positionInt);
+        return inv != null ? inv : _service.getPointedInventory(false);
+    }
+
+    /** Whether the target inventory can take at least one of {@code item}. No inventory means no room. */
+    private boolean hasRoomFor(ItemIdentifier item) {
+        if (_world == null || _world.getWorld() == null) {
+            return true;
+        }
+        expireRoomCache();
+        Boolean room = roomCache.get(item);
+        if (room == null) {
+            IInventoryUtil inv = targetInventory();
+            room = inv != null && inv.roomForItem(item, 1) > 0;
+            roomCache.put(item, room);
+        }
+        return room;
+    }
+
+    /**
+     * Whether the target inventory has an empty slot, so it can take items it doesn't hold yet. Special inventories
+     * (barrels, drawers, AE) don't expose slots that way and are assumed to have room. No inventory means no room.
+     */
+    private boolean acceptsNewItems() {
+        if (_world == null || _world.getWorld() == null) {
+            return true;
+        }
+        expireRoomCache();
+        if (hasFreeSlot == null) {
+            IInventoryUtil inv = targetInventory();
+            hasFreeSlot = inv != null && (inv.isSpecialInventory() || hasEmptySlot(inv));
+        }
+        return hasFreeSlot;
+    }
+
+    private static boolean hasEmptySlot(IInventoryUtil inv) {
+        for (int i = 0; i < inv.getSizeInventory(); i++) {
+            if (inv.getStackInSlot(i) == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@code reply} if the target inventory still has room for {@code item} once the items already on their way here
+     * are counted, limited to that room. Without this, small inventories are promised to far more items than fit, and
+     * the ones that arrive late bounce from sink to sink until only default routes are left. The limit applies even
+     * with nothing on the way, so a stack is split across sinks when it is sent, not after it bounced.
+     */
+    private SinkReply replyIfRoom(SinkReply reply, ItemIdentifier item, boolean includeInTransit, int energy) {
+        if (!hasRoomFor(item) || !_service.canUseEnergy(energy)) {
+            return null;
+        }
+        // in a chassis, ChassiModule does the in-transit check for the whole pipe
+        if (!includeInTransit || slot == ModulePositionType.SLOT || _world == null || _world.getWorld() == null) {
+            return reply;
+        }
+        int onRoute = _service.countOnRoute(item);
+        IInventoryUtil inv = targetInventory();
+        if (inv == null) {
+            return null;
+        }
+        int room = inv.roomForItem(item, onRoute + item.getMaxStackSize()) - onRoute;
+        return room < 1 ? null : new SinkReply(reply, room);
+    }
+
+    @Override
+    public void insertionFailed(ItemIdentifier item) {
+        if (_world == null || _world.getWorld() == null) {
+            return;
+        }
+        expireRoomCache();
+        roomCache.put(item, false);
+        hasFreeSlot = false;
+    }
+
     @Override
     public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault,
             boolean includeInTransit) {
@@ -125,10 +230,7 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
             return null;
         }
         if (_filterInventory.containsUndamagedItem(item.getUndamaged())) {
-            if (_service.canUseEnergy(1)) {
-                return _sinkReply;
-            }
-            return null;
+            return replyIfRoom(_sinkReply, item, includeInTransit, 1);
         }
         if (_service.getUpgradeManager(slot, positionInt).isFuzzyUpgrade()) {
             for (Pair<ItemIdentifierStack, Integer> stack : _filterInventory) {
@@ -149,10 +251,7 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                     ident2 = ident2.getIgnoringNBT();
                 }
                 if (ident1.equals(ident2)) {
-                    if (_service.canUseEnergy(5)) {
-                        return _sinkReply;
-                    }
-                    return null;
+                    return replyIfRoom(_sinkReply, item, includeInTransit, 5);
                 }
             }
         }
@@ -162,10 +261,7 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                             && bestCustomPriority >= _sinkReplyDefault.customPriority)) {
                 return null;
             }
-            if (_service.canUseEnergy(1)) {
-                return _sinkReplyDefault;
-            }
-            return null;
+            return replyIfRoom(_sinkReplyDefault, item, includeInTransit, 1);
         }
         return null;
     }
@@ -265,21 +361,38 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
         _filterInventory.handleItemIdentifierList(list);
     }
 
+    /** A full default route stops taking everything and only advertises the stacks it can still top up. */
     @Override
     public boolean hasGenericInterests() {
-        return _isDefaultRoute;
+        return _isDefaultRoute && acceptsNewItems();
     }
 
+    /** Filter items the target inventory has no room for aren't advertised, so full sinks drop out of routing. */
     @Override
     public List<ItemIdentifier> getSpecificInterests() {
+        boolean acceptsNew = acceptsNewItems();
         if (_isDefaultRoute) {
-            return null;
+            if (acceptsNew) {
+                return null;
+            }
+            IInventoryUtil inv = targetInventory();
+            List<ItemIdentifier> li = new ArrayList<>();
+            if (inv != null) {
+                for (ItemIdentifier id : inv.getItems()) {
+                    if (hasRoomFor(id)) {
+                        li.add(id);
+                    }
+                }
+            }
+            return li;
         }
         Map<ItemIdentifier, Integer> mapIC = _filterInventory.getItemsAndCount();
         List<ItemIdentifier> li = new ArrayList<>(mapIC.size());
-        li.addAll(mapIC.keySet());
         for (ItemIdentifier id : mapIC.keySet()) {
-            li.add(id.getUndamaged());
+            if (acceptsNew || hasRoomFor(id)) {
+                li.add(id);
+                li.add(id.getUndamaged());
+            }
         }
         if (_service.getUpgradeManager(slot, positionInt).isFuzzyUpgrade()) {
             for (Pair<ItemIdentifierStack, Integer> stack : _filterInventory) {
@@ -287,6 +400,9 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                     continue;
                 }
                 ItemIdentifier ident = stack.getValue1().getItem();
+                if (!acceptsNew && !hasRoomFor(ident)) {
+                    continue;
+                }
                 if (ignoreData.get(stack.getValue2())) {
                     li.add(ident.getIgnoringData());
                 }
@@ -403,5 +519,20 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                 break;
             }
         }
+    }
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return new ModuleItemSinkMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleItemSinkMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleItemSinkMuiDynamic(this, prefix);
     }
 }

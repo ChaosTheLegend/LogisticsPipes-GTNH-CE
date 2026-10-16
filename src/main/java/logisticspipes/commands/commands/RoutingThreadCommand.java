@@ -4,7 +4,7 @@ import net.minecraft.command.ICommandSender;
 import net.minecraft.util.ChatComponentText;
 
 import logisticspipes.commands.abstracts.ICommandHandler;
-import logisticspipes.ticks.RoutingTableUpdateThread;
+import logisticspipes.routing.astar.LPJunctionNetwork;
 
 public class RoutingThreadCommand implements ICommandHandler {
 
@@ -25,10 +25,8 @@ public class RoutingThreadCommand implements ICommandHandler {
 
     @Override
     public void executeCommand(ICommandSender sender, String[] args) {
-        sender.addChatMessage(
-                new ChatComponentText("RoutingTableUpdateThread: Queued: " + RoutingTableUpdateThread.size()));
-        sender.addChatMessage(
-                new ChatComponentText(
-                        "RoutingTableUpdateThread: Average: " + RoutingTableUpdateThread.getAverage() + "ns"));
+        for (String line : LPJunctionNetwork.describe()) {
+            sender.addChatMessage(new ChatComponentText(line));
+        }
     }
 }

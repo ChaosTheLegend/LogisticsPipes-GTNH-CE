@@ -23,12 +23,12 @@ public class LogisticsFluidContainer extends LogisticsItem implements IItemAdvan
 
     @Override
     public boolean canExistInNormalInventory(ItemStack stack) {
-        return false;
+        return true;
     }
 
     @Override
     public boolean canExistInWorld(ItemStack stack) {
-        return false;
+        return true;
     }
 
     @Override

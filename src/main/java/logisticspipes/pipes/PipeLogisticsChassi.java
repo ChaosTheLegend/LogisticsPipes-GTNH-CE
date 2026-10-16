@@ -25,9 +25,12 @@ import net.minecraftforge.common.util.ForgeDirection;
 import cpw.mods.fml.client.FMLClientHandler;
 import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
+import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.config.Configs;
 import logisticspipes.gui.GuiChassiPipe;
 import logisticspipes.gui.hud.HudChassisPipe;
+import logisticspipes.gui.modularUI.ChassisGui;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.interfaces.IBufferItems;
 import logisticspipes.interfaces.IHeadUpDisplayRenderer;
 import logisticspipes.interfaces.IHeadUpDisplayRendererProvider;
@@ -88,7 +91,7 @@ import lombok.Getter;
 @CCType(name = "LogisticsChassiePipe")
 public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         implements ICraftItems, IBufferItems, ISimpleInventoryEventHandler, ISendRoutedItem, IProvideItems,
-        IHeadUpDisplayRendererProvider, ISendQueueContentRecieiver {
+        IHeadUpDisplayRendererProvider, ISendQueueContentRecieiver, IMUICompatiblePipeV2 {
 
     private final ChassiModule _module;
     private final ItemIdentifierInventory _moduleInventory;
@@ -97,6 +100,7 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
     private boolean init = false;
 
     private boolean convertFromMeta = false;
+    private boolean blockingMode = false;
 
     // HUD
     public final LinkedList<ItemIdentifierStack> displayList = new LinkedList<>();
@@ -161,7 +165,7 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         }
     }
 
-    private boolean isValidOrientation(ForgeDirection connection) {
+    protected boolean isValidOrientation(ForgeDirection connection) {
         if (connection == ForgeDirection.UNKNOWN) {
             return false;
         }
@@ -183,6 +187,13 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     public IInventory getModuleInventory() {
         return _moduleInventory;
+    }
+
+    /**
+     * @return true if that module item can be installed in this kind of chassis
+     */
+    public boolean isModuleAllowed(ItemStack stack) {
+        return stack != null && stack.getItem() instanceof ItemModule && !ItemModule.isFluidModule(stack);
     }
 
     public ModuleUpgradeManager getModuleUpgradeManager(int slot) {
@@ -357,6 +368,14 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
                 LogisticsModule current = _module.getModule(i);
                 LogisticsModule next = ((ItemModule) stack.getItem())
                         .getModuleForItem(stack, _module.getModule(i), this, this);
+                if (next == null) {
+                    // a module that no longer exists, the item of it stays in the slot and does nothing
+                    if (_module.hasModule(i)) {
+                        _module.removeModule(i);
+                        reInitGui = true;
+                    }
+                    continue;
+                }
                 next.registerPosition(ModulePositionType.SLOT, i);
                 next.registerCCEventQueuer(this);
                 if (current != next) {
@@ -457,7 +476,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         }
 
         if (!entityplayer.isSneaking() && entityplayer.getCurrentEquippedItem().getItem() == LogisticsPipes.ModuleItem
-                && entityplayer.getCurrentEquippedItem().getItemDamage() != ItemModule.BLANK) {
+                && entityplayer.getCurrentEquippedItem().getItemDamage() != ItemModule.BLANK
+                && isModuleAllowed(entityplayer.getCurrentEquippedItem())) {
             if (MainProxy.isServer(getWorld())) {
                 if (settings == null || settings.openGui) {
                     return tryInsertingModule(entityplayer);
@@ -610,6 +630,11 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     public ChassiModule getModules() {
         return _module;
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ChassisGui(this);
     }
 
     @Override

@@ -30,6 +30,7 @@ import logisticspipes.LogisticsPipes;
 import logisticspipes.config.Configs;
 import logisticspipes.gui.popup.GuiDiskPopup;
 import logisticspipes.gui.popup.GuiRequestPopup;
+import logisticspipes.gui.popup.PatternRequestMonitorPopup;
 import logisticspipes.gui.popup.RequestMonitorPopup;
 import logisticspipes.interfaces.IChainAddList;
 import logisticspipes.interfaces.IDiskProvider;
@@ -624,7 +625,11 @@ public class GuiRequestTable extends LogisticsBaseGuiScreen
             orderIdForButton = -1;
         } else if (guibutton.id == 100) {
             extentionControllerLeft.retract();
-            setSubGui(new RequestMonitorPopup(_table, orderIdForButton));
+            if (_table.watchedPatternCraftingRequests.containsKey(orderIdForButton)) {
+                setSubGui(new PatternRequestMonitorPopup(_table, orderIdForButton));
+            } else {
+                setSubGui(new RequestMonitorPopup(_table, orderIdForButton));
+            }
         } else if (guibutton.id == 18) {
             MainProxy.sendPacketToServer(
                     PacketHandler.getPacket(DiskRequestConectPacket.class).setPosX(_table.getX()).setPosY(_table.getY())

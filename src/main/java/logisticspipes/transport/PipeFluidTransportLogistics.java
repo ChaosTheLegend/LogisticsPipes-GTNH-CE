@@ -31,6 +31,14 @@ public class PipeFluidTransportLogistics extends PipeTransportLogistics implemen
         }
     }
 
+    /**
+     * The fluid pipes don't touch the items that pass through. Other pipes with this transport do.
+     */
+    @Override
+    protected boolean supportsFastRelay() {
+        return getPipe() instanceof FluidRoutedPipe pipe && pipe.relaysClumps();
+    }
+
     @Override
     public int fill(ForgeDirection from, FluidStack resource, boolean doFill) {
         if (from.ordinal() < ForgeDirection.VALID_DIRECTIONS.length && getFluidPipe().canReceiveFluid()) {

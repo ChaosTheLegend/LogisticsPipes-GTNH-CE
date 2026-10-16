@@ -192,6 +192,21 @@ public class StorageDrawersInventoryHandler extends SpecialInventoryHandler {
     }
 
     @Override
+    public boolean isEmpty() {
+        for (int i = 0; i < _drawer.getDrawerCount(); i++) {
+            if (!_drawer.isDrawerEnabled(i)) {
+                continue;
+            }
+
+            IDrawer drawer = _drawer.getDrawer(i);
+            if (drawer != null && !drawer.isEmpty() && drawer.getStoredItemCount() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
     public HashMap<ItemIdentifier, Integer> getItemsAndCount() {
         HashMap<ItemIdentifier, Integer> result = new HashMap<>();
         for (int i = 0; i < _drawer.getDrawerCount(); i++) {

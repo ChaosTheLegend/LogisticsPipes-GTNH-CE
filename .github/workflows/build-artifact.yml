@@ -1,0 +1,35 @@
+name: Build artifact
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-artifact:
+    runs-on: ubuntu-slim
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: "25"
+          cache: gradle
+
+      - name: Apply Spotless formatting
+        run: ./gradlew spotlessApply
+
+      - name: Build distributable jars
+        run: ./gradlew assemble
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: logisticspipes-jars
+          path: build/libs/*.jar
+          if-no-files-found: error

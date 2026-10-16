@@ -6,6 +6,7 @@ import java.util.List;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.util.IIcon;
+import net.minecraft.world.World;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -39,6 +40,14 @@ public abstract class LogisticsModule implements ISaveState, ILPCCTypeHolder {
     public void registerHandler(IWorldProvider world, IPipeServiceProvider service) {
         _world = world;
         _service = service;
+    }
+
+    public World getWorld() {
+        return _world.getWorld();
+    }
+
+    public IPipeServiceProvider getService() {
+        return _service;
     }
 
     @Getter
@@ -150,6 +159,12 @@ public abstract class LogisticsModule implements ISaveState, ILPCCTypeHolder {
     public boolean hasEffect() {
         return false;
     }
+
+    /**
+     * Called when an item routed to this module could not be (fully) inserted into the target inventory, so the module
+     * can stop accepting it right away instead of attracting more items that will bounce.
+     */
+    public void insertionFailed(ItemIdentifier item) {}
 
     public List<CCSinkResponder> queueCCSinkEvent(ItemIdentifierStack item) {
         return new ArrayList<>(0);

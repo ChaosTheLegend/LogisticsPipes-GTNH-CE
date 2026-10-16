@@ -71,6 +71,10 @@ public abstract class LPTravelingItem {
     }
 
     protected int getNextId() {
+        return nextId();
+    }
+
+    static int nextId() {
         return ++LPTravelingItem.nextFreeId;
     }
 
@@ -122,6 +126,12 @@ public abstract class LPTravelingItem {
 
         @Setter
         private ItemIdentifierStack item;
+        /** Further stacks of the clump this item stands for, drawn behind it. */
+        @Getter
+        @Setter
+        private ItemIdentifierStack[] extraStacks;
+        /** Exits to take in the next pipes, as sent with a clump hop; the client follows them on its own. */
+        public final java.util.ArrayDeque<ForgeDirection> plannedExits = new java.util.ArrayDeque<>();
 
         public LPTravelingItemClient(int id, float position, ForgeDirection input, ForgeDirection output) {
             super(id, position, input, output);

@@ -37,7 +37,7 @@ public class DSUInventoryHandler extends DSULikeInventoryHandler {
     }
 
     @Override
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return _tile.getStoredItemType() == null;
     }
 

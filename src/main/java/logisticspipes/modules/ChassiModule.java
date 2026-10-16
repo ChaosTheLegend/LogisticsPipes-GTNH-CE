@@ -8,8 +8,12 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.IIcon;
 
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.interfaces.IInventorylessSink;
+import logisticspipes.interfaces.IModuleInventory;
+import logisticspipes.interfaces.IModuleInventoryOverride;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
+import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
@@ -18,6 +22,7 @@ import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.pipe.ChassiGuiProvider;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.computers.objects.CCSinkResponder;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -36,11 +41,21 @@ public class ChassiModule extends LogisticsGuiModule {
     }
 
     public void installModule(int slot, LogisticsModule module) {
+        if (_modules[slot] != module) {
+            notifyRemoved(_modules[slot]);
+        }
         _modules[slot] = module;
     }
 
     public void removeModule(int slot) {
+        notifyRemoved(_modules[slot]);
         _modules[slot] = null;
+    }
+
+    private void notifyRemoved(LogisticsModule module) {
+        if (module instanceof LogisticsFluidModule fluidModule && MainProxy.isServer(_parentPipe.getWorld())) {
+            fluidModule.onRemoved();
+        }
     }
 
     public LogisticsModule getModule(int slot) {
@@ -71,10 +86,15 @@ public class ChassiModule extends LogisticsGuiModule {
             return null;
         }
         // Always deny items when we can't put the item anywhere
-        IInventoryUtil invUtil = _parentPipe.getSneakyInventory(
-                false,
-                ModulePositionType.SLOT,
-                ((ChassiTargetInformation) bestresult.addInfo).getModuleSlot());
+        int moduleSlot = ((ChassiTargetInformation) bestresult.addInfo).getModuleSlot();
+        if (_modules[moduleSlot] instanceof IInventorylessSink) {
+            // the module takes the item itself and answered for its room already
+            return bestresult;
+        }
+        IInventoryUtil invUtil = getModuleInventory(moduleSlot);
+        if (invUtil == null) {
+            invUtil = _parentPipe.getSneakyInventory(false, ModulePositionType.SLOT, moduleSlot);
+        }
         if (invUtil == null) {
             return null;
         }
@@ -95,6 +115,24 @@ public class ChassiModule extends LogisticsGuiModule {
             return new SinkReply(bestresult, roomForItem);
         }
         return new SinkReply(bestresult, Math.min(bestresult.maxNumberOfItems, roomForItem));
+    }
+
+    /**
+     * @return the module's own inventory view (e.g. GT battery slots for the electric manager), or null if the module
+     *         in that slot uses the pipe's normal inventory
+     */
+    public IModuleInventory getModuleInventory(int moduleSlot) {
+        LogisticsModule module = getSubModule(moduleSlot);
+        return module instanceof IModuleInventoryOverride override ? override.getModuleInventory() : null;
+    }
+
+    @Override
+    public void insertionFailed(ItemIdentifier item) {
+        for (LogisticsModule module : _modules) {
+            if (module != null) {
+                module.insertionFailed(item);
+            }
+        }
     }
 
     @Override

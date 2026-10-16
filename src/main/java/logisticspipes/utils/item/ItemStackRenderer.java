@@ -19,6 +19,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.ForgeHooksClient;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 
 import logisticspipes.utils.Color;
 import logisticspipes.utils.gui.GuiGraphics;
@@ -168,6 +169,7 @@ public class ItemStackRenderer {
         // set up lightning
         GL11.glScalef(1.0F / scaleX, 1.0F / scaleY, 1.0F / scaleZ);
         RenderHelper.enableGUIStandardItemLighting();
+        GL11.glEnable(GL12.GL_RESCALE_NORMAL);
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240.0F, 240.0F);
         GL11.glScalef(scaleX, scaleY, scaleZ);
 

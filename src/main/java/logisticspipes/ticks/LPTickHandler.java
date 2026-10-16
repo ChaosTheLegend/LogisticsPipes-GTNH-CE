@@ -17,6 +17,7 @@ import cpw.mods.fml.relauncher.Side;
 import logisticspipes.commands.commands.debug.DebugGuiController;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.request.debug.CraftingRequestDebugClient;
 import logisticspipes.routing.pathfinder.changedetection.LPWorldAccess;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.tuples.LPPosition;
@@ -33,6 +34,7 @@ public class LPTickHandler {
         SimpleServiceLocator.clientBufferHandler.clientTick(event);
         MainProxy.proxy.tickClient();
         DebugGuiController.instance().execClient();
+        CraftingRequestDebugClient.clientTick(event);
     }
 
     @SubscribeEvent

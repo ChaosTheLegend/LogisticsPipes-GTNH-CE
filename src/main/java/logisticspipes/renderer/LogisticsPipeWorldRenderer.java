@@ -12,7 +12,7 @@ import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.PlayerConfig;
-import logisticspipes.pipes.PipeBlockRequestTable;
+import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -28,7 +28,7 @@ public class LogisticsPipeWorldRenderer implements ISimpleBlockRenderingHandler 
 
     public static boolean renderPipe(RenderBlocks renderblocks, IBlockAccess iblockaccess,
             LogisticsBlockGenericPipe block, LogisticsTileGenericPipe pipe, int x, int y, int z) {
-        if (pipe.pipe instanceof PipeBlockRequestTable) {
+        if (pipe.pipe instanceof IBlockShapedPipe) {
             if (ForgeHooksClient.getWorldRenderPass() != 0) {
                 return false;
             }
@@ -211,7 +211,7 @@ public class LogisticsPipeWorldRenderer implements ISimpleBlockRenderingHandler 
         if (tile == null) return false;
         LogisticsTileGenericPipe pipeTile = (LogisticsTileGenericPipe) tile;
         SimpleServiceLocator.thermalDynamicsProxy.renderPipeConnections(pipeTile, renderer);
-        if (config.isUseNewRenderer() && !pipeTile.renderState.forceRenderOldPipe) {
+        if (config.isUseNewRenderer()) {
             return newRenderer.renderWorldBlock(world, x, y, z, block, modelId, renderer);
         }
         return LogisticsPipeWorldRenderer

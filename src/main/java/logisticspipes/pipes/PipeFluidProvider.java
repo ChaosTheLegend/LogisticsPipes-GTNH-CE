@@ -79,6 +79,7 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
                         IRoutedItem item = SimpleServiceLocator.routedItemHelper.createNewTravelItem(stack);
                         item.setDestination(order.getRouter().getSimpleID());
                         item.setTransportMode(TransportMode.Active);
+                        item.setAdditionalTargetInformation(order.getInformation());
                         this.queueRoutedItem(item, pair.getValue2());
                         getFluidOrderManager().sendSuccessfull(amount, false, item);
                         if (amountToSend <= 0) {
@@ -127,6 +128,7 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
                                     IRoutedItem item = SimpleServiceLocator.routedItemHelper.createNewTravelItem(stack);
                                     item.setDestination(order.getRouter().getSimpleID());
                                     item.setTransportMode(TransportMode.Active);
+                                    item.setAdditionalTargetInformation(order.getInformation());
                                     this.queueRoutedItem(item, pair.getValue2());
                                     getFluidOrderManager().sendSuccessfull(amount, false, item);
                                     if (amountToSend <= 0) {

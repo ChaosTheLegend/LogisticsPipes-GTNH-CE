@@ -18,9 +18,16 @@ import net.minecraft.world.World;
 
 import org.lwjgl.input.Keyboard;
 
+import com.cleanroommc.modularui.api.IGuiHolder;
+import com.cleanroommc.modularui.factory.PlayerInventoryGuiData;
+import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.UISettings;
+import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LogisticsPipes;
+import logisticspipes.api.IMUICompatibleModule;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.ItemModuleInformationManager;
@@ -45,6 +52,12 @@ import logisticspipes.modules.ModuleEnchantmentSinkMK2;
 import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.modules.ModuleExtractorMk2;
 import logisticspipes.modules.ModuleExtractorMk3;
+import logisticspipes.modules.ModuleFluidContainerSink;
+import logisticspipes.modules.ModuleFluidContainerSupplier;
+import logisticspipes.modules.ModuleFluidExtractor;
+import logisticspipes.modules.ModuleFluidProvider;
+import logisticspipes.modules.ModuleFluidSink;
+import logisticspipes.modules.ModuleFluidTankSupplier;
 import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.ModuleModBasedItemSink;
 import logisticspipes.modules.ModuleOreDictItemSink;
@@ -56,6 +69,7 @@ import logisticspipes.modules.ModuleQuickSort;
 import logisticspipes.modules.ModuleTerminus;
 import logisticspipes.modules.ModuleThaumicAspectSink;
 import logisticspipes.modules.ModuleTypeFilterItemSink;
+import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
@@ -63,11 +77,12 @@ import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.utils.DummyWorldProvider;
 import logisticspipes.utils.item.ItemIdentifierInventory;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.string.StringUtils;
 
-public class ItemModule extends LogisticsItem {
+public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInventoryGuiData> {
 
     // PASSIVE MODULES
     public static final int BLANK = 0;
@@ -114,7 +129,48 @@ public class ItemModule extends LogisticsItem {
     public static final int CRAFTER_MK2 = 601;
     public static final int CRAFTER_MK3 = 602;
 
+    // Fluid MODULES, for the fluid chassis
+    public static final int FLUID_SINK = 700;
+    public static final int FLUID_EXTRACTOR = 701;
+    public static final int FLUID_PROVIDER = 702;
+    public static final int FLUID_SUPPLIER = 703;
+    public static final int FLUID_CONTAINER_SINK = 704;
+    // works with fluid but sits in an item chassis: it keeps filled containers in an inventory
+    public static final int FLUID_CONTAINER_SUPPLIER = 705;
+
     private final List<Module> modules = new ArrayList<>();
+
+    @Override
+    public ModularPanel buildUI(PlayerInventoryGuiData guiData, PanelSyncManager guiSyncManager, UISettings settings) {
+
+        ItemStack item = guiData.getPlayer().getHeldItem();
+
+        // same IWorldProvider the legacy in-hand path (DummyModuleContainer) uses - modules held in hand aren't
+        // installed in a pipe yet, so there's no IPipeServiceProvider, but code like listChanged() still needs
+        // a non-null world to check MainProxy.isServer/isClient
+        LogisticsModule module = getModuleForItem(
+                item,
+                null,
+                new DummyWorldProvider(guiData.getPlayer().worldObj),
+                null);
+
+        if (!(module instanceof IMUICompatibleModule compatibleModule)) {
+            throw new UnsupportedOperationException(
+                    "Module " + module.getClass().getSimpleName() + " is not compatible with MUI");
+        }
+
+        ItemModuleInformationManager.readInformation(item, module);
+
+        var gui = compatibleModule.getHandGui();
+
+        // Save item nbt on close
+        guiSyncManager.addCloseListener(e -> {
+            var heldItem = guiData.getPlayer().getHeldItem();
+            ItemModuleInformationManager.saveInfotmation(heldItem, module);
+        });
+
+        return gui.getPanel(guiData, guiSyncManager);
+    }
 
     private class Module {
 
@@ -205,6 +261,12 @@ public class ItemModule extends LogisticsItem {
         registerModule(ItemModule.CRAFTER_MK3, ModuleCrafterMK3.class);
         registerModule(ItemModule.ACTIVE_SUPPLIER, ModuleActiveSupplier.class);
         registerModule(ItemModule.CREATIVETABBASEDITEMSINK, ModuleCreativeTabBasedItemSink.class);
+        registerModule(ItemModule.FLUID_SINK, ModuleFluidSink.class);
+        registerModule(ItemModule.FLUID_EXTRACTOR, ModuleFluidExtractor.class);
+        registerModule(ItemModule.FLUID_PROVIDER, ModuleFluidProvider.class);
+        registerModule(ItemModule.FLUID_SUPPLIER, ModuleFluidTankSupplier.class);
+        registerModule(ItemModule.FLUID_CONTAINER_SINK, ModuleFluidContainerSink.class);
+        registerModule(ItemModule.FLUID_CONTAINER_SUPPLIER, ModuleFluidContainerSupplier.class);
 
         if (LogisticsPipes.isGTNH) {
             registerModule(ItemModule.GT_TYPEFILTER_ITEMSINK, ModuleTypeFilterItemSink.class);
@@ -254,13 +316,24 @@ public class ItemModule extends LogisticsItem {
 
     private void openConfigGui(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, World par3World) {
         LogisticsModule module = getModuleForItem(par1ItemStack, null, null, null);
-        if (module != null && module.hasGui()) {
-            if (par1ItemStack != null && par1ItemStack.stackSize > 0) {
-                ItemModuleInformationManager.readInformation(par1ItemStack, module);
-                module.registerPosition(ModulePositionType.IN_HAND, par2EntityPlayer.inventory.currentItem);
-                ((LogisticsGuiModule) module).getInHandGuiProviderForModule().open(par2EntityPlayer);
-            }
+        if (module == null || !module.hasGui()) {
+            return;
         }
+
+        if (par1ItemStack == null || par1ItemStack.stackSize <= 0) {
+            return;
+        }
+
+        if (module instanceof IMUICompatibleModule) {
+            if (!(module instanceof LogisticsGuiModule)) return;
+
+            ((IMUICompatibleModule) module).openGui(par2EntityPlayer, (LogisticsGuiModule) module, par3World);
+            return;
+        }
+
+        ItemModuleInformationManager.readInformation(par1ItemStack, module);
+        module.registerPosition(ModulePositionType.IN_HAND, par2EntityPlayer.inventory.currentItem);
+        ((LogisticsGuiModule) module).getInHandGuiProviderForModule().open(par2EntityPlayer);
     }
 
     @Override
@@ -342,7 +415,8 @@ public class ItemModule extends LogisticsItem {
                 return "item." + module.getILogisticsModuleClass().getSimpleName();
             }
         }
-        return null;
+        // a module that no longer exists: other mods read the name of what a player picks up and expect one
+        return "item.ModuleBlank";
     }
 
     @Override
@@ -419,6 +493,22 @@ public class ItemModule extends LogisticsItem {
         } else {
             StringUtils.addShiftAddition(itemStack, list);
         }
+    }
+
+    /**
+     * @return true if the stack is a module that works on a tank and so only fits a fluid chassis
+     */
+    public static boolean isFluidModule(ItemStack itemStack) {
+        if (itemStack == null || !(itemStack.getItem() instanceof ItemModule itemModule)) {
+            return false;
+        }
+        for (Module module : itemModule.modules) {
+            if (module.getId() == itemStack.getItemDamage()) {
+                return module.getILogisticsModuleClass() != null
+                        && LogisticsFluidModule.class.isAssignableFrom(module.getILogisticsModuleClass());
+            }
+        }
+        return false;
     }
 
     public static boolean isCrafter(ItemStack itemStack) {

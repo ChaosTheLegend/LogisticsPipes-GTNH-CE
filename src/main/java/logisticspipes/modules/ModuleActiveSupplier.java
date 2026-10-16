@@ -20,6 +20,9 @@ import org.jetbrains.annotations.NotNull;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleActiveSupplierMuiDynamic;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
@@ -62,7 +65,7 @@ import lombok.Setter;
 
 public class ModuleActiveSupplier extends LogisticsGuiModule
         implements IRequestItems, IRequireReliableTransport, IClientInformationProvider, IHUDModuleHandler,
-        IModuleWatchReciver, IModuleInventoryReceive, ISimpleInventoryEventHandler {
+        IModuleWatchReciver, IModuleInventoryReceive, ISimpleInventoryEventHandler, IMUICompatibleModule {
 
     private final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
@@ -177,9 +180,24 @@ public class ModuleActiveSupplier extends LogisticsGuiModule
         _lastRequestFailed = value;
     }
 
-    private final ItemIdentifierInventory dummyInventory = new ItemIdentifierInventory(9, "", 127);
+    private final ItemIdentifierInventory dummyInventory = new ItemIdentifierInventory(9, "", Integer.MAX_VALUE);
 
     private final HashMap<ItemIdentifier, Integer> _requestedItems = new HashMap<>();
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return new ModuleActiveSupplierMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleActiveSupplierMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleActiveSupplierMuiDynamic(this, prefix);
+    }
 
     public enum SupplyMode {
         Partial,
@@ -224,18 +242,20 @@ public class ModuleActiveSupplier extends LogisticsGuiModule
 
         WorldUtil worldUtil = new WorldUtil(_world.getWorld(), getX(), getY(), getZ());
         for (AdjacentTile tile : worldUtil.getAdjacentTileEntities(true)) {
-            if (!(tile.tile instanceof IInventory)) {
+            if (!(tile.tile instanceof IInventory inv)) {
                 continue;
             }
 
-            IInventory inv = (IInventory) tile.tile;
             if (inv.getSizeInventory() < 1) {
                 continue;
             }
+
             ForgeDirection dir = tile.orientation;
+
             if (_service.getUpgradeManager(slot, positionInt).hasSneakyUpgrade()) {
                 dir = _service.getUpgradeManager(slot, positionInt).getSneakyOrientation();
             }
+
             IInventoryUtil invUtil = SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(inv, dir);
 
             if (_service.getUpgradeManager(slot, positionInt).hasPatternUpgrade()) {

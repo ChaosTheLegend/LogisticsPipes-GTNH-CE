@@ -45,7 +45,7 @@ public class QuantumChestInventoryHandler extends DSULikeInventoryHandler {
     }
 
     @Override
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return _mte.mItemCount == 0 || _mte.mItemStack == null;
     }
 

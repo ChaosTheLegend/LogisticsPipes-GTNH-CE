@@ -9,17 +9,25 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.IIcon;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
 import logisticspipes.gui.hud.modules.HUDElectricManager;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleElectricManagerMuiDynamic;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.interfaces.IModuleInventory;
+import logisticspipes.interfaces.IModuleInventoryOverride;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
+import logisticspipes.interfaces.ISlotUpgradeManager;
 import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
@@ -48,8 +56,9 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.string.StringUtils;
 import logisticspipes.utils.tuples.Triplet;
 
-public class ModuleElectricManager extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler,
-        IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
+public class ModuleElectricManager extends LogisticsGuiModule
+        implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler,
+        IModuleInventoryReceive, IMUICompatibleModule, IModuleInventoryOverride {
 
     private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(
             9,
@@ -163,14 +172,15 @@ public class ModuleElectricManager extends LogisticsGuiModule implements IClient
         }
         currentTick = 0;
 
-        IInventoryUtil inv = _service.getSneakyInventory(true, slot, positionInt);
+        IInventoryUtil inv = getExtractionInventory();
         if (inv == null) {
             return;
         }
-        for (int i = 0; i < inv.getSizeInventory(); i++) {
+        var size = inv.getSizeInventory();
+        for (int i = 0; i < size; i++) {
             ItemStack stack = inv.getStackInSlot(i);
             if (stack == null) {
-                return;
+                continue;
             }
             if (isOfInterest(stack)) {
                 // If item set to discharge and its fully discharged, then extract it.
@@ -209,6 +219,26 @@ public class ModuleElectricManager extends LogisticsGuiModule implements IClient
                 }
             }
         }
+    }
+
+    private IInventoryUtil getExtractionInventory() {
+        IModuleInventory batterySlots = getModuleInventory();
+        return batterySlots != null ? batterySlots : _service.getSneakyInventory(true, slot, positionInt);
+    }
+
+    /**
+     * The battery slots that the target's sided inventory hides (GT battery buffers and machine battery slots), from
+     * the IC2/GT proxy. The chassis inserts routed batteries through it too.
+     */
+    @Override
+    public IModuleInventory getModuleInventory() {
+        if (!(_service.getRealInventory() instanceof TileEntity tile)) {
+            return null;
+        }
+        ISlotUpgradeManager upgrades = _service.getUpgradeManager(slot, positionInt);
+        ForgeDirection side = upgrades.hasSneakyUpgrade() ? upgrades.getSneakyOrientation()
+                : _service.inventoryOrientation().getOpposite();
+        return SimpleServiceLocator.IC2Proxy.getElectricItemInventory(tile, side);
     }
 
     private boolean isOfInterest(ItemStack stack) {
@@ -313,5 +343,20 @@ public class ModuleElectricManager extends LogisticsGuiModule implements IClient
     @SideOnly(Side.CLIENT)
     public IIcon getIconTexture(IIconRegister register) {
         return register.registerIcon("logisticspipes:itemModule/ModuleElectricManager");
+    }
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return new ModuleElectricManagerMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleElectricManagerMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleElectricManagerMuiDynamic(this, prefix);
     }
 }

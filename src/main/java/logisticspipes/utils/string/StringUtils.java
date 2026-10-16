@@ -108,6 +108,14 @@ public final class StringUtils {
         }
     }
 
+    public static void addShiftAction(List<String> list, Runnable action) {
+        if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) {
+            action.run();
+        } else {
+            list.add(StringUtils.translate(StringUtils.KEY_HOLDSHIFT));
+        }
+    }
+
     private static void addExtraInfo(ItemStack stack, List<String> list) {
         Class<? extends CoreUnroutedPipe> pipeClass = LogisticsBlockGenericPipe.getPipeClassByItem(stack.getItem());
         if (pipeClass == null) {

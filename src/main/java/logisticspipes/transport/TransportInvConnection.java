@@ -14,6 +14,11 @@ public class TransportInvConnection extends PipeTransportLogistics {
     }
 
     @Override
+    protected boolean supportsFastRelay() {
+        return false;
+    }
+
+    @Override
     protected boolean isItemExitable(ItemIdentifierStack stack) {
         return true;
     }

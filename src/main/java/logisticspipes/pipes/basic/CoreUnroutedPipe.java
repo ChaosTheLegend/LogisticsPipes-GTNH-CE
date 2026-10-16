@@ -14,6 +14,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldSettings.GameType;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
+import com.cleanroommc.modularui.utils.item.ItemStackHandler;
 import com.gtnewhorizon.gtnhlib.blockpos.IBlockPos;
 
 import cpw.mods.fml.relauncher.Side;
@@ -120,10 +122,8 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
         transport.updateEntity();
 
         if (MainProxy.isClient(getWorld())) {
-            if (oldRendererState != (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()
-                    && !container.renderState.forceRenderOldPipe)) {
-                oldRendererState = (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()
-                        && !container.renderState.forceRenderOldPipe);
+            if (oldRendererState != LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()) {
+                oldRendererState = LogisticsPipes.getClientPlayerConfig().isUseNewRenderer();
                 getWorld().markBlockForUpdate(getX(), getY(), getZ());
             }
         }
@@ -287,6 +287,13 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
         return false;
     }
 
+    /**
+     * @return true if the pipe is drawn with the glass body of the fluid pipes
+     */
+    public boolean hasFluidPipeLook() {
+        return isFluidPipe();
+    }
+
     @Override
     public void setCCType(Object type) {
         ccType = type;
@@ -380,6 +387,11 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
             @Override
             public ForgeDirection[] getCombinedSneakyOrientation() {
                 return null;
+            }
+
+            @Override
+            public IItemHandlerModifiable getUpgradeInventory() {
+                return new ItemStackHandler(0);
             }
         };
     }

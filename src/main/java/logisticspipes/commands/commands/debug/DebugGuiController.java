@@ -1,9 +1,12 @@
 package logisticspipes.commands.commands.debug;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -16,7 +19,6 @@ import network.rs485.debuggui.api.IDebugGuiEntry;
 import network.rs485.debuggui.api.IObjectIdentification;
 
 import logisticspipes.network.PacketHandler;
-import logisticspipes.network.exception.DelayPacketException;
 import logisticspipes.network.packets.debuggui.DebugDataPacket;
 import logisticspipes.network.packets.debuggui.DebugPanelOpen;
 import logisticspipes.proxy.MainProxy;
@@ -46,6 +48,7 @@ public class DebugGuiController {
         if (clientController != null) {
             clientController.exec();
         }
+        drainPendingClientData();
     }
 
     public void execServer() {
@@ -55,10 +58,12 @@ public class DebugGuiController {
     }
 
     private final HashMap<EntityPlayer, IDebugGuiEntry> serverDebugger = new HashMap<>();
+    private final HashMap<EntityPlayer, List<Integer>> serverDebugIds = new HashMap<>();
     private final List<IDataConnection> serverList = new LinkedList<>();
 
     private IDebugGuiEntry clientController = null;
     private final List<Future<IDataConnection>> clientList = new LinkedList<>();
+    private final HashMap<Integer, List<byte[]>> pendingClientData = new HashMap<>();
 
     public void startWatchingOf(Object object, EntityPlayer player) {
         if (object == null) {
@@ -74,14 +79,47 @@ public class DebugGuiController {
                 return;
             }
         }
-        MainProxy.sendPacketToPlayer(
-                PacketHandler.getPacket(DebugPanelOpen.class).setName(object.getClass().getSimpleName()),
-                player);
         synchronized (serverList) {
-            int identification = serverList.size();
+            int identification = serverList.indexOf(null);
+            if (identification < 0) {
+                identification = serverList.size();
+            }
             IDataConnection conIn = new DataConnectionServer(identification, player);
             while (serverList.size() <= identification) serverList.add(null);
+            List<Integer> debugIds = serverDebugIds.get(player);
+            if (debugIds == null) {
+                debugIds = new ArrayList<>();
+                serverDebugIds.put(player, debugIds);
+            }
+            debugIds.add(identification);
+            MainProxy.sendPacketToPlayer(
+                    PacketHandler.getPacket(DebugPanelOpen.class).setName(object.getClass().getSimpleName())
+                            .setIdentification(identification),
+                    player);
             serverList.set(identification, entry.startServerDebugging(object, conIn, new ObjectIdentification()));
+        }
+    }
+
+    public void clearServerDebuggers(EntityPlayer player) {
+        if (player == null) {
+            return;
+        }
+        serverDebugger.remove(player);
+        List<Integer> debugIds = serverDebugIds.remove(player);
+        if (debugIds == null) {
+            return;
+        }
+        synchronized (serverList) {
+            for (Integer debugId : debugIds) {
+                if (debugId == null || debugId < 0 || debugId >= serverList.size()) {
+                    continue;
+                }
+                IDataConnection connection = serverList.get(debugId);
+                if (connection != null) {
+                    connection.closeCon();
+                }
+                serverList.set(debugId, null);
+            }
         }
     }
 
@@ -96,15 +134,20 @@ public class DebugGuiController {
         }
         synchronized (clientList) {
             while (clientList.size() <= identification) clientList.add(null);
+            closeClientConnection(clientList.get(identification));
             clientList.set(
                     identification,
                     clientController.startClientDebugging(name, new DataConnectionClient(identification)));
+            drainPendingClientData(identification);
         }
     }
 
     public void handleDataPacket(byte[] payload, int identifier, EntityPlayer player) {
         if (MainProxy.isServer(player.getEntityWorld())) {
             synchronized (serverList) {
+                if (identifier < 0 || identifier >= serverList.size()) {
+                    return;
+                }
                 IDataConnection connection = serverList.get(identifier);
                 if (connection != null) {
                     connection.passData(payload);
@@ -112,28 +155,106 @@ public class DebugGuiController {
             }
         } else {
             synchronized (clientList) {
-                Future<IDataConnection> connectionFuture;
-                try {
-                    connectionFuture = clientList.get(identifier);
-                } catch (IndexOutOfBoundsException e) {
-                    System.out.println(clientList);
-                    throw e;
-                }
-                if (connectionFuture == null || !connectionFuture.isDone()) {
-                    throw new DelayPacketException();
-                }
-                IDataConnection connection = null;
-                try {
-                    connection = connectionFuture.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
-                if (connection != null) {
-                    connection.passData(payload);
-                } else {
-                    throw new DelayPacketException();
+                if (!passClientData(identifier, payload)) {
+                    queueClientData(identifier, payload);
                 }
             }
+        }
+    }
+
+    public void clearClientDebuggers() {
+        synchronized (clientList) {
+            for (Future<IDataConnection> connectionFuture : clientList) {
+                closeClientConnection(connectionFuture);
+            }
+            clientList.clear();
+            pendingClientData.clear();
+            clientController = null;
+        }
+    }
+
+    private boolean passClientData(int identifier, byte[] payload) {
+        if (identifier < 0 || identifier >= clientList.size()) {
+            return false;
+        }
+        Future<IDataConnection> connectionFuture = clientList.get(identifier);
+        if (connectionFuture == null || !connectionFuture.isDone()) {
+            return false;
+        }
+        IDataConnection connection = null;
+        try {
+            connection = connectionFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        if (connection == null) {
+            return false;
+        }
+        connection.passData(payload);
+        return true;
+    }
+
+    private void queueClientData(int identifier, byte[] payload) {
+        if (identifier < 0) {
+            return;
+        }
+        List<byte[]> pendingData = pendingClientData.get(identifier);
+        if (pendingData == null) {
+            pendingData = new ArrayList<>();
+            pendingClientData.put(identifier, pendingData);
+        }
+        pendingData.add(payload);
+    }
+
+    private void drainPendingClientData() {
+        synchronized (clientList) {
+            Iterator<Map.Entry<Integer, List<byte[]>>> iterator = pendingClientData.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<Integer, List<byte[]>> entry = iterator.next();
+                if (drainPendingClientData(entry.getKey(), entry.getValue())) {
+                    iterator.remove();
+                }
+            }
+        }
+    }
+
+    private void drainPendingClientData(int identifier) {
+        List<byte[]> pendingData = pendingClientData.get(identifier);
+        if (pendingData != null && drainPendingClientData(identifier, pendingData)) {
+            pendingClientData.remove(identifier);
+        }
+    }
+
+    private boolean drainPendingClientData(int identifier, List<byte[]> pendingData) {
+        if (pendingData == null || pendingData.isEmpty()) {
+            return true;
+        }
+        if (identifier < 0 || identifier >= clientList.size()) {
+            return false;
+        }
+        Future<IDataConnection> connectionFuture = clientList.get(identifier);
+        if (connectionFuture == null || !connectionFuture.isDone()) {
+            return false;
+        }
+        for (byte[] payload : pendingData) {
+            if (!passClientData(identifier, payload)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void closeClientConnection(Future<IDataConnection> connectionFuture) {
+        if (connectionFuture == null || !connectionFuture.isDone()) {
+            return;
+        }
+        try {
+            IDataConnection connection = connectionFuture.get();
+            if (connection != null) {
+                connection.closeCon();
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
         }
     }
 
@@ -152,7 +273,11 @@ public class DebugGuiController {
 
         @Override
         public void closeCon() {
-            serverList.set(identification, null);
+            synchronized (serverList) {
+                if (identification >= 0 && identification < serverList.size()) {
+                    serverList.set(identification, null);
+                }
+            }
         }
     }
 
@@ -169,7 +294,11 @@ public class DebugGuiController {
 
         @Override
         public void closeCon() {
-            clientList.set(identification, null);
+            synchronized (clientList) {
+                if (identification >= 0 && identification < clientList.size()) {
+                    clientList.set(identification, null);
+                }
+            }
         }
     }
 

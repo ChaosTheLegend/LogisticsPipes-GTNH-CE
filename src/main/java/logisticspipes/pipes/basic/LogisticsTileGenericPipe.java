@@ -56,6 +56,7 @@ import logisticspipes.Tags;
 import logisticspipes.api.ILPPipe;
 import logisticspipes.api.ILPPipeTile;
 import logisticspipes.api.IMUICompatiblePipe;
+import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.blocks.LogisticsSolidTileEntity;
 import logisticspipes.interfaces.IClientState;
 import logisticspipes.interfaces.routing.IFilter;
@@ -67,6 +68,7 @@ import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractpackets.ModernPacket;
 import logisticspipes.network.packets.pipe.PipeTileStatePacket;
 import logisticspipes.pipes.PipeItemsFirewall;
+import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.buildcraft.subproxies.IBCPluggableState;
@@ -125,6 +127,9 @@ public class LogisticsTileGenericPipe extends TileEntity
     public final IBCPluggableState bcPlugableState;
     public final ITDPart tdPart;
 
+    /** Client: the state packet contents last received, so packets that change nothing don't re-render the chunk. */
+    private byte[][] lastReceivedState;
+
     @Getter
     private IBlockPos pos;
 
@@ -181,6 +186,9 @@ public class LogisticsTileGenericPipe extends TileEntity
     public void onChunkUnload() {
         if (pipe != null) {
             pipe.onChunkUnload();
+            if (pipe.transport != null) {
+                pipe.transport.onChunkUnload();
+            }
         }
         SimpleServiceLocator.openComputersProxy.handleChunkUnload(this);
         tdPart.onChunkUnload();
@@ -238,7 +246,7 @@ public class LogisticsTileGenericPipe extends TileEntity
         if (refreshRenderState) {
             // Pipe connections;
             for (ForgeDirection o : ForgeDirection.VALID_DIRECTIONS) {
-                renderState.pipeConnectionMatrix.setConnected(o, pipeConnectionsBuffer[o.ordinal()]);
+                renderState.pipeConnectionMatrix.setConnected(o, shouldRenderPipeConnection(o));
                 renderState.pipeConnectionMatrix.setBCConnected(o, pipeBCConnectionsBuffer[o.ordinal()]);
                 renderState.pipeConnectionMatrix.setTDConnected(o, pipeTDConnectionsBuffer[o.ordinal()]);
             }
@@ -277,6 +285,14 @@ public class LogisticsTileGenericPipe extends TileEntity
             SimpleServiceLocator.openComputersProxy.addToNetwork(this);
         }
         debug.end();
+    }
+
+    /**
+     * Returns the visual connection state for one side without changing the server-side transport connection.
+     */
+    private boolean shouldRenderPipeConnection(ForgeDirection side) {
+        return pipeConnectionsBuffer[side.ordinal()] || (pipe instanceof PipeItemsPatternCraftingLogistics patternPipe
+                && patternPipe.shouldRenderCraftingTargetConnection(side));
     }
 
     @Override
@@ -625,8 +641,17 @@ public class LogisticsTileGenericPipe extends TileEntity
         return container.isPipeConnected(o);
     }
 
+    /**
+     * Accepts passive item stacks from external transport APIs.
+     * <p>
+     * Pattern crafting pipes reject this path because staged ingredients must arrive as routed items carrying the
+     * target information that reserved their buffer space.
+     */
     @Override
     public int injectItem(ItemStack payload, boolean doAdd, ForgeDirection from) {
+        if (pipe instanceof PipeItemsPatternCraftingLogistics) {
+            return 0;
+        }
         if (LogisticsBlockGenericPipe.isValid(pipe) && pipe.transport != null && isPipeConnected(from)) {
             if (doAdd && MainProxy.isServer(getWorldObj())) {
                 ItemStack leftStack = payload.copy();
@@ -801,7 +826,18 @@ public class LogisticsTileGenericPipe extends TileEntity
         return packet;
     }
 
-    public void afterStateUpdated() {
+    /**
+     * Client: records the contents of a state packet just received and returns whether they differ from the previous
+     * one. Network changes make the server resend the state of many pipes, often unchanged, and each re-render rebuilds
+     * the whole chunk section.
+     */
+    public boolean receivedStateChanged(byte[]... state) {
+        boolean changed = lastReceivedState == null || !Arrays.deepEquals(lastReceivedState, state);
+        lastReceivedState = state;
+        return changed;
+    }
+
+    public void afterStateUpdated(boolean stateChanged) {
         if (pipe == null && coreState.pipeId != 0) {
             initialize(LogisticsBlockGenericPipe.createPipe((Item) Item.itemRegistry.getObjectById(coreState.pipeId)));
         }
@@ -810,9 +846,7 @@ public class LogisticsTileGenericPipe extends TileEntity
             return;
         }
 
-        worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
-
-        if (renderState.needsRenderUpdate()) {
+        if (stateChanged || renderState.needsRenderUpdate()) {
             worldObj.markBlockRangeForRenderUpdate(xCoord, yCoord, zCoord, xCoord, yCoord, zCoord);
             renderState.clean();
         }
@@ -1168,8 +1202,19 @@ public class LogisticsTileGenericPipe extends TileEntity
 
     @Override
     public ModularPanel buildUI(PosGuiData data, PanelSyncManager syncManager, UISettings settings) {
-        if (!(pipe instanceof IMUICompatiblePipe)) {
+        if (!(pipe instanceof IMUICompatiblePipe pipeWithGui) && !(pipe instanceof IMUICompatiblePipeV2)) {
             throw new IllegalArgumentException();
+        }
+
+        syncManager.addCloseListener(player -> {
+            if (!NetworkUtils.isClient(player)) {
+                markDirty();
+            }
+        });
+
+        if (pipe instanceof IMUICompatiblePipeV2) {
+
+            return ((IMUICompatiblePipeV2) pipe).getPipeGui().getPanel(data, syncManager, settings);
         }
 
         IMUICompatiblePipe pipeWithGui = (IMUICompatiblePipe) pipe;
@@ -1178,11 +1223,6 @@ public class LogisticsTileGenericPipe extends TileEntity
                 .defaultPanel(pipeWithGui.getId(), pipeWithGui.getGuiWidth(), pipeWithGui.getGuiHeight());
 
         // auto-saving of tile on gui close
-        syncManager.addCloseListener(player -> {
-            if (!NetworkUtils.isClient(player)) {
-                markDirty();
-            }
-        });
 
         pipeWithGui.addUIWidgets(panel, data, syncManager);
 

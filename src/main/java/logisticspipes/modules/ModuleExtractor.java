@@ -135,22 +135,23 @@ public class ModuleExtractor extends LogisticsSneakyDirectionModule
 
     @Override
     public void tick() {
-        if (++currentTick < ticksToAction()) {
-            return;
-        }
+        if (++currentTick < ticksToAction()) return;
+
         currentTick = 0;
 
         // Extract Item
         IInventory realInventory = _service.getRealInventory();
-        if (realInventory == null) {
-            return;
-        }
+        if (realInventory == null) return;
+
         ForgeDirection extractOrientation = _sneakyDirection;
         if (extractOrientation == ForgeDirection.UNKNOWN) {
             extractOrientation = _service.inventoryOrientation().getOpposite();
         }
 
         IInventoryUtil targetUtil = _service.getSneakyInventory(extractOrientation, true);
+
+        // nothing to extract, skip the slot scan and destination searches
+        if (targetUtil == null || targetUtil.isEmpty()) return;
 
         for (int i = 0; i < targetUtil.getSizeInventory(); i++) {
 

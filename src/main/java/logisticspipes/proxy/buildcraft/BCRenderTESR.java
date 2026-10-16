@@ -4,6 +4,10 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 
+import net.minecraftforge.common.util.ForgeDirection;
+
+import buildcraft.api.transport.PipeWire;
+import buildcraft.api.transport.pluggable.PipePluggable;
 import buildcraft.transport.TileGenericPipe;
 import buildcraft.transport.render.PipeRendererTESR;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
@@ -41,5 +45,22 @@ public class BCRenderTESR implements IBCRenderTESR {
     public void dynamicRenderPluggables(LogisticsTileGenericPipe pipe, double x, double y, double z) {
         TileGenericPipe tgPipe = (TileGenericPipe) pipe.tilePart.getOriginal();
         renderPluggables.invokeExact(PipeRendererTESR.INSTANCE, tgPipe, x, y, z);
+    }
+
+    @Override
+    public boolean hasDynamicContent(LogisticsTileGenericPipe pipe) {
+        TileGenericPipe tgPipe = (TileGenericPipe) pipe.tilePart.getOriginal();
+        for (PipeWire wire : PipeWire.VALUES) {
+            if (tgPipe.renderState.wireMatrix.hasWire(wire)) {
+                return true;
+            }
+        }
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            PipePluggable pluggable = tgPipe.getPipePluggable(dir);
+            if (pluggable != null && pluggable.getDynamicRenderer() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -44,6 +44,9 @@ public class NewGuiHandler {
         final List<ClassInfo> classes = new ArrayList<>(
                 ClassPath.from(NewGuiHandler.class.getClassLoader())
                         .getTopLevelClassesRecursive("logisticspipes.network.guis"));
+        classes.addAll(
+                ClassPath.from(NewGuiHandler.class.getClassLoader())
+                        .getTopLevelClassesRecursive("logisticspipes.crafting"));
         classes.sort(Comparator.comparing(ClassInfo::getSimpleName));
 
         NewGuiHandler.guilist = new ArrayList<>(classes.size());
@@ -51,8 +54,22 @@ public class NewGuiHandler {
 
         int currentid = 0;
 
+        boolean dedicatedServer = FMLCommonHandler.instance().getSide().isServer();
         for (ClassInfo c : classes) {
-            final Class<?> cls = c.load();
+            final Class<?> cls;
+            try {
+                cls = c.load();
+            } catch (RuntimeException | LinkageError e) {
+                // the scanned packages also contain client-only GUI screens (@SideOnly(Side.CLIENT)), which can't be
+                // loaded on a dedicated server; they are never GUI providers, so skip them there
+                if (!dedicatedServer) {
+                    throw e;
+                }
+                continue;
+            }
+            if (!GuiProvider.class.isAssignableFrom(cls)) {
+                continue;
+            }
             final GuiProvider instance = (GuiProvider) cls.getConstructors()[0].newInstance(currentid);
             NewGuiHandler.guilist.add(instance);
             NewGuiHandler.guimap.put((Class<? extends GuiProvider>) cls, instance);

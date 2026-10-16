@@ -1,165 +1,47 @@
 package logisticspipes.pipes;
 
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import com.cleanroommc.modularui.api.drawable.IKey;
-import com.cleanroommc.modularui.factory.PosGuiData;
-import com.cleanroommc.modularui.screen.ModularPanel;
-import com.cleanroommc.modularui.screen.RichTooltip;
-import com.cleanroommc.modularui.utils.Alignment;
-import com.cleanroommc.modularui.value.sync.FluidSlotSyncHandler;
-import com.cleanroommc.modularui.value.sync.PanelSyncManager;
-import com.cleanroommc.modularui.value.sync.SyncHandlers;
-import com.cleanroommc.modularui.widgets.CycleButtonWidget;
-import com.cleanroommc.modularui.widgets.layout.Flow;
-import com.cleanroommc.modularui.widgets.slot.FluidSlot;
-import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
-
 import gnu.trove.iterator.TObjectIntIterator;
 import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
-import logisticspipes.api.IMUICompatiblePipe;
-import logisticspipes.compat.ModularUIHelper;
+import logisticspipes.api.IMUICompatiblePipeV2;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
+import logisticspipes.gui.modularUI.pipes.PipeFluidSupplierMk2Mui;
 import logisticspipes.interfaces.routing.IRequestFluid;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.migration.LegacyHelper;
 import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
+import logisticspipes.pipes.basic.fluid.PendingFluids;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
-import logisticspipes.transport.PipeFluidTransportLogistics;
 import logisticspipes.utils.AdjacentTile;
 import logisticspipes.utils.FluidIdentifier;
+import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.WorldUtil;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class PipeFluidSupplierMk2 extends FluidRoutedPipe
-        implements IRequestFluid, IRequireReliableFluidTransport, IMUICompatiblePipe {
+        implements IRequestFluid, IRequireReliableFluidTransport, IMUICompatiblePipeV2 {
 
     private boolean _lastRequestFailed = false;
 
-    private final FluidTank phantomTank = new FluidTank(1);
-    private int amount = 0;
-    private boolean requestPartials = false;
-    private int refillThreshold = 0;
-
-    @Override
-    public void addUIWidgets(ModularPanel panel, PosGuiData data, PanelSyncManager syncManager) {
-        panel.background(ModularUIHelper.BACKGROUND_TEXTURE).bindPlayerInventory().child(
-                Flow.column().widthRel(1.0F).top(6).coverChildrenHeight().child(
-                        Flow.row().mainAxisAlignment(Alignment.MainAxis.CENTER)
-                                .crossAxisAlignment(Alignment.CrossAxis.CENTER).widthRel(1.0F).coverChildrenHeight()
-                                .child(IKey.lang("gui.fluidsuppliermk2.TargetInv").asWidget()))
-                        .child(
-                                Flow.row().mainAxisAlignment(Alignment.MainAxis.CENTER)
-                                        .crossAxisAlignment(Alignment.CrossAxis.CENTER).marginTop(5)
-                                        .coverChildrenHeight()
-                                        .child(
-                                                IKey.comp(IKey.lang("gui.fluidsuppliermk2.Fluid"), IKey.str(":"))
-                                                        .asWidget())
-                                        .child(
-                                                new FluidSlot()
-                                                        .syncHandler(
-                                                                new FluidSlotSyncHandler(phantomTank).phantom(true)
-                                                                        .controlsAmount(false))
-                                                        .marginLeft(6).width(16).height(16))
-                                        .child(
-                                                new TextFieldWidget().marginLeft(6).width(80)
-                                                        .numbersInt(0, Integer.MAX_VALUE).value(
-                                                                SyncHandlers
-                                                                        .intNumber(
-                                                                                () -> amount,
-                                                                                value -> this.amount = value)
-                                                                        .allowC2S()))
-                                        .child(IKey.str("mB").asWidget().marginLeft(3)))
-                        .child(
-                                Flow.row().mainAxisAlignment(Alignment.MainAxis.CENTER)
-                                        .crossAxisAlignment(Alignment.CrossAxis.CENTER).marginTop(5)
-                                        .coverChildrenHeight()
-                                        .child(
-                                                IKey.comp(IKey.lang("gui.fluidsuppliermk2.partial"), IKey.str(":"))
-                                                        .asWidget())
-                                        .child(
-                                                new CycleButtonWidget().marginLeft(6).width(24)
-                                                        .value(
-                                                                SyncHandlers
-                                                                        .bool(
-                                                                                () -> this.requestPartials,
-                                                                                value -> this.requestPartials = value)
-                                                                        .allowC2S())
-                                                        .overlay(
-                                                                IKey.lang(
-                                                                        () -> this.requestPartials
-                                                                                ? "gui.fluidsuppliermk2.partial.yes"
-                                                                                : "gui.fluidsuppliermk2.partial.no"))
-                                                        .tooltipBuilder((tooltip -> {
-                                                            tooltip.addLine(
-                                                                    IKey.lang("gui.fluidsuppliermk2.partial.tip"));
-
-                                                            if (requestPartials) {
-                                                                tooltip.addLine(
-                                                                        IKey.lang(
-                                                                                "gui.fluidsuppliermk2.partial.yes.tip"));
-                                                            } else {
-                                                                tooltip.addLine(
-                                                                        IKey.lang(
-                                                                                "gui.fluidsuppliermk2.partial.no.tip"));
-                                                            }
-                                                        })).tooltipPos(RichTooltip.Pos.ABOVE)))
-                        .child(
-                                Flow.row().mainAxisAlignment(Alignment.MainAxis.CENTER)
-                                        .crossAxisAlignment(Alignment.CrossAxis.CENTER).marginTop(5)
-                                        .coverChildrenHeight().child(
-                                                IKey.comp(
-                                                        IKey.lang("gui.fluidsuppliermk2.refill_if_depleted"),
-                                                        IKey.str(":")).asWidget()))
-                        .child(
-                                Flow.row().marginTop(5).mainAxisAlignment(Alignment.MainAxis.CENTER)
-                                        .coverChildrenHeight()
-                                        .child(
-                                                new TextFieldWidget().width(80).numbersInt(0, Integer.MAX_VALUE).value(
-                                                        SyncHandlers
-                                                                .intNumber(
-                                                                        () -> refillThreshold,
-                                                                        value -> this.refillThreshold = value)
-                                                                .allowC2S())
-
-                                        ).child(IKey.str("mB").asWidget().marginLeft(3))
-                                        .child(IKey.str("§9[?]").asWidget().marginLeft(6).tooltipBuilder(tooltip -> {
-                                            tooltip.setAutoUpdate(true);
-                                            tooltip.addLine(
-                                                    IKey.lang(
-                                                            "gui.fluidsuppliermk2.refill_if_depleted.tip",
-                                                            this.refillThreshold != 0 ? this.refillThreshold : "n"));
-                                            tooltip.addLine(
-                                                    IKey.lang("gui.fluidsuppliermk2.refill_if_depleted.tip.zero"));
-                                        }).tooltipPos(RichTooltip.Pos.ABOVE))));
-    }
-
-    @Override
-    public String getId() {
-        return "fluid_supplier_mk2";
-    }
-
-    @Override
-    public int getGuiWidth() {
-        return 184;
-    }
-
-    @Override
-    public int getGuiHeight() {
-        return 186;
-    }
+    public final FluidTank phantomTank = new FluidTank(1);
+    public int amount = 0;
+    public boolean requestPartials = false;
+    public int refillThreshold = 0;
 
     public PipeFluidSupplierMk2(Item item) {
         super(item);
@@ -207,21 +89,40 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
 
     private final TObjectIntMap<FluidIdentifier> _requestedItems = new TObjectIntHashMap<>(8, 0.5f, -1);
 
+    /**
+     * @return how much of the fluid that tile holds. For a tile with a special tank handler, like an ME interface, that
+     *         is what the handler reports, so for an ME network the content of the whole network.
+     */
+    private long getStoredAmount(TileEntity tile, FluidIdentifier fluid) {
+        return FluidTankUtil.getStored(tile, ForgeDirection.UNKNOWN, fluid);
+    }
+
+    /**
+     * @return true if the supplier can keep that tile stocked
+     */
+    private boolean isSupplyTarget(TileEntity tile) {
+        if (SimpleServiceLocator.pipeInformationManager.isItemPipe(tile)) {
+            return false;
+        }
+        if (SimpleServiceLocator.specialTankHandler.getAccessHandlerFor(tile) != null) {
+            return true;
+        }
+        if (!(tile instanceof IFluidHandler handler)) {
+            return false;
+        }
+        FluidTankInfo[] tanks = handler.getTankInfo(ForgeDirection.UNKNOWN);
+        return tanks != null && tanks.length > 0;
+    }
+
     @Override
-    protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, IFluidHandler tile) {
+    protected void fillSide(FluidStack toFill, ForgeDirection tankLocation, TileEntity tile) {
         if (phantomTank.getFluid() == null) {
             // shouldn't happen, but ok
             return;
         }
         // check if this tank need more fluid
-        int have = 0;
-
-        for (FluidTankInfo info : tile.getTankInfo(ForgeDirection.UNKNOWN)) {
-            if (info.fluid != null && info.fluid.isFluidEqual(phantomTank.getFluid())) {
-                have += info.fluid.amount;
-            }
-        }
-        int vacant = amount - have;
+        long have = getStoredAmount(tile, FluidIdentifier.get(phantomTank.getFluid()));
+        int vacant = (int) Math.max(0, amount - have);
         if (vacant <= 0)
             // too much fluid..
             return;
@@ -238,7 +139,7 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
         // it won't be wasted
         FluidStack filled = toFill.copy();
         filled.amount = Math.min(filled.amount, vacant);
-        toFill.amount -= tile.fill(tankLocation.getOpposite(), filled, true);
+        toFill.amount -= fillTank(tile, tankLocation, filled, true);
     }
 
     @Override
@@ -255,46 +156,22 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
         }
 
         TObjectIntMap<FluidIdentifier> requestDiscount = new TObjectIntHashMap<>(_requestedItems);
-        FluidTank centerTank = ((PipeFluidTransportLogistics) transport).internalTank;
-        if (centerTank != null && centerTank.getFluid() != null) {
-            requestDiscount.adjustOrPutValue(
-                    FluidIdentifier.get(centerTank.getFluid()),
-                    centerTank.getFluid().amount,
-                    centerTank.getFluid().amount);
+        // what waits at the pipe for room in a tank is not requested again
+        for (PendingFluids.Entry pending : getPendingFluids()) {
+            requestDiscount
+                    .adjustOrPutValue(FluidIdentifier.get(pending.fluid), pending.fluid.amount, pending.fluid.amount);
         }
 
         WorldUtil worldUtil = new WorldUtil(getWorld(), getX(), getY(), getZ());
         for (AdjacentTile tile : worldUtil.getAdjacentTileEntities(true)) {
-            if (!(tile.tile instanceof IFluidHandler)
-                    || SimpleServiceLocator.pipeInformationManager.isItemPipe(tile.tile)) {
-                continue;
-            }
-            IFluidHandler container = (IFluidHandler) tile.tile;
-            if (container.getTankInfo(ForgeDirection.UNKNOWN) == null
-                    || container.getTankInfo(ForgeDirection.UNKNOWN).length == 0) {
+            if (!isSupplyTarget(tile.tile)) {
                 continue;
             }
 
             // How much should I request?
             TObjectIntMap<FluidIdentifier> wantFluids = new TObjectIntHashMap<>(8);
             FluidIdentifier fIdent = FluidIdentifier.get(phantomTank.getFluid());
-            wantFluids.put(fIdent, amount);
-
-            FluidTankInfo[] result = container.getTankInfo(ForgeDirection.UNKNOWN);
-            for (FluidTankInfo slot : result) {
-                if (slot == null || slot.fluid == null || slot.fluid.getFluidID() == 0) {
-                    continue;
-                }
-                wantFluids.adjustValue(FluidIdentifier.get(slot.fluid), -slot.fluid.amount);
-            }
-
-            // What does our sided internal tank have
-            if (tile.orientation.ordinal() < ((PipeFluidTransportLogistics) transport).sideTanks.length) {
-                FluidTank sideTank = ((PipeFluidTransportLogistics) transport).sideTanks[tile.orientation.ordinal()];
-                if (sideTank != null && sideTank.getFluid() != null) {
-                    wantFluids.adjustValue(FluidIdentifier.get(sideTank.getFluid()), -sideTank.getFluid().amount);
-                }
-            }
+            wantFluids.put(fIdent, (int) Math.max(0, amount - getStoredAmount(tile.tile, fIdent)));
 
             // Reduce what have been requested already
             for (TObjectIntIterator<FluidIdentifier> iter = requestDiscount.iterator(); iter.hasNext();) {
@@ -407,12 +284,12 @@ public class PipeFluidSupplierMk2 extends FluidRoutedPipe
     public void liquidNotInserted(FluidIdentifier item, int amount) {}
 
     @Override
-    public void onWrenchClicked(EntityPlayer player) {
-        openGui(player, this);
+    public boolean canReceiveFluid() {
+        return false;
     }
 
     @Override
-    public boolean canReceiveFluid() {
-        return false;
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromMui(new PipeFluidSupplierMk2Mui(this));
     }
 }

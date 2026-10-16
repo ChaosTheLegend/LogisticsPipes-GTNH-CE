@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import logisticspipes.crafting.PatternByproductTarget;
+import logisticspipes.crafting.PatternCraftingReference;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.routing.IRouter;
@@ -41,6 +43,21 @@ public abstract class LogisticsOrder implements IOrderInfoProvider {
     @Getter
     @Setter
     private byte machineProgress = 0;
+
+    /**
+     * Marks an order that originated as a crafting byproduct, even after that extra was claimed by a requester.
+     */
+    @Getter
+    @Setter
+    private boolean byproduct;
+
+    @Getter
+    @Setter
+    private PatternByproductTarget byproductTarget;
+
+    @Getter
+    @Setter
+    private PatternCraftingReference craftingReference;
 
     private final List<IDistanceTracker> trackers = new CopyOnWriteArrayList<>();
 

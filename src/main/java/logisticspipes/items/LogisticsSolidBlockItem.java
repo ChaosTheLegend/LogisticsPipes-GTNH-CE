@@ -37,6 +37,10 @@ public class LogisticsSolidBlockItem extends ItemBlock {
                 return "tile.logisticsfuzzycraftingtable";
             case LogisticsSolidBlock.LOGISTICS_STATISTICS_TABLE:
                 return "tile.logisticsstatisticstable";
+            case LogisticsSolidBlock.LOGISTICS_PATTERN_CRAFTING_TABLE:
+                return "tile.logisticspatterncraftingtable";
+            case LogisticsSolidBlock.LOGISTICS_CRAFTING_MONITOR:
+                return "tile.logisticscraftingmonitor";
             case LogisticsSolidBlock.LOGISTICS_RF_POWERPROVIDER:
                 return "tile.logisticstepowerprovider";
             case LogisticsSolidBlock.LOGISTICS_IC2_POWERPROVIDER:
@@ -67,6 +71,8 @@ public class LogisticsSolidBlockItem extends ItemBlock {
         par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_SECURITY_STATION));
         par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_AUTOCRAFTING_TABLE));
         par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_FUZZYCRAFTING_TABLE));
+        par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_PATTERN_CRAFTING_TABLE));
+        par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_CRAFTING_MONITOR));
         par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_STATISTICS_TABLE));
         if (SimpleServiceLocator.cofhPowerProxy.isAvailable()) {
             par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_RF_POWERPROVIDER));

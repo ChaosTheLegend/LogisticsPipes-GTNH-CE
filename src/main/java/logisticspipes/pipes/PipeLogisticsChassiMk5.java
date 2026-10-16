@@ -30,4 +30,5 @@ public class PipeLogisticsChassiMk5 extends PipeLogisticsChassi {
     public ResourceLocation getChassiGUITexture() {
         return PipeLogisticsChassiMk5.TEXTURE;
     }
+
 }

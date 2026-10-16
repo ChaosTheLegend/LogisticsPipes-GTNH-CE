@@ -8,6 +8,8 @@ public interface ISlotUpgradeManager {
 
     boolean isAdvancedSatelliteCrafter();
 
+    boolean hasInstantSatelliteUpgrade();
+
     boolean hasByproductExtractor();
 
     int getFluidCrafter();

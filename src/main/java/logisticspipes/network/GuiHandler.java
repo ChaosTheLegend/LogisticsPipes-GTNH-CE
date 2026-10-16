@@ -13,7 +13,6 @@ import logisticspipes.crafting.requesttable.gui.RequestTableGui;
 import logisticspipes.crafting.requesttable.gui.upgrade.RequestTableUpgradeGui;
 import logisticspipes.crafting.requesttable.upgrade.RequestTableUpgradeContainer;
 import logisticspipes.gui.GuiFirewall;
-import logisticspipes.gui.GuiFluidBasic;
 import logisticspipes.gui.GuiFluidSupplierPipe;
 import logisticspipes.gui.GuiFreqCardContent;
 import logisticspipes.gui.GuiInvSysConnector;
@@ -24,12 +23,10 @@ import logisticspipes.gui.orderer.FluidGuiOrderer;
 import logisticspipes.gui.orderer.GuiRequestTable;
 import logisticspipes.gui.orderer.NormalGuiOrderer;
 import logisticspipes.gui.orderer.NormalMk2GuiOrderer;
-import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.network.packets.pipe.FluidSupplierMode;
 import logisticspipes.network.packets.pipe.InvSysConResistance;
 import logisticspipes.pipes.PipeBlockRequestTable;
-import logisticspipes.pipes.PipeFluidBasic;
 import logisticspipes.pipes.PipeFluidRequestLogistics;
 import logisticspipes.pipes.PipeFluidSatellite;
 import logisticspipes.pipes.PipeItemsFirewall;
@@ -205,26 +202,6 @@ public class GuiHandler implements IGuiHandler {
                     dummy.addRestrictedArmorForPlayerInventory(10, 60);
                     return dummy;
 
-                case GuiIDs.GUI_Fluid_Basic_ID:
-                    if (pipe == null || !((pipe.pipe instanceof PipeFluidBasic))) {
-                        return null;
-                    }
-                    dummy = new DummyContainer(player, ((PipeFluidBasic) pipe.pipe).filterInv, new IGuiOpenControler() {
-
-                        @Override
-                        public void guiOpenedByPlayer(EntityPlayer player) {
-                            ((PipeFluidBasic) fpipe.pipe).guiOpenedByPlayer(player);
-                        }
-
-                        @Override
-                        public void guiClosedByPlayer(EntityPlayer player) {
-                            ((PipeFluidBasic) fpipe.pipe).guiClosedByPlayer(player);
-                        }
-                    });
-                    dummy.addFluidSlot(0, ((PipeFluidBasic) pipe.pipe).filterInv, 28, 15);
-                    dummy.addNormalSlotsForPlayerInventory(10, 45);
-                    return dummy;
-
                 case GuiIDs.GUI_FIREWALL:
                     if (pipe == null || !((pipe.pipe instanceof PipeItemsFirewall))) {
                         return null;
@@ -365,12 +342,6 @@ public class GuiHandler implements IGuiHandler {
 
                 case GuiIDs.GUI_HUD_Settings:
                     return new GuiHUDSettings(player, x);
-
-                case GuiIDs.GUI_Fluid_Basic_ID:
-                    if (pipe == null || !((pipe.pipe instanceof PipeFluidBasic))) {
-                        return null;
-                    }
-                    return new GuiFluidBasic(player, ((PipeFluidBasic) pipe.pipe).filterInv);
 
                 case GuiIDs.GUI_FIREWALL:
                     if (pipe == null || !((pipe.pipe instanceof PipeItemsFirewall))) {

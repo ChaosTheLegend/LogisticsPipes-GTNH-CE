@@ -1,0 +1,28 @@
+﻿//Reserved for future use.
+
+//Shift would be basic description, and ctrl could be a more low level breakdown of the module as well as showing it's current configuration.
+
+# Basic Logistics Pipe
+ - Stores a configured set of items to all attached inventories. Can be set to "default route" to act as last resort storage for non-matched items.
+# ItemSink Module
+ - Stores a configured set of items to the attached inventory. Can be set to "default route" to act as last resort storage for non-matched items.
+# Provider Pipe
+ - Allows the Logistics Network to see all attached inventories, and to pull requested items.
+# Supplier Pipe/module
+ - Requests a preconfigured set of items every network update, with configurable modes.
+# Passive Supplier Module
+ - Stores a configured set of items to the attached inventory. Acts as an extremely high priority sorting destnation.
+# Crafting Pipe/module
+ - Requests exactly the preconfigured set of items via an internal pattern, and provides the programmed result.
+# Sattelite Pipe
+ - Acts as a delegated destnation. Modules may be programmed to send items to this instead of their original location via a unique identifier.
+# Polymorphic ItemSink Module
+ - Stores items based on the existing items in the attached inventory.
+# Tag ItemSink Module
+ - Stores items based on the configured Gregtech Ore Dictionary.
+# Extractor Module
+ - Forcefully pulls from an attached inventory into the network.
+# Advanced Extractor Module
+ - Forcefully pulls a configured set of items from an attached inventory into the network.
+# Terminus Module
+ - Stores a configured set of "trash" items to the attached inventory. This has the lowest priority besides the Default Route.

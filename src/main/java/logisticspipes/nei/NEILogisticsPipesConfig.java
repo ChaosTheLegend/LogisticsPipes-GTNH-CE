@@ -1,5 +1,7 @@
 package logisticspipes.nei;
 
+// import com.glodblock.github.nei.recipes.FluidRecipe;
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
@@ -53,10 +55,12 @@ public class NEILogisticsPipesConfig implements IConfigureNEI {
 
         API.registerGuiOverlayHandler(
                 GuiLogisticsCraftingTable.class,
-                new LogisticsCraftingOverlayHandler(),
+                LogisticsCraftingOverlayHandler.INSTANCE,
                 "crafting");
-        API.registerGuiOverlayHandler(GuiRequestTable.class, new LogisticsCraftingOverlayHandler(), "crafting");
-        API.registerGuiOverlayHandler(RequestTableGui.class, new LogisticsCraftingOverlayHandler(), "crafting");
+        API.registerGuiOverlayHandler(GuiRequestTable.class, LogisticsCraftingOverlayHandler.INSTANCE, "crafting");
+        API.registerGuiOverlayHandler(RequestTableGui.class, LogisticsCraftingOverlayHandler.INSTANCE, "crafting");
+
+        // pattern editors (pipe and handheld) get NEI transfer from PatternCraftingContainer
 
         API.registerGuiOverlayHandler(
                 logisticspipes.gui.GuiCraftingPipe.class,
@@ -106,14 +110,9 @@ public class NEILogisticsPipesConfig implements IConfigureNEI {
             API.hideItem(new ItemStack(LogisticsPipes.UpgradeItem, 1, 35));
             API.hideItem(new ItemStack(LogisticsPipes.UpgradeItem, 1, 36));
             API.hideItem(new ItemStack(LogisticsPipes.ModuleItem, 1, 301));
-            // This are used to connect 2 LP networks through chests and might lag, it is disabled for now
-            API.hideItem(new ItemStack(LogisticsPipes.LogisticsInvSysConPipe));
             // Should be added when Logistics Item Card is added
             API.hideItem(new ItemStack(LogisticsPipes.LogisticsEntrancePipe));
             API.hideItem(new ItemStack(LogisticsPipes.LogisticsDestinationPipe));
-            // Hidden until someone can come up with a proper recipe idea
-            API.hideItem(new ItemStack(LogisticsPipes.LogisticsItemCard));
-
             // Fluid Transport Item
             API.hideItem(new ItemStack(LogisticsPipes.LogisticsFluidContainer));
         }

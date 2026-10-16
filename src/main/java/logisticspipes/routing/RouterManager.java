@@ -26,6 +26,8 @@ import logisticspipes.proxy.MainProxy;
 public class RouterManager implements IRouterManager, IDirectConnectionManager, ISecurityStationManager {
 
     private final ArrayList<IRouter> _routersClient = new ArrayList<>();
+    // ClientRouter.isAt ignores the dimension (the list is cleared on every client world load), so key by position only
+    private final Map<Long, IRouter> _routersClientByPos = new HashMap<>();
     private final ArrayList<IRouter> _routersServer = new ArrayList<>();
     private final Map<UUID, Integer> _uuidMap = new HashMap<>();
 
@@ -84,13 +86,14 @@ public class RouterManager implements IRouterManager, IDirectConnectionManager, 
         if (r == null || !r.isAt(dimension, xCoord, yCoord, zCoord)) {
             if (MainProxy.isClient()) {
                 synchronized (_routersClient) {
-                    for (IRouter r2 : _routersClient) {
-                        if (r2.isAt(dimension, xCoord, yCoord, zCoord)) {
-                            return r2;
-                        }
+                    long pos = RouterManager.packPosition(xCoord, yCoord, zCoord);
+                    IRouter r2 = _routersClientByPos.get(pos);
+                    if (r2 != null) {
+                        return r2;
                     }
                     r = new ClientRouter(UUid, dimension, xCoord, yCoord, zCoord);
                     _routersClient.add(r);
+                    _routersClientByPos.put(pos, r);
                 }
             } else {
                 synchronized (_routersServer) {
@@ -251,7 +254,13 @@ public class RouterManager implements IRouterManager, IDirectConnectionManager, 
     public void clearClientRouters() {
         synchronized (_routersClient) {
             _routersClient.clear();
+            _routersClientByPos.clear();
         }
+    }
+
+    /** Packs block coordinates (x/z within ±2^25, y within 0..4095) into one key for the router position indexes. */
+    protected static long packPosition(int xCoord, int yCoord, int zCoord) {
+        return ((long) (xCoord & 0x3FFFFFF) << 38) | ((long) (zCoord & 0x3FFFFFF) << 12) | (yCoord & 0xFFF);
     }
 
     @Override

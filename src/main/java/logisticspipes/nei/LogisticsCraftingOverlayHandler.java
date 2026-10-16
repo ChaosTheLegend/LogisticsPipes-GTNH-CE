@@ -26,10 +26,14 @@ import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 
 public class LogisticsCraftingOverlayHandler implements IOverlayHandler {
 
+    public LogisticsCraftingOverlayHandler() {}
+
+    public static final LogisticsCraftingOverlayHandler INSTANCE = new LogisticsCraftingOverlayHandler();
+
     @Override
     public void overlayRecipe(GuiContainer firstGui, IRecipeHandler recipe, int recipeIndex, boolean shift) {
 
-        TileEntity tile;
+        TileEntity tile = null;
         LogisticsBaseGuiScreen gui;
         if (firstGui instanceof GuiLogisticsCraftingTable) {
             tile = ((GuiLogisticsCraftingTable) firstGui)._crafter;

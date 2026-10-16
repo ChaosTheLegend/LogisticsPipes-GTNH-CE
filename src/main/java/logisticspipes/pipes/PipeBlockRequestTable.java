@@ -20,9 +20,11 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.crafting.AutoCraftingInventory;
+import logisticspipes.crafting.PatternCraftingMonitorNode;
+import logisticspipes.crafting.PatternCraftingMonitorRegistry;
+import logisticspipes.interfaces.IBlockShapedPipe;
 import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.interfaces.IRequestWatcher;
-import logisticspipes.interfaces.IRotationProvider;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.network.GuiIDs;
@@ -31,6 +33,7 @@ import logisticspipes.network.packets.block.CraftingSetType;
 import logisticspipes.network.packets.block.RequestRotationPacket;
 import logisticspipes.network.packets.orderer.OrderWatchRemovePacket;
 import logisticspipes.network.packets.orderer.OrdererWatchPacket;
+import logisticspipes.network.packets.orderer.PatternCraftingWatchPacket;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
@@ -51,7 +54,7 @@ import logisticspipes.utils.item.SimpleStackInventory;
 import logisticspipes.utils.tuples.Pair;
 
 public class PipeBlockRequestTable extends PipeItemsRequestLogistics
-        implements ISimpleInventoryEventHandler, IRequestWatcher, IGuiOpenControler, IRotationProvider {
+        implements ISimpleInventoryEventHandler, IRequestWatcher, IGuiOpenControler, IBlockShapedPipe {
 
     public SimpleStackInventory diskInv = new SimpleStackInventory(1, "Disk Slot", 1);
     public SimpleStackInventory inv = new SimpleStackInventory(27, "Crafting Resources", 64);
@@ -67,6 +70,7 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
 
     private final PlayerCollectionList localGuiWatcher = new PlayerCollectionList();
     public Map<Integer, Pair<IResource, LinkedLogisticsOrderList>> watchedRequests = new HashMap<>();
+    public Map<Integer, List<PatternCraftingMonitorNode>> watchedPatternCraftingRequests = new HashMap<>();
     private int localLastUsedWatcherId = 0;
 
     public ItemIdentifier targetType = null;
@@ -114,11 +118,7 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
             checkForExpired();
             if (getUpgradeManager().hasCraftingMonitoringUpgrade()) {
                 for (Entry<Integer, Pair<IResource, LinkedLogisticsOrderList>> entry : watchedRequests.entrySet()) {
-                    MainProxy.sendToPlayerList(
-                            PacketHandler.getPacket(OrdererWatchPacket.class).setOrders(entry.getValue().getValue2())
-                                    .setStack(entry.getValue().getValue1()).setInteger(entry.getKey())
-                                    .setTilePos(container),
-                            localGuiWatcher);
+                    sendWatchedRequestToGuiWatchers(entry.getKey(), entry.getValue());
                 }
             }
         } else if (tick % 20 == 0) {
@@ -137,6 +137,7 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
                                 .setTilePos(container),
                         localGuiWatcher);
                 iter.remove();
+                watchedPatternCraftingRequests.remove(entry.getKey());
             }
         }
     }
@@ -215,42 +216,14 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
         return Textures.empty_2;
     }
 
-    public IIcon getTextureFor(int l) {
-        ForgeDirection dir = ForgeDirection.getOrientation(l);
-        if (LogisticsPipes.getClientPlayerConfig().isUseNewRenderer()) {
-            switch (dir) {
-                case UP:
-                case DOWN:
-                    return Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY;
-                default:
-                    if (container.renderState.pipeConnectionMatrix.isConnected(dir)) {
-                        if (container.renderState.textureMatrix.getTextureIndex(dir) == 1) {
-                            return Textures.LOGISTICS_REQUEST_TABLE_NEW_ROUTED;
-                        } else {
-                            return Textures.LOGISTICS_REQUEST_TABLE_NEW_UNROUTED;
-                        }
-                    } else {
-                        return Textures.LOGISTICS_REQUEST_TABLE_NEW_EMPTY;
-                    }
-            }
-        } else {
-            switch (dir) {
-                case UP:
-                    return Textures.LOGISTICS_REQUEST_TABLE[0];
-                case DOWN:
-                    return Textures.LOGISTICS_REQUEST_TABLE[1];
-                default:
-                    if (container.renderState.pipeConnectionMatrix.isConnected(dir)) {
-                        if (container.renderState.textureMatrix.getTextureIndex(dir) == 1) {
-                            return Textures.LOGISTICS_REQUEST_TABLE[2];
-                        } else {
-                            return Textures.LOGISTICS_REQUEST_TABLE[3];
-                        }
-                    } else {
-                        return Textures.LOGISTICS_REQUEST_TABLE[4];
-                    }
-            }
-        }
+    @Override
+    public BlockTextures getBlockTextures() {
+        return BlockTextures.of(Textures.LOGISTICS_REQUEST_TABLE);
+    }
+
+    @Override
+    public IIcon getBlockModelTexture() {
+        return Textures.LOGISTICS_REQUEST_TABLE_NEW;
     }
 
     @Override
@@ -260,6 +233,13 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
             toSortInv.dropContents(getWorld(), getX(), getY(), getZ());
             diskInv.dropContents(getWorld(), getX(), getY(), getZ());
         }
+    }
+
+    /**
+     * @return the recipe {@link #cacheRecipe} found for the crafting matrix, or null
+     */
+    protected IRecipe getCachedRecipe() {
+        return cache;
     }
 
     public void cacheRecipe() {
@@ -567,10 +547,7 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
         }
         orders.setWatched();
         watchedRequests.put(++localLastUsedWatcherId, new Pair<>(stack, orders));
-        MainProxy.sendToPlayerList(
-                PacketHandler.getPacket(OrdererWatchPacket.class).setOrders(orders).setStack(stack)
-                        .setInteger(localLastUsedWatcherId).setTilePos(container),
-                localGuiWatcher);
+        sendWatchedRequestToGuiWatchers(localLastUsedWatcherId, watchedRequests.get(localLastUsedWatcherId));
     }
 
     @Override
@@ -583,10 +560,7 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
                 player);
         localGuiWatcher.add(player);
         for (Entry<Integer, Pair<IResource, LinkedLogisticsOrderList>> entry : watchedRequests.entrySet()) {
-            MainProxy.sendPacketToPlayer(
-                    PacketHandler.getPacket(OrdererWatchPacket.class).setOrders(entry.getValue().getValue2())
-                            .setStack(entry.getValue().getValue1()).setInteger(entry.getKey()).setTilePos(container),
-                    player);
+            sendWatchedRequestToPlayer(entry.getKey(), entry.getValue(), player);
         }
     }
 
@@ -607,10 +581,47 @@ public class PipeBlockRequestTable extends PipeItemsRequestLogistics
         if (MainProxy.isClient(getWorld())) {
             if (id == -1) {
                 watchedRequests.clear();
+                watchedPatternCraftingRequests.clear();
             } else {
                 watchedRequests.remove(id);
+                watchedPatternCraftingRequests.remove(id);
             }
         }
+    }
+
+    public void handleClientSidePatternCraftingInfo(int id, List<PatternCraftingMonitorNode> roots) {
+        if (MainProxy.isClient(getWorld())) {
+            if (roots == null || roots.isEmpty()) {
+                watchedPatternCraftingRequests.remove(id);
+            } else {
+                watchedPatternCraftingRequests.put(id, roots);
+            }
+        }
+    }
+
+    private void sendWatchedRequestToGuiWatchers(int id, Pair<IResource, LinkedLogisticsOrderList> request) {
+        MainProxy.sendToPlayerList(
+                PacketHandler.getPacket(OrdererWatchPacket.class).setOrders(request.getValue2())
+                        .setStack(request.getValue1()).setInteger(id).setTilePos(container),
+                localGuiWatcher);
+        MainProxy.sendToPlayerList(
+                PacketHandler.getPacket(PatternCraftingWatchPacket.class)
+                        .setRoots(PatternCraftingMonitorRegistry.build(request.getValue2())).setInteger(id)
+                        .setTilePos(container),
+                localGuiWatcher);
+    }
+
+    private void sendWatchedRequestToPlayer(int id, Pair<IResource, LinkedLogisticsOrderList> request,
+            EntityPlayer player) {
+        MainProxy.sendPacketToPlayer(
+                PacketHandler.getPacket(OrdererWatchPacket.class).setOrders(request.getValue2())
+                        .setStack(request.getValue1()).setInteger(id).setTilePos(container),
+                player);
+        MainProxy.sendPacketToPlayer(
+                PacketHandler.getPacket(PatternCraftingWatchPacket.class)
+                        .setRoots(PatternCraftingMonitorRegistry.build(request.getValue2())).setInteger(id)
+                        .setTilePos(container),
+                player);
     }
 
     public ItemStack getDisk() {

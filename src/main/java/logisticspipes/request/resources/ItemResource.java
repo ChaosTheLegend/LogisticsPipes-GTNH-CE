@@ -122,4 +122,9 @@ public class ItemResource implements IResource {
     public ItemIdentifierStack getDisplayItem() {
         return stack;
     }
+
+    @Override
+    public String toString() {
+        return stack.toString();
+    }
 }

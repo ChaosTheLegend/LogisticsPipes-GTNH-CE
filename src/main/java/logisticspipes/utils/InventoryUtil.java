@@ -33,6 +33,15 @@ public class InventoryUtil implements IInventoryUtil, ISpecialInsertion {
     }
 
     @Override
+    public boolean isEmpty() {
+        for (int i = 0; i < _inventory.getSizeInventory(); i++) {
+            ItemStack stack = _inventory.getStackInSlot(i);
+            if (stack != null && stack.stackSize > 0) return false;
+        }
+        return true;
+    }
+
+    @Override
     public int itemCount(ItemIdentifier item) {
         int count = 0;
         boolean first = true;

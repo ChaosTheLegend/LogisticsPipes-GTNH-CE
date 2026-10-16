@@ -21,6 +21,19 @@ public interface ILogisticsManager {
 
     IRoutedItem assignDestinationFor(IRoutedItem item, int sourceRouterint, boolean excludeSource);
 
+    /**
+     * {@link #assignDestinationFor}, returning how many items of the stack the new destination has room for: 0 when it
+     * takes them all (or no destination was found). The caller splits off the rest so it is routed elsewhere right away
+     * instead of bouncing off the full destination.
+     */
+    int assignDestinationWithLimit(IRoutedItem item, int sourceRouterint, boolean excludeSource);
+
+    /**
+     * Last effort before an item that found no destination is dropped: the nearest default route with room for it,
+     * ignoring room already promised to items in transit. Returns whether a destination was assigned.
+     */
+    boolean assignDefaultRouteFor(IRoutedItem item, int sourceRouterint);
+
     Triplet<Integer, SinkReply, List<IFilter>> hasDestination(ItemIdentifier stack, boolean allowDefault, int sourceID,
             List<Integer> routerIDsToExclude);
 

@@ -41,7 +41,7 @@ import logisticspipes.renderer.LogisticsHUDRenderer;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.IRouter;
 import logisticspipes.routing.PipeRoutingConnectionType;
-import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.RouterIds;
 import logisticspipes.utils.AdjacentTile;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.WorldUtil;
@@ -60,7 +60,7 @@ public abstract class LogisticsPowerProviderTileEntity extends LogisticsSolidTil
     public boolean needMorePowerTriggerCheck = true;
 
     protected Map<Integer, Float> orders = new HashMap<>();
-    protected BitSet reOrdered = new BitSet(ServerRouter.getBiggestSimpleID());
+    protected BitSet reOrdered = new BitSet(RouterIds.getBiggestSimpleID());
     protected boolean pauseRequesting = false;
 
     protected float internalStorage = 0;

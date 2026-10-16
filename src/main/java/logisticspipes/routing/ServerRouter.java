@@ -375,10 +375,9 @@ public class ServerRouter implements IRouter, Comparable<ServerRouter> {
         }
         TileEntity tile = worldObj.getTileEntity(_xCoord, _yCoord, _zCoord);
 
-        if (!(tile instanceof LogisticsTileGenericPipe)) {
+        if (!(tile instanceof LogisticsTileGenericPipe pipe)) {
             return null;
         }
-        LogisticsTileGenericPipe pipe = (LogisticsTileGenericPipe) tile;
         if (!(pipe.pipe instanceof CoreRoutedPipe)) {
             return null;
         }
@@ -1395,22 +1394,24 @@ public class ServerRouter implements IRouter, Comparable<ServerRouter> {
         } else {
             removeGenericInterest();
         }
-        Set<ItemIdentifier> newInterests = pipe.getSpecificInterests();
-        if (newInterests == null) {
-            newInterests = new TreeSet<>();
+        Set<ItemIdentifier> declaredInterests = pipe.getSpecificInterests();
+        if (declaredInterests == null) {
+            declaredInterests = Collections.emptySet();
         }
-        if (!newInterests.equals(_hasInterestIn)) {
+        if (!declaredInterests.equals(_hasInterestIn)) {
             for (ItemIdentifier i : _hasInterestIn) {
-                if (!newInterests.contains(i)) {
+                if (!declaredInterests.contains(i)) {
                     removeInterest(i);
                 }
             }
-            for (ItemIdentifier i : newInterests) {
+            for (ItemIdentifier i : declaredInterests) {
                 if (!_hasInterestIn.contains(i)) {
                     addInterest(i);
                 }
             }
-            _hasInterestIn = newInterests;
+            // Router state must never alias a collection owned by a pipe. Pipes may expose cached or immutable sets.
+            _hasInterestIn.clear();
+            _hasInterestIn.addAll(declaredInterests);
         }
     }
 
@@ -1502,8 +1503,7 @@ public class ServerRouter implements IRouter, Comparable<ServerRouter> {
             return ServerRouter.getRoutersInterestedIn(((ItemResource) item).getItem());
         } else if (item instanceof FluidResource) {
             return ServerRouter.getRoutersInterestedIn(((FluidResource) item).getFluid().getItemIdentifier());
-        } else if (item instanceof DictResource) {
-            DictResource dict = (DictResource) item;
+        } else if (item instanceof DictResource dict) {
             BitSet s = new BitSet(ServerRouter.getBiggestSimpleID() + 1);
             if (ServerRouter._genericInterests != null) {
                 for (IRouter r : ServerRouter._genericInterests) {

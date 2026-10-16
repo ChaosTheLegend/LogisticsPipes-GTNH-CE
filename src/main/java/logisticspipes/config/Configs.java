@@ -40,9 +40,16 @@ public class Configs {
     public static boolean MANDATORY_CARPENTER_RECIPES = true;
     public static boolean ENABLE_BETA_RECIPES = false;
     public static boolean ENABLE_PARTICLE_FX = true;
+    public static boolean ITEM_CLUMP_TRANSPORT = true;
+    public static int ITEM_CLUMP_GATHER_TICKS = 5;
 
     // GuiOrderer Popup setting
     public static boolean DISPLAY_POPUP = true;
+    public static int[] REQUEST_TABLE_AMOUNT_STEPS = { 1, 10, 100, 1000 };
+    // the mouse wheel in the same window: alone, with shift, with ctrl, with both
+    public static int[] REQUEST_TABLE_SCROLL_STEPS = { 1, 10, 100, 1000 };
+    public static final int MAX_REQUEST_TABLE_AMOUNT_STEP = 99999;
+    private static final String SCROLL_STEPS_COMMENT = "The four amounts the mouse wheel changes the amount window of the request table by: alone, with shift, with ctrl and with both.";
 
     // MultiThread
     public static int MULTI_THREAD_NUMBER = 4;
@@ -141,6 +148,23 @@ public class Configs {
                         "The max. distance between a player and the HUD that get's shown in blocks.")
                 .getInt();
 
+        Configs.setRequestTableAmountSteps(
+                Configs.CONFIGURATION
+                        .get(
+                                Configuration.CATEGORY_GENERAL,
+                                "requestTableAmountSteps",
+                                Configs.REQUEST_TABLE_AMOUNT_STEPS,
+                                "The four values of the plus and minus buttons in the amount window of the request table.")
+                        .getIntList());
+        Configs.setRequestTableScrollSteps(
+                Configs.CONFIGURATION
+                        .get(
+                                Configuration.CATEGORY_GENERAL,
+                                "requestTableScrollSteps",
+                                Configs.REQUEST_TABLE_SCROLL_STEPS,
+                                SCROLL_STEPS_COMMENT)
+                        .getIntList());
+
         Configs.DISPLAY_POPUP = Configs.CONFIGURATION
                 .get(
                         Configuration.CATEGORY_GENERAL,
@@ -170,6 +194,22 @@ public class Configs {
                         Configs.ENABLE_PARTICLE_FX,
                         "Whether or not special particles will spawn.")
                 .getBoolean(false);
+        Configs.ITEM_CLUMP_TRANSPORT = Configs.CONFIGURATION
+                .get(
+                        Configuration.CATEGORY_GENERAL,
+                        "itemClumpTransport",
+                        Configs.ITEM_CLUMP_TRANSPORT,
+                        "Routed items skip corridors of LP pipes as scheduled hops in groups (clumps) instead of being moved block by block every tick. Turn off to go back to the old transport.")
+                .getBoolean(true);
+        Configs.ITEM_CLUMP_GATHER_TICKS = Configs.CONFIGURATION
+                .get(
+                        Configuration.CATEGORY_GENERAL,
+                        "itemClumpGatherTicks",
+                        Configs.ITEM_CLUMP_GATHER_TICKS,
+                        "How many ticks after a clump left a pipe an item going the same way may still join it (it then arrives that much earlier). 0 only groups items leaving in the same tick.",
+                        0,
+                        40)
+                .getInt();
 
         if (Configs.CONFIGURATION.hasKey(Configs.CATEGORY_MULTITHREAD, "enabled")) {
             // ConfigCategory.remove is deprecated, but there's no other way to remove a key-value pair without
@@ -263,6 +303,56 @@ public class Configs {
             .getInt();
 
         RequestTableStorageUpgradeConfig.load(Configs.CONFIGURATION);
+        Configs.CONFIGURATION.save();
+    }
+
+    /**
+     * Takes four values of at least 1, anything else leaves the steps as they are.
+     */
+    public static void setRequestTableAmountSteps(int[] steps) {
+        if (validSteps(steps)) {
+            REQUEST_TABLE_AMOUNT_STEPS = steps.clone();
+        }
+    }
+
+    /**
+     * Takes four values of at least 1, anything else leaves the steps as they are.
+     */
+    public static void setRequestTableScrollSteps(int[] steps) {
+        if (validSteps(steps)) {
+            REQUEST_TABLE_SCROLL_STEPS = steps.clone();
+        }
+    }
+
+    private static boolean validSteps(int[] steps) {
+        if (steps == null || steps.length != 4) {
+            return false;
+        }
+        for (int step : steps) {
+            if (step < 1 || step > MAX_REQUEST_TABLE_AMOUNT_STEP) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static void saveRequestTableAmountSteps() {
+        Property property = Configs.CONFIGURATION.get(
+                Configuration.CATEGORY_GENERAL,
+                "requestTableAmountSteps",
+                Configs.REQUEST_TABLE_AMOUNT_STEPS,
+                "The four values of the plus and minus buttons in the amount window of the request table.");
+        property.set(Configs.REQUEST_TABLE_AMOUNT_STEPS);
+        Configs.CONFIGURATION.save();
+    }
+
+    public static void saveRequestTableScrollSteps() {
+        Property property = Configs.CONFIGURATION.get(
+                Configuration.CATEGORY_GENERAL,
+                "requestTableScrollSteps",
+                Configs.REQUEST_TABLE_SCROLL_STEPS,
+                SCROLL_STEPS_COMMENT);
+        property.set(Configs.REQUEST_TABLE_SCROLL_STEPS);
         Configs.CONFIGURATION.save();
     }
 

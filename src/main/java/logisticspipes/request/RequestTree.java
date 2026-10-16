@@ -14,6 +14,7 @@ import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IProvide;
 import logisticspipes.interfaces.routing.IRequestFluid;
 import logisticspipes.interfaces.routing.IRequestItems;
+import logisticspipes.request.debug.CraftingRequestDebugManager;
 import logisticspipes.request.resources.FluidResource;
 import logisticspipes.request.resources.IResource;
 import logisticspipes.request.resources.ItemResource;
@@ -38,6 +39,8 @@ public class RequestTree extends RequestTreeNode {
 
     public static final EnumSet<ActiveRequestType> defaultRequestFlags = EnumSet
             .of(ActiveRequestType.Provide, ActiveRequestType.Craft);
+    /** crafts what is requested even if the network has it, the ingredients still come from anywhere */
+    public static final EnumSet<ActiveRequestType> craftOnlyRequestFlags = EnumSet.of(ActiveRequestType.Craft);
     private HashMap<FinalPair<IProvide, ItemIdentifier>, Integer> _promisetotals;
 
     public RequestTree(IResource requestType, RequestTree parent, EnumSet<ActiveRequestType> requestFlags,
@@ -171,6 +174,7 @@ public class RequestTree extends RequestTreeNode {
         }
         if (isDone) {
             LinkedLogisticsOrderList list = tree.fullFillAll();
+            CraftingRequestDebugManager.record("Item list request fulfilled: " + items, tree, list);
             if (log != null) {
                 log.handleSucessfullRequestOfList(RequestTreeNode.shrinkToList(messages), list);
             }
@@ -179,6 +183,7 @@ public class RequestTree extends RequestTreeNode {
             if (log != null) {
                 tree.logFailedRequestTree(log);
             }
+            CraftingRequestDebugManager.record("Item list request failed: " + items, tree, null);
             return false;
         }
     }
@@ -189,8 +194,12 @@ public class RequestTree extends RequestTreeNode {
         ItemResource req = new ItemResource(item, requester);
         RequestTree tree = new RequestTree(req, null, requestFlags, info);
         if (!simulateOnly && (tree.isDone() || ((tree.getPromiseAmount() > 0) && acceptPartial))) {
+            int crafted = tree.getCraftedAmount();
             LinkedLogisticsOrderList list = tree.fullFillAll();
+            CraftingRequestDebugManager
+                    .record("Item request fulfilled: " + item + " promised=" + tree.getPromiseAmount(), tree, list);
             if (log != null) {
+                log.handleCraftedAmount(crafted);
                 log.handleSucessfullRequestOf(req.copyForDisplayWith(item.getStackSize()), list);
             }
             return tree.getPromiseAmount();
@@ -206,14 +215,28 @@ public class RequestTree extends RequestTreeNode {
                     tree.sendUsedMessage(log);
                 }
             }
+            CraftingRequestDebugManager.record(
+                    "Item request not fulfilled: " + item
+                            + " promised="
+                            + tree.getPromiseAmount()
+                            + " simulateOnly="
+                            + simulateOnly
+                            + " acceptPartial="
+                            + acceptPartial,
+                    tree,
+                    null);
             return tree.getPromiseAmount();
         }
     }
 
     public static boolean request(ItemIdentifierStack item, IRequestItems requester, RequestLog log,
             IAdditionalTargetInformation info) {
-        return RequestTree
-                .request(item, requester, log, false, false, true, false, RequestTree.defaultRequestFlags, info)
+        return request(item, requester, log, RequestTree.defaultRequestFlags, info);
+    }
+
+    public static boolean request(ItemIdentifierStack item, IRequestItems requester, RequestLog log,
+            EnumSet<ActiveRequestType> requestFlags, IAdditionalTargetInformation info) {
+        return RequestTree.request(item, requester, log, false, false, true, false, requestFlags, info)
                 == item.getStackSize();
     }
 
@@ -229,20 +252,47 @@ public class RequestTree extends RequestTreeNode {
     }
 
     public static int requestFluidPartial(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log) {
-        return RequestTree.requestFluid(liquid, amount, pipe, log, true);
+        return RequestTree.requestFluid(liquid, amount, pipe, log, true, RequestTree.defaultRequestFlags, null);
+    }
+
+    public static int requestFluidPartial(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
+            IAdditionalTargetInformation info) {
+        return RequestTree.requestFluid(liquid, amount, pipe, log, true, RequestTree.defaultRequestFlags, info);
     }
 
     public static boolean requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log) {
-        return RequestTree.requestFluid(liquid, amount, pipe, log, false) == amount;
+        return RequestTree.requestFluid(liquid, amount, pipe, log, false, RequestTree.defaultRequestFlags, null)
+                == amount;
+    }
+
+    public static boolean requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
+            IAdditionalTargetInformation info) {
+        return RequestTree.requestFluid(liquid, amount, pipe, log, false, RequestTree.defaultRequestFlags, info)
+                == amount;
+    }
+
+    public static boolean requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
+            EnumSet<ActiveRequestType> requestFlags) {
+        return RequestTree.requestFluid(liquid, amount, pipe, log, false, requestFlags, null) == amount;
     }
 
     private static int requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
-            boolean acceptPartial) {
+            boolean acceptPartial, EnumSet<ActiveRequestType> requestFlags, IAdditionalTargetInformation info) {
         FluidResource req = new FluidResource(liquid, amount, pipe);
-        RequestTree request = new RequestTree(req, null, RequestTree.defaultRequestFlags, null);
+        RequestTree request = new RequestTree(req, null, requestFlags, info);
         if (request.isDone() || acceptPartial) {
-            request.fullFill();
+            int crafted = request.getCraftedAmount();
+            LinkedLogisticsOrderList list = request.fullFill();
+            CraftingRequestDebugManager.record(
+                    "Fluid request fulfilled: " + liquid
+                            + " amount="
+                            + amount
+                            + " promised="
+                            + request.getPromiseAmount(),
+                    request,
+                    list);
             if (log != null) {
+                log.handleCraftedAmount(crafted);
                 log.handleSucessfullRequestOf(req.copyForDisplayWith(req.getRequestedAmount()), null);
             }
             return request.getPromiseAmount();
@@ -250,6 +300,10 @@ public class RequestTree extends RequestTreeNode {
             if (log != null) {
                 request.sendMissingMessage(log);
             }
+            CraftingRequestDebugManager.record(
+                    "Fluid request failed: " + liquid + " amount=" + amount + " promised=" + request.getPromiseAmount(),
+                    request,
+                    null);
             return request.getPromiseAmount();
         }
     }

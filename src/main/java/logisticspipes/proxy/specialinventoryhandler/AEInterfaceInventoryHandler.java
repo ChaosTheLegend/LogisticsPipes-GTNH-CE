@@ -208,6 +208,22 @@ public class AEInterfaceInventoryHandler extends SpecialInventoryHandler {
         return cached.size();
     }
 
+    /**
+     * Builds the slot cache instead of a separate item map, so the slot scan that usually follows reuses it.
+     */
+    @Override
+    public boolean isEmpty() {
+        if (cached == null) {
+            initCache();
+        }
+        for (Entry<ItemIdentifier, Integer> entry : cached) {
+            if (entry.getValue() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public void initCache() {
         Map<ItemIdentifier, Integer> map = getItemsAndCount(true);
         cached = new ArrayList<>();
