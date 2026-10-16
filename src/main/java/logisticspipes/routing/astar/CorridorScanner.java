@@ -28,6 +28,7 @@ import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.proxy.bufferlink.BufferLinkManager;
 import logisticspipes.proxy.specialconnection.SpecialPipeConnection.ConnectionInformation;
 import logisticspipes.routing.ExitRoute;
 import logisticspipes.routing.PipeRoutingConnectionType;
@@ -295,6 +296,7 @@ public final class CorridorScanner {
             EnumSet<PipeRoutingConnectionType> nextConnectionFlags = EnumSet.copyOf(connectionFlags);
             boolean isDirectConnection = false;
             int resistance = 0;
+            IFilter linkFilter = null;
 
             if (root) {
                 Collection<TileEntity> list = SimpleServiceLocator.specialtileconnection.getConnectedPipes(tile);
@@ -311,7 +313,7 @@ public final class CorridorScanner {
                 }
             }
 
-            if (tile instanceof IInventory && startPipe.isRoutingPipe()
+            if ((tile instanceof IInventory || BufferLinkManager.isLinkBuffer(tile)) && startPipe.isRoutingPipe()
                     && startPipe.getRoutingPipe() instanceof IDirectRoutingConnection
                     && startPipe.canConnect(tile, direction, false)) {
                 if (SimpleServiceLocator.connectionManager
@@ -319,6 +321,7 @@ public final class CorridorScanner {
                     CoreRoutedPipe CRP = SimpleServiceLocator.connectionManager
                             .getConnectedPipe(startPipe.getRoutingPipe().getRouter());
                     if (CRP != null) {
+                        linkFilter = BufferLinkManager.getRouteFilter(tile, new LPPosition(startPipe));
                         tile = CRP.container;
                         isDirectConnection = true;
                         resistance = ((IDirectRoutingConnection) startPipe.getRoutingPipe()).getConnectionResistance();
@@ -411,6 +414,10 @@ public final class CorridorScanner {
                     }
                 }
                 for (Entry<CoreRoutedPipe, ExitRoute> pipeEntry : result.entrySet()) {
+                    if (linkFilter != null) {
+                        pipeEntry.getValue().filters = BufferLinkManager
+                                .withFilter(pipeEntry.getValue().filters, linkFilter);
+                    }
                     // Update Result with the direction we took
                     pipeEntry.getValue().exitOrientation = direction;
                     ExitRoute foundPipe = foundPipes.get(pipeEntry.getKey());

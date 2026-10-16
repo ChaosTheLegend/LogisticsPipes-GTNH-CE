@@ -162,6 +162,32 @@ without a wrench or button spam.
 - [ ] 🟡 GregTech pipes as buffers
 - [ ] 🟡 Tesseracts / special pipe connections as buffer endpoints
 - [ ] 🟠 Re-add and upgrade the inv. system connector pipe
+  - Linked buffers (in code 2026-10-16, not tested in game yet): when both connectors sit on a buffer that moves items
+    by itself, the sending end hands the item straight to the receiving end and nothing goes into the inventory
+    (`PipeItemsInvSysConnector.passThroughLinkedBuffer`, handlers in `proxy/bufferlink`). It costs the same 6 power at
+    the receiving end as an extraction. Without power, a broken link or a buffer that doesn't fit, the item goes the
+    normal way. Handled buffers:
+    - GT machine hulls (all tiers, bronze/steel too): both connectors on the same hull. A hull has an item slot and a
+      tank, so it carries items and fluid packets;
+    - EnderStorage chests: same colors and owner, any dimension (the receiving connector must be loaded), items only;
+    - GT long distance pipelines: sender on the input end, receiver on the output end, one way only. The item
+      pipeline carries only items, the fluid pipeline only fluid packets. Reads GT's protected `mTarget` by
+      reflection.
+    - EnderStorage tanks: same colors and owner, any dimension, fluid packets only. A tank isn't an item inventory,
+      so the connector connects to it only as a linked buffer: the handoff is the only way through, and an item that
+      can't be handed over is sent back instead of dropped.
+  - Each handler says what its buffer carries (`BufferContent`: items, fluids or both). Item-only and fluid-only
+    links put a `BufferContentRouteFilter` on the connector's direct connection (both route scanners), so nothing
+    else is routed, provided or crafted across them: no fluid packets through ender chests or item pipelines, no
+    items through ender tanks or fluid pipelines. The handoff checks the same, as a safety net. Open: a connector
+    touching two buffers of different kinds keeps only the first route the scanner finds, so that route's filter
+    applies to the other side too.
+  - A broken link stops the handoff right away: the link is checked again for every item (ender storage color
+    change, pipeline broken in the middle, hull gone, receiving connector unloaded or out of power), and the item
+    goes into the inventory the normal way (or back, for an ender tank).
+  - More handlers to come: whenever another block or mod is found that moves items or fluids instantly between two
+    places (shared storage, paired endpoints), add an `IBufferLinkHandler` for it in `proxy/bufferlink` and register
+    it in `BufferLinkManager.load()`.
 - [x] 🟠 Pooled network power (in code 2026-10-15, not tested in game yet): every power junction in an island adds to
   that island's power pool, and any pipe in the island draws from the pool. No routes to power junctions.
   - The graph publish builds the pools (`JunctionGraphWriter.publish`, `PowerPool`). A pool reuses its island's

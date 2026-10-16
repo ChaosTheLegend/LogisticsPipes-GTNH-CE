@@ -39,6 +39,7 @@ import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.proxy.bufferlink.BufferLinkManager;
 import logisticspipes.routing.ItemRoutingInformation;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
@@ -327,7 +328,7 @@ public class PipeItemsInvSysConnector extends CoreRoutedPipe
             ForgeDirection dir = ForgeDirection.values()[i];
             p.moveForward(dir);
             TileEntity tile = p.getTileEntity(getWorld());
-            if (tile instanceof IInventory && this.container.canPipeConnect(tile, dir)) {
+            if (isBuffer(tile) && this.container.canPipeConnect(tile, dir)) {
                 return true;
             }
         }
@@ -373,13 +374,18 @@ public class PipeItemsInvSysConnector extends CoreRoutedPipe
         }
     }
 
+    /** An item inventory, or a buffer only linked connectors can use (ender tank). */
+    public static boolean isBuffer(TileEntity tile) {
+        return tile instanceof IInventory || BufferLinkManager.isLinkBuffer(tile);
+    }
+
     public boolean isConnectedInv(TileEntity tile) {
         for (int i = 0; i < 6; i++) {
             ForgeDirection dir = ForgeDirection.values()[i];
             LPPosition p = new LPPosition(getX(), getY(), getZ());
             p.moveForward(dir);
             TileEntity lTile = p.getTileEntity(getWorld());
-            if (lTile instanceof IInventory) {
+            if (isBuffer(lTile)) {
                 if (lTile == tile) {
                     return this.container.canPipeConnect(lTile, dir);
                 }
@@ -402,6 +408,48 @@ public class PipeItemsInvSysConnector extends CoreRoutedPipe
                 }
             }
         }
+    }
+
+    /**
+     * Hands the item straight to the connector at the other end when both sit on the same linked buffer (see
+     * {@link BufferLinkManager}), instead of inserting it here and waiting for the other end to extract it.
+     *
+     * @return false if the item has to go into the inventory the normal way
+     */
+    public boolean passThroughLinkedBuffer(ItemRoutingInformation info, TileEntity tile) {
+        if (info.getItem().getStackSize() <= 0 || info.destinationint < 0
+                || !isConnectedInv(tile)
+                || !hasRemoteConnection()) {
+            return false;
+        }
+        CoreRoutedPipe remote = SimpleServiceLocator.connectionManager.getConnectedPipe(getRouter());
+        if (!(remote instanceof PipeItemsInvSysConnector other) || other.container == null
+                || other.container.isInvalid()) {
+            return false;
+        }
+        Object key = BufferLinkManager.getSendKey(tile, info.getItem());
+        if (key == null) {
+            return false;
+        }
+        ForgeDirection exit = other.findLinkedBuffer(key);
+        // same cost as extracting the item at the other end
+        if (exit == null || !other.useEnergy(6)) {
+            return false;
+        }
+        spawnParticle(Particles.OrangeParticle, 4);
+        other.sendStack(info, exit);
+        return true;
+    }
+
+    private ForgeDirection findLinkedBuffer(Object key) {
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            TileEntity tile = container.getTile(dir);
+            if (isBuffer(tile) && container.canPipeConnect(tile, dir)
+                    && key.equals(BufferLinkManager.getReceiveKey(tile))) {
+                return dir;
+            }
+        }
+        return null;
     }
 
     @Override

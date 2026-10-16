@@ -122,6 +122,7 @@ import logisticspipes.proxy.ProxyManager;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.SpecialInventoryHandlerManager;
 import logisticspipes.proxy.SpecialTankHandlerManager;
+import logisticspipes.proxy.bufferlink.BufferLinkManager;
 import logisticspipes.proxy.computers.objects.LPGlobalCCAccess;
 import logisticspipes.proxy.endercore.EnderCoreProgressProvider;
 import logisticspipes.proxy.enderio.EnderIOProgressProvider;
@@ -413,6 +414,7 @@ public class LogisticsPipes {
 
         SpecialInventoryHandlerManager.load();
         SpecialTankHandlerManager.load();
+        BufferLinkManager.load();
 
         SimpleServiceLocator.buildCraftProxy.registerPipeInformationProvider();
         SimpleServiceLocator.buildCraftProxy.initProxy();
