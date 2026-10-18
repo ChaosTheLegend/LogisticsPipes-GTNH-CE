@@ -3,8 +3,8 @@ package logisticspipes.modules;
 import logisticspipes.utils.FluidIdentifier;
 
 /**
- * A module of a fluid chassis that promises fluid of the tank to requests. The modules of one chassis share the tank,
- * so each of them offers only what the others haven't promised yet.
+ * A fluid module that promises fluid of the tank to requests. The modules of one chassis share the tank, so each of
+ * them offers only what the others haven't promised yet.
  */
 public interface IFluidReserver {
 

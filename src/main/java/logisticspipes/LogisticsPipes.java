@@ -109,11 +109,6 @@ import logisticspipes.pipes.PipeLogisticsChassiMk2;
 import logisticspipes.pipes.PipeLogisticsChassiMk3;
 import logisticspipes.pipes.PipeLogisticsChassiMk4;
 import logisticspipes.pipes.PipeLogisticsChassiMk5;
-import logisticspipes.pipes.PipeLogisticsFluidChassiMk1;
-import logisticspipes.pipes.PipeLogisticsFluidChassiMk2;
-import logisticspipes.pipes.PipeLogisticsFluidChassiMk3;
-import logisticspipes.pipes.PipeLogisticsFluidChassiMk4;
-import logisticspipes.pipes.PipeLogisticsFluidChassiMk5;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
@@ -262,11 +257,6 @@ public class LogisticsPipes {
     public static Item LogisticsChassisPipeMk3;
     public static Item LogisticsChassisPipeMk4;
     public static Item LogisticsChassisPipeMk5;
-    public static Item LogisticsFluidChassisPipeMk1;
-    public static Item LogisticsFluidChassisPipeMk2;
-    public static Item LogisticsFluidChassisPipeMk3;
-    public static Item LogisticsFluidChassisPipeMk4;
-    public static Item LogisticsFluidChassisPipeMk5;
     public static Item LogisticsRemoteOrdererPipe;
     public static Item LogisticsInvSysConPipe;
     public static Item LogisticsEntrancePipe;
@@ -702,26 +692,6 @@ public class LogisticsPipes {
         LogisticsPipes.LogisticsChassisPipeMk3 = createPipe(PipeLogisticsChassiMk3.class, "Logistics Chassi Mk3", side);
         LogisticsPipes.LogisticsChassisPipeMk4 = createPipe(PipeLogisticsChassiMk4.class, "Logistics Chassi Mk4", side);
         LogisticsPipes.LogisticsChassisPipeMk5 = createPipe(PipeLogisticsChassiMk5.class, "Logistics Chassi Mk5", side);
-        LogisticsPipes.LogisticsFluidChassisPipeMk1 = createPipe(
-                PipeLogisticsFluidChassiMk1.class,
-                "Logistics Fluid Chassi Mk1",
-                side);
-        LogisticsPipes.LogisticsFluidChassisPipeMk2 = createPipe(
-                PipeLogisticsFluidChassiMk2.class,
-                "Logistics Fluid Chassi Mk2",
-                side);
-        LogisticsPipes.LogisticsFluidChassisPipeMk3 = createPipe(
-                PipeLogisticsFluidChassiMk3.class,
-                "Logistics Fluid Chassi Mk3",
-                side);
-        LogisticsPipes.LogisticsFluidChassisPipeMk4 = createPipe(
-                PipeLogisticsFluidChassiMk4.class,
-                "Logistics Fluid Chassi Mk4",
-                side);
-        LogisticsPipes.LogisticsFluidChassisPipeMk5 = createPipe(
-                PipeLogisticsFluidChassiMk5.class,
-                "Logistics Fluid Chassi Mk5",
-                side);
         LogisticsPipes.LogisticsCraftingPipeMk2 = createPipe(
                 PipeItemsCraftingLogisticsMk2.class,
                 "Crafting Logistics Pipe MK2",

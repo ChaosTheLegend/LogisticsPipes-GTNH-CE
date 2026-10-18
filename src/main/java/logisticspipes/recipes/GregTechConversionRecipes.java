@@ -16,9 +16,9 @@ import gregtech.api.util.GTUtility;
 import logisticspipes.items.ItemModule;
 
 /**
- * GregTech recipes for converting legacy items into their pattern crafting counterparts, for the fluid chassis and its
- * modules, for the request table Mk2, the inventory system connector and the frequency card. Kept apart from
- * {@link RecipeManager} so GregTech classes only load when GregTech is installed.
+ * GregTech recipes for converting legacy items into their pattern crafting counterparts, for the fluid modules, for the
+ * request table Mk2, the inventory system connector and the frequency card. Kept apart from {@link RecipeManager} so
+ * GregTech classes only load when GregTech is installed.
  */
 final class GregTechConversionRecipes {
 
@@ -62,14 +62,6 @@ final class GregTechConversionRecipes {
                         GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 2L),
                         GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
                 .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_HV).addTo(RecipeMaps.assemblerRecipes);
-    }
-
-    /**
-     * Assembler: a fluid chassis, made like the fluid pipes of the pack: the item variant and a basic fluid pipe plus a
-     * large steel fluid cell, programmed circuit 18.
-     */
-    static void addFluidChassis(ItemStack chassis, ItemStack fluidPipe, ItemStack output) {
-        addFluidVariant(output, TierEU.RECIPE_MV, chassis, fluidPipe);
     }
 
     /**

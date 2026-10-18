@@ -69,7 +69,6 @@ import logisticspipes.modules.ModuleQuickSort;
 import logisticspipes.modules.ModuleTerminus;
 import logisticspipes.modules.ModuleThaumicAspectSink;
 import logisticspipes.modules.ModuleTypeFilterItemSink;
-import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
@@ -129,7 +128,7 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
     public static final int CRAFTER_MK2 = 601;
     public static final int CRAFTER_MK3 = 602;
 
-    // Fluid MODULES, for the fluid chassis
+    // Fluid MODULES, work on the tank a chassis points at
     public static final int FLUID_SINK = 700;
     public static final int FLUID_EXTRACTOR = 701;
     public static final int FLUID_PROVIDER = 702;
@@ -493,22 +492,6 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
         } else {
             StringUtils.addShiftAddition(itemStack, list);
         }
-    }
-
-    /**
-     * @return true if the stack is a module that works on a tank and so only fits a fluid chassis
-     */
-    public static boolean isFluidModule(ItemStack itemStack) {
-        if (itemStack == null || !(itemStack.getItem() instanceof ItemModule itemModule)) {
-            return false;
-        }
-        for (Module module : itemModule.modules) {
-            if (module.getId() == itemStack.getItemDamage()) {
-                return module.getILogisticsModuleClass() != null
-                        && LogisticsFluidModule.class.isAssignableFrom(module.getILogisticsModuleClass());
-            }
-        }
-        return false;
     }
 
     public static boolean isCrafter(ItemStack itemStack) {

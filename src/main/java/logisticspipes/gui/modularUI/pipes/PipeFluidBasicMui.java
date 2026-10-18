@@ -9,7 +9,7 @@ import logisticspipes.pipes.PipeFluidBasic;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 
 /**
- * Same page as the fluid sink module of the fluid chassis.
+ * Same page as the fluid sink module.
  */
 public class PipeFluidBasicMui extends LogisticsPipeMUI {
 

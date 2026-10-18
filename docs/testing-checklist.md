@@ -242,3 +242,28 @@ everything `sinksItem` accepts, so every item below checks that a module still g
       around 1%.
 - [ ] Spark: a network with dozens of category-based chassis and a heavy item flow. `LogisticsManager.getBestReply` →
       `sinksItem` should be well below what it was when those modules were generic.
+
+## 11. Fluid modules in the chassis
+
+Changed 2026-10-18: the fluid chassis is gone, every chassis takes item and fluid modules
+(`pipes/chassis/ChassisItemSide`, `ChassisFluidSide`). A chassis without fluid modules has to behave exactly as before.
+
+**Regression of the item chassis**
+- [ ] Item sink, provider, crafter (also as the answer to a request), extractor on a chassis without fluid modules.
+- [ ] Turning a chassis with the wrench, also past neighbouring pipes. Saving and loading the world keeps the direction.
+- [ ] Breaking a chassis with a provider in it.
+- [ ] A chassis without fluid modules on a machine with GT cells in its inventory: cells sent to it go into the
+      inventory, nothing is emptied.
+
+**Mixed modules**
+- [ ] GT machine, item sink and fluid sink on one chassis: items go into the inventory, fluid into the tank.
+- [ ] Cells sent to an item sink on a chassis that also has a fluid sink arrive whole in the inventory. With a fluid
+      container sink whose filter matches, they are emptied into the tank.
+- [ ] Provider and fluid provider on one chassis, both requested from the request table.
+- [ ] Extractor and fluid extractor on one chassis.
+- [ ] Fluid supplier and fluid container supplier on one chassis.
+- [ ] Fluid that didn't fit (pending) survives saving and loading the world.
+- [ ] Breaking a chassis with fluid modules in it drops the modules and leaves no promises behind.
+- [ ] A chassis next to a pure tank connects to it and can be turned to it.
+- [ ] A chassis looks like a fluid pipe (glass) while it has a fluid module, also after rejoining, and turns back
+      when the last fluid module is taken out.

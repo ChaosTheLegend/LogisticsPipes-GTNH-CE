@@ -99,56 +99,31 @@ item.PipeLogisticsChassiMk1=Logistics Chassis Mk1
 item.PipeLogisticsChassiMk1.name=Logistics Chassis Mk1
 item.PipeLogisticsChassiMk1.tip1=Type: Mixed
 item.PipeLogisticsChassiMk1.tip2= - Can hold 1 module.
+item.PipeLogisticsChassiMk1.tip3= - Takes item and fluid modules.
 
 item.PipeLogisticsChassiMk2=Logistics Chassis Mk2
 item.PipeLogisticsChassiMk2.name=Logistics Chassis Mk2
 item.PipeLogisticsChassiMk2.tip1=Type: Mixed
 item.PipeLogisticsChassiMk2.tip2= - Can hold 2 modules.
+item.PipeLogisticsChassiMk2.tip3= - Takes item and fluid modules.
 
 item.PipeLogisticsChassiMk3=Logistics Chassis Mk3
 item.PipeLogisticsChassiMk3.name=Logistics Chassis Mk3
 item.PipeLogisticsChassiMk3.tip1=Type: Mixed
 item.PipeLogisticsChassiMk3.tip2= - Can hold 3 modules.
+item.PipeLogisticsChassiMk3.tip3= - Takes item and fluid modules.
 
 item.PipeLogisticsChassiMk4=Logistics Chassis Mk4
 item.PipeLogisticsChassiMk4.name=Logistics Chassis Mk4
 item.PipeLogisticsChassiMk4.tip1=Type: Mixed
 item.PipeLogisticsChassiMk4.tip2= - Can hold 4 modules.
+item.PipeLogisticsChassiMk4.tip3= - Takes item and fluid modules.
 
 item.PipeLogisticsChassiMk5=Logistics Chassis Mk5
 item.PipeLogisticsChassiMk5.name=Logistics Chassis Mk5
 item.PipeLogisticsChassiMk5.tip1=Type: Mixed
 item.PipeLogisticsChassiMk5.tip2= - Can hold 8 modules.
-
-item.PipeLogisticsFluidChassiMk1=Logistics Fluid Chassis Mk1
-item.PipeLogisticsFluidChassiMk1.name=Logistics Fluid Chassis Mk1
-item.PipeLogisticsFluidChassiMk1.tip1=Type: Fluid
-item.PipeLogisticsFluidChassiMk1.tip2= - Can hold 1 module.
-item.PipeLogisticsFluidChassiMk1.tip3= - Only takes fluid modules and points at a tank.
-
-item.PipeLogisticsFluidChassiMk2=Logistics Fluid Chassis Mk2
-item.PipeLogisticsFluidChassiMk2.name=Logistics Fluid Chassis Mk2
-item.PipeLogisticsFluidChassiMk2.tip1=Type: Fluid
-item.PipeLogisticsFluidChassiMk2.tip2= - Can hold 2 modules.
-item.PipeLogisticsFluidChassiMk2.tip3= - Only takes fluid modules and points at a tank.
-
-item.PipeLogisticsFluidChassiMk3=Logistics Fluid Chassis Mk3
-item.PipeLogisticsFluidChassiMk3.name=Logistics Fluid Chassis Mk3
-item.PipeLogisticsFluidChassiMk3.tip1=Type: Fluid
-item.PipeLogisticsFluidChassiMk3.tip2= - Can hold 3 modules.
-item.PipeLogisticsFluidChassiMk3.tip3= - Only takes fluid modules and points at a tank.
-
-item.PipeLogisticsFluidChassiMk4=Logistics Fluid Chassis Mk4
-item.PipeLogisticsFluidChassiMk4.name=Logistics Fluid Chassis Mk4
-item.PipeLogisticsFluidChassiMk4.tip1=Type: Fluid
-item.PipeLogisticsFluidChassiMk4.tip2= - Can hold 4 modules.
-item.PipeLogisticsFluidChassiMk4.tip3= - Only takes fluid modules and points at a tank.
-
-item.PipeLogisticsFluidChassiMk5=Logistics Fluid Chassis Mk5
-item.PipeLogisticsFluidChassiMk5.name=Logistics Fluid Chassis Mk5
-item.PipeLogisticsFluidChassiMk5.tip1=Type: Fluid
-item.PipeLogisticsFluidChassiMk5.tip2= - Can hold 8 modules.
-item.PipeLogisticsFluidChassiMk5.tip3= - Only takes fluid modules and points at a tank.
+item.PipeLogisticsChassiMk5.tip3= - Takes item and fluid modules.
 
 item.PipeItemsRemoteOrdererLogistics=Remote Orderer Logistics Pipe
 item.PipeItemsRemoteOrdererLogistics.name=Remote Orderer Logistics Pipe

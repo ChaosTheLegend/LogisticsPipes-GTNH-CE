@@ -1,9 +1,8 @@
-package logisticspipes.pipes;
+package logisticspipes.pipes.chassis;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +10,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -20,19 +18,12 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import logisticspipes.interfaces.IFluidContainerReceiver;
-import logisticspipes.interfaces.IFluidModuleHost;
 import logisticspipes.interfaces.ISlotUpgradeManager;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IFilter;
-import logisticspipes.interfaces.routing.IFluidSink;
-import logisticspipes.interfaces.routing.IProvideFluids;
 import logisticspipes.interfaces.routing.IRequestFluid;
-import logisticspipes.items.ItemModule;
 import logisticspipes.items.LogisticsFluidContainer;
-import logisticspipes.logisticspipes.FluidChassiTransportLayer;
 import logisticspipes.logisticspipes.IRoutedItem;
-import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.modules.IFluidReserver;
 import logisticspipes.modules.ModuleFluidContainerSink;
 import logisticspipes.modules.ModuleFluidProvider;
@@ -41,12 +32,12 @@ import logisticspipes.modules.ModuleFluidTankSupplier;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
+import logisticspipes.pipes.PipeLogisticsChassi;
+import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.fluid.PendingFluids;
-import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTreeNode;
-import logisticspipes.request.resources.FluidResource;
 import logisticspipes.routing.FluidLogisticsPromise;
 import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.order.IOrderInfoProvider;
@@ -61,28 +52,60 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
 /**
- * A chassis for fluid modules. It points at a tank instead of an inventory. Fluid arrives and leaves as fluid container
- * items over the normal item transport, and the modules fill and drain the tank directly, so the pipe has no tanks of
- * its own.
+ * The tank a chassis points at and the fluid modules that work on it. Fluid arrives and leaves as fluid container items
+ * over the normal item transport, and the modules fill and drain the tank directly, so the chassis has no tanks of its
+ * own. Without a fluid module this side takes nothing and offers nothing.
  */
-public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
-        implements IFluidModuleHost, IFluidSink, IProvideFluids, IFluidContainerReceiver {
+public class ChassisFluidSide implements ChassisSide {
 
     private static final int TICKS_PER_PENDING_RETRY = 20;
+    private static final String PENDING_KEY = "pendingFluids";
+
+    private final PipeLogisticsChassi pipe;
 
     // fluid that arrived but didn't fit into the tank, waiting for the tank or another sink in the network
     private final PendingFluids pendingFluids = new PendingFluids();
 
-    public PipeLogisticsFluidChassi(Item item) {
-        super(item);
+    private boolean hasModules;
+
+    public ChassisFluidSide(PipeLogisticsChassi pipe) {
+        this.pipe = pipe;
+    }
+
+    /**
+     * @return true if a fluid module is installed
+     */
+    public boolean hasModules() {
+        return hasModules;
     }
 
     @Override
-    public boolean isModuleAllowed(ItemStack stack) {
-        return stack != null && stack.getItem() instanceof ItemModule && ItemModule.isFluidModule(stack);
+    public boolean ownsModule(LogisticsModule module) {
+        return module instanceof LogisticsFluidModule;
     }
 
-    /*** connection ***/
+    @Override
+    public void onModulesChanged() {
+        boolean had = hasModules;
+        hasModules = !getModules(LogisticsFluidModule.class).isEmpty();
+        // the chassis looks like a fluid pipe while it has a fluid module
+        if (had != hasModules && pipe.container != null) {
+            pipe.refreshRender(false);
+        }
+    }
+
+    private <T> List<T> getModules(Class<T> type) {
+        List<T> list = new ArrayList<>();
+        for (int i = 0; i < pipe.getChassiSize(); i++) {
+            LogisticsModule module = pipe.getModules().getSubModule(i);
+            if (type.isInstance(module)) {
+                list.add(type.cast(module));
+            }
+        }
+        return list;
+    }
+
+    /*** target ***/
 
     private boolean isFluidTarget(TileEntity tile) {
         if (tile == null || !SimpleServiceLocator.pipeInformationManager.isNotAPipe(tile)) {
@@ -92,7 +115,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     }
 
     @Override
-    public boolean logisitcsIsPipeConnected(TileEntity tile, ForgeDirection dir) {
+    public boolean isValidTarget(TileEntity tile, ForgeDirection dir) {
         if (!isFluidTarget(tile)) {
             return false;
         }
@@ -104,58 +127,42 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     }
 
     @Override
-    public boolean hasFluidPipeLook() {
-        return true;
+    public boolean isActive() {
+        return hasModules && getTargetTile() != null;
     }
 
-    @Override
-    protected boolean isValidOrientation(ForgeDirection connection) {
-        if (!super.isValidOrientation(connection)) {
-            return false;
-        }
-        return isFluidTarget(getContainer().getTile(connection));
-    }
-
-    @Override
-    public TileEntity getFluidTargetTile() {
-        ForgeDirection pointed = getPointedOrientation();
-        if (pointed == null || pointed == ForgeDirection.UNKNOWN || getContainer() == null) {
+    /**
+     * @return the tile the chassis points at if it holds fluid, else null
+     */
+    public TileEntity getTargetTile() {
+        ForgeDirection pointed = pipe.getPointedOrientation();
+        if (pointed == null || pointed == ForgeDirection.UNKNOWN || pipe.getContainer() == null) {
             return null;
         }
-        TileEntity tile = getContainer().getTile(pointed);
+        TileEntity tile = pipe.getContainer().getTile(pointed);
         return isFluidTarget(tile) ? tile : null;
     }
 
-    @Override
-    public ForgeDirection getFluidTargetSide(int moduleSlot) {
-        ISlotUpgradeManager manager = getUpgradeManager(ModulePositionType.SLOT, moduleSlot);
+    /**
+     * @return the side of the target tile the module in that slot fills and drains
+     */
+    public ForgeDirection getTargetSide(int moduleSlot) {
+        ISlotUpgradeManager manager = pipe.getUpgradeManager(ModulePositionType.SLOT, moduleSlot);
         if (manager.hasSneakyUpgrade() && manager.getSneakyOrientation() != null) {
             return manager.getSneakyOrientation();
         }
-        ForgeDirection pointed = getPointedOrientation();
+        ForgeDirection pointed = pipe.getPointedOrientation();
         return pointed == null ? ForgeDirection.UNKNOWN : pointed.getOpposite();
     }
 
     @Override
-    public TransportLayer getTransportLayer() {
-        if (_transportLayer == null) {
-            _transportLayer = new FluidChassiTransportLayer(this);
+    public void onRemoved() {
+        for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
+            module.onRemoved();
         }
-        return _transportLayer;
     }
 
     /*** modules ***/
-
-    private <T> List<T> getModules(Class<T> type) {
-        List<T> list = new ArrayList<>();
-        for (int i = 0; i < getChassiSize(); i++) {
-            LogisticsModule module = getModules().getSubModule(i);
-            if (type.isInstance(module)) {
-                list.add(type.cast(module));
-            }
-        }
-        return list;
-    }
 
     /**
      * @return one provider module per side of the tank, so two modules on the same tank don't offer its content twice
@@ -176,7 +183,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
      */
     private LogisticsFluidModule getModuleFor(IAdditionalTargetInformation info, FluidStack liquid) {
         if (info instanceof ChassiTargetInformation target
-                && getModules().getSubModule(target.getModuleSlot()) instanceof LogisticsFluidModule module) {
+                && pipe.getModules().getSubModule(target.getModuleSlot()) instanceof LogisticsFluidModule module) {
             return module;
         }
         List<ModuleFluidSink> sinks = getModules(ModuleFluidSink.class);
@@ -199,27 +206,42 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         return null;
     }
 
-    @Override
-    public void onAllowedRemoval() {
-        if (MainProxy.isServer(getWorld())) {
-            for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
-                module.onRemoved();
-            }
-        }
-        super.onAllowedRemoval();
+    /*** arriving fluid ***/
+
+    /**
+     * @return true if the item is fluid on its way through the network
+     */
+    public static boolean isFluidInTransit(ItemIdentifierStack stack) {
+        return stack.getItem().item instanceof LogisticsFluidContainer;
     }
 
-    /*** arriving fluid ***/
+    @Override
+    public boolean wantsArrival(ItemIdentifierStack stack) {
+        if (isFluidInTransit(stack)) {
+            return true;
+        }
+        FluidStack fluid = FluidContainerUtil.getFluid(stack.getItem().makeNormalStack(1));
+        if (fluid == null) {
+            return false;
+        }
+        // with an inventory to put it in, a filled container is only emptied when a container sink asks for it
+        if (pipe.getRealInventory() == null) {
+            return true;
+        }
+        for (ModuleFluidContainerSink sink : getModules(ModuleFluidContainerSink.class)) {
+            if (sink.getFilter().contains(fluid)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Puts an arriving fluid container into the tank. What doesn't fit is sent to another sink in the network.
      */
     @Override
-    public boolean endReached(LPTravelingItemServer arrivingItem, TileEntity tile) {
+    public boolean takeArrival(LPTravelingItemServer arrivingItem) {
         ItemIdentifierStack stack = arrivingItem.getItemIdentifierStack();
-        if (stack == null) {
-            return false;
-        }
         if (emptyArrivingContainers(arrivingItem, stack)) {
             return true;
         }
@@ -227,7 +249,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
             return false;
         }
         // fluid on its way through the network, or a real item that holds fluid, like a large cell
-        boolean realContainer = !(stack.getItem().item instanceof LogisticsFluidContainer);
+        boolean realContainer = !isFluidInTransit(stack);
         ItemStack single = stack.getItem().makeNormalStack(1);
         FluidStack liquid = realContainer ? FluidContainerUtil.getFluid(single)
                 : SimpleServiceLocator.logisticsFluidManager.getFluidFromContainer(stack);
@@ -242,8 +264,8 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
                 sendStacks(empty, stack.getStackSize());
             }
         }
-        getCacheHolder().trigger(CacheTypes.Inventory);
-        LogisticsFluidModule module = getModuleFor(arrivingItem.getInfo().targetInfo, liquid);
+        pipe.getCacheHolder().trigger(CacheTypes.Inventory);
+        LogisticsFluidModule module = getModuleFor(getTargetInfo(arrivingItem), liquid);
         if (module != null) {
             liquid.amount -= module.acceptFluid(liquid);
         }
@@ -254,6 +276,10 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         return true;
     }
 
+    private static IAdditionalTargetInformation getTargetInfo(LPTravelingItemServer arrivingItem) {
+        return arrivingItem.getInfo() == null ? null : arrivingItem.getInfo().targetInfo;
+    }
+
     /**
      * Hands filled containers that were sent to a container sink module to that module. The emptied containers go back
      * into the network, and so do filled ones the tank had no room for.
@@ -261,7 +287,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
      * @return true if the item was for such a module and is handled
      */
     private boolean emptyArrivingContainers(LPTravelingItemServer arrivingItem, ItemIdentifierStack stack) {
-        if (stack.getItem().item instanceof LogisticsFluidContainer) {
+        if (isFluidInTransit(stack)) {
             return false;
         }
         ItemStack single = stack.getItem().makeNormalStack(1);
@@ -269,11 +295,11 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         if (fluid == null) {
             return false;
         }
-        ModuleFluidContainerSink module = getContainerSinkFor(arrivingItem.getInfo().targetInfo, fluid);
+        ModuleFluidContainerSink module = getContainerSinkFor(getTargetInfo(arrivingItem), fluid);
         if (module == null) {
             return false;
         }
-        getCacheHolder().trigger(CacheTypes.Inventory);
+        pipe.getCacheHolder().trigger(CacheTypes.Inventory);
         int count = stack.getStackSize();
         int emptied = 0;
         while (emptied < count && module.acceptContainer(fluid, this::addPendingFluid)) {
@@ -296,7 +322,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     private ModuleFluidContainerSink getContainerSinkFor(IAdditionalTargetInformation info, FluidStack fluid) {
         if (info instanceof ChassiTargetInformation target
-                && getModules().getSubModule(target.getModuleSlot()) instanceof ModuleFluidContainerSink module) {
+                && pipe.getModules().getSubModule(target.getModuleSlot()) instanceof ModuleFluidContainerSink module) {
             return module;
         }
         for (ModuleFluidContainerSink sink : getModules(ModuleFluidContainerSink.class)) {
@@ -315,7 +341,7 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
             ItemStack stack = prototype.copy();
             stack.stackSize = Math.min(amount, Math.max(1, stack.getMaxStackSize()));
             amount -= stack.stackSize;
-            transport.sendItem(stack);
+            pipe.transport.sendItem(stack);
         }
     }
 
@@ -324,13 +350,13 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     }
 
     private void sendPendingFluids() {
-        ForgeDirection pointed = getPointedOrientation();
+        ForgeDirection pointed = pipe.getPointedOrientation();
         ForgeDirection from = pointed == null || pointed == ForgeDirection.UNKNOWN ? ForgeDirection.UP : pointed;
         for (Iterator<PendingFluids.Entry> iterator = pendingFluids.iterator(); iterator.hasNext();) {
             FluidStack pending = iterator.next().fluid;
-            IRoutedItem routedItem = FluidSendUtil.createItemForSink(pending, getRouter());
+            IRoutedItem routedItem = FluidSendUtil.createItemForSink(pending, pipe.getRouter());
             if (routedItem != null) {
-                queueRoutedItem(routedItem, from);
+                pipe.queueRoutedItem(routedItem, from);
             }
             if (pending.amount <= 0) {
                 iterator.remove();
@@ -339,9 +365,8 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     }
 
     @Override
-    public void enabledUpdateEntity() {
-        super.enabledUpdateEntity();
-        if (pendingFluids.isEmpty() || !isNthTick(TICKS_PER_PENDING_RETRY)) {
+    public void tick() {
+        if (pendingFluids.isEmpty() || !pipe.isNthTick(TICKS_PER_PENDING_RETRY)) {
             return;
         }
         // the tank may have room again
@@ -366,17 +391,18 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         return amount;
     }
 
-    @Override
     public int sinkAmount(FluidStack stack) {
-        if (!isEnabled()) {
+        if (!hasModules || !pipe.isEnabled()) {
             return 0;
         }
         int amount = getSinkAmount(stack, true);
         return amount > 0 ? amount : getSinkAmount(stack, false);
     }
 
-    @Override
     public FixedPriority getFluidSinkPriority(FluidStack stack) {
+        if (!hasModules) {
+            return FixedPriority.DefaultRoute;
+        }
         for (ModuleFluidSink sink : getModules(ModuleFluidSink.class)) {
             if (sink.getFilter().contains(stack)) {
                 return FixedPriority.ItemSink;
@@ -387,9 +413,8 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     /*** IProvideFluids ***/
 
-    @Override
     public void canProvide(RequestTreeNode tree, RequestTree root, List<IFilter> filters) {
-        if (!isEnabled() || !(tree.getRequestType() instanceof FluidResource)) {
+        if (!hasModules || !pipe.isEnabled()) {
             return;
         }
         for (IFilter filter : filters) {
@@ -402,22 +427,20 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         }
     }
 
-    @Override
     public int getReservedFluid(FluidIdentifier fluid) {
         // asked once for each fluid of the tank, so no list of the modules is made
         long reserved = 0;
-        for (int i = 0; i < getChassiSize(); i++) {
-            if (getModules().getSubModule(i) instanceof IFluidReserver module) {
+        for (int i = 0; i < pipe.getChassiSize(); i++) {
+            if (pipe.getModules().getSubModule(i) instanceof IFluidReserver module) {
                 reserved += module.getReservedAmount(fluid);
             }
         }
         return (int) Math.min(Integer.MAX_VALUE, reserved);
     }
 
-    @Override
     public Map<FluidIdentifier, Integer> getAvailableFluids() {
         Map<FluidIdentifier, Integer> result = new HashMap<>();
-        if (!isEnabled()) {
+        if (!hasModules || !pipe.isEnabled()) {
             return result;
         }
         for (ModuleFluidProvider provider : getProviders()) {
@@ -429,7 +452,6 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
         return result;
     }
 
-    @Override
     public IOrderInfoProvider fullFill(FluidLogisticsPromise promise, IRequestFluid destination, ResourceType type,
             IAdditionalTargetInformation info) {
         // promises are made by the provider modules and come back to them, this is only the fallback
@@ -440,26 +462,17 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     /*** interests ***/
 
     @Override
-    public Set<ItemIdentifier> getSpecificInterests() {
-        // no order needed: the router only compares and looks up
-        Set<ItemIdentifier> interests = new HashSet<>();
-        if (getFluidTargetTile() == null) {
-            return interests;
-        }
+    public void addSpecificInterests(Set<ItemIdentifier> interests) {
         for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
             Collection<ItemIdentifier> current = module.getSpecificInterests();
             if (current != null) {
                 interests.addAll(current);
             }
         }
-        return interests;
     }
 
     @Override
     public boolean hasGenericInterests() {
-        if (getFluidTargetTile() == null) {
-            return false;
-        }
         for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
             if (module.hasGenericInterests()) {
                 return true;
@@ -471,9 +484,6 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
     @Override
     public CategoryInterests getCategoryInterests() {
         CategoryInterests interests = CategoryInterests.EMPTY;
-        if (getFluidTargetTile() == null) {
-            return interests;
-        }
         for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
             interests = interests.merge(module.getCategoryInterests());
         }
@@ -484,13 +494,13 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {
-        super.readFromNBT(nbttagcompound);
-        pendingFluids.readFromNBT(nbttagcompound, "pendingFluids");
+        pendingFluids.readFromNBT(nbttagcompound, PENDING_KEY);
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
-        super.writeToNBT(nbttagcompound);
-        pendingFluids.writeToNBT(nbttagcompound, "pendingFluids");
+        if (!pendingFluids.isEmpty()) {
+            pendingFluids.writeToNBT(nbttagcompound, PENDING_KEY);
+        }
     }
 }
