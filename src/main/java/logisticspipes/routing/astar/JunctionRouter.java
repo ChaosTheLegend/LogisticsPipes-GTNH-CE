@@ -77,6 +77,7 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
     // things this pipe is interested in (either providing or sinking)
     final Set<ItemIdentifier> _hasInterestIn = new TreeSet<>();
     boolean _hasGenericInterest;
+    CategoryInterests _categoryInterests = CategoryInterests.EMPTY;
     int ticksUntillNextInventoryCheck = 0;
 
     public Map<CoreRoutedPipe, ExitRoute> _adjacent = new HashMap<>();
@@ -1224,6 +1225,7 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         } else {
             removeGenericInterest();
         }
+        updateCategoryInterests(pipe.getCategoryInterests());
         Set<ItemIdentifier> newInterests = pipe.getSpecificInterests();
         if (newInterests == null) {
             newInterests = new TreeSet<>();
@@ -1245,6 +1247,28 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
         }
     }
 
+    private void updateCategoryInterests(CategoryInterests newInterests) {
+        if (newInterests == null) {
+            newInterests = CategoryInterests.EMPTY;
+        }
+        CategoryInterests old = _categoryInterests;
+        if (newInterests == old || newInterests.equals(old)) {
+            return;
+        }
+        CategoryInterests current = newInterests;
+        old.forEach((category, value) -> {
+            if (!current.contains(category, value)) {
+                InterestRegistry.removeCategory(category, value, this);
+            }
+        });
+        current.forEach((category, value) -> {
+            if (!old.contains(category, value)) {
+                InterestRegistry.addCategory(category, value, this);
+            }
+        });
+        _categoryInterests = current;
+    }
+
     private void removeGenericInterest() {
         _hasGenericInterest = false;
         InterestRegistry.removeGeneric(this);
@@ -1252,6 +1276,7 @@ public class JunctionRouter implements IRouter, Comparable<JunctionRouter> {
 
     private void removeAllInterests() {
         removeGenericInterest();
+        updateCategoryInterests(CategoryInterests.EMPTY);
         for (ItemIdentifier i : _hasInterestIn) {
             InterestRegistry.remove(i, this);
         }

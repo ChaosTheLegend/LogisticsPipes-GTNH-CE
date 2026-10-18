@@ -2,6 +2,7 @@ package logisticspipes.routing.astar;
 
 import java.util.BitSet;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,12 +28,16 @@ public final class InterestRegistry {
     private static final HashMap<ItemIdentifier, Set<IRouter>> globalSpecificInterests = new HashMap<>();
     // things potentially interested in every item (chassis with generic sinks)
     private static final Set<IRouter> genericInterests = new TreeSet<>(BY_ID);
+    // things interested in the items with a certain value of a category -- sinks by mod, fluid holding items, ...
+    private static final EnumMap<ItemCategory, Map<Object, Set<IRouter>>> globalCategoryInterests = new EnumMap<>(
+            ItemCategory.class);
 
     private InterestRegistry() {}
 
     public static void cleanup() {
         globalSpecificInterests.clear();
         genericInterests.clear();
+        globalCategoryInterests.clear();
     }
 
     static void addGeneric(IRouter router) {
@@ -58,12 +63,39 @@ public final class InterestRegistry {
         }
     }
 
+    static void addCategory(ItemCategory category, Object value, IRouter router) {
+        globalCategoryInterests.computeIfAbsent(category, k -> new HashMap<>())
+                .computeIfAbsent(value, k -> new TreeSet<>(BY_ID)).add(router);
+    }
+
+    static void removeCategory(ItemCategory category, Object value, IRouter router) {
+        Map<Object, Set<IRouter>> byValue = globalCategoryInterests.get(category);
+        if (byValue == null) {
+            return;
+        }
+        Set<IRouter> interests = byValue.get(value);
+        if (interests == null) {
+            return;
+        }
+        interests.remove(router);
+        if (interests.isEmpty()) {
+            byValue.remove(value);
+            if (byValue.isEmpty()) {
+                globalCategoryInterests.remove(category);
+            }
+        }
+    }
+
     public static Map<ItemIdentifier, Set<IRouter>> getInterestedInSpecifics() {
         return globalSpecificInterests;
     }
 
     public static Set<IRouter> getInterestedInGeneral() {
         return genericInterests;
+    }
+
+    public static Map<ItemCategory, Map<Object, Set<IRouter>>> getInterestedInCategories() {
+        return globalCategoryInterests;
     }
 
     private static void addAll(BitSet s, Set<IRouter> routers) {
@@ -86,6 +118,13 @@ public final class InterestRegistry {
         addAll(s, globalSpecificInterests.get(item.getUndamaged().getIgnoringNBT()));
         addAll(s, globalSpecificInterests.get(item.getIgnoringData()));
         addAll(s, globalSpecificInterests.get(item.getIgnoringData().getIgnoringNBT()));
+        // only the categories somebody is interested in are looked at, an item is asked for its values once
+        for (Map.Entry<ItemCategory, Map<Object, Set<IRouter>>> entry : globalCategoryInterests.entrySet()) {
+            Map<Object, Set<IRouter>> byValue = entry.getValue();
+            for (Object value : item.getCategoryKeys(entry.getKey())) {
+                addAll(s, byValue.get(value));
+            }
+        }
         return s;
     }
 
@@ -95,6 +134,7 @@ public final class InterestRegistry {
         } else if (item instanceof FluidResource) {
             return getRoutersInterestedIn(((FluidResource) item).getFluid().getItemIdentifier());
         } else if (item instanceof DictResource) {
+            // no categories: they are declared by sinks, and this is asked for the providers of a request
             DictResource dict = (DictResource) item;
             BitSet s = new BitSet(RouterIds.getBiggestSimpleID() + 1);
             addAll(s, genericInterests);

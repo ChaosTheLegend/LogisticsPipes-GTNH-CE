@@ -73,6 +73,7 @@ import logisticspipes.request.RequestTreeNode;
 import logisticspipes.request.resources.DictResource;
 import logisticspipes.request.resources.IResource;
 import logisticspipes.routing.LogisticsPromise;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.order.IOrderInfoProvider.ResourceType;
 import logisticspipes.routing.order.LogisticsItemOrder;
 import logisticspipes.routing.order.LogisticsOrder;
@@ -715,6 +716,21 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
             }
         }
         return false;
+    }
+
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        CategoryInterests interests = CategoryInterests.EMPTY;
+        if (getRealInventory() == null) {
+            return interests;
+        }
+        for (int i = 0; i < getChassiSize(); i++) {
+            LogisticsModule module = _module.getSubModule(i);
+            if (module != null) {
+                interests = interests.merge(module.getCategoryInterests());
+            }
+        }
+        return interests;
     }
 
     @CCCommand(description = "Returns the LogisticsModule for the given slot number starting by 1")

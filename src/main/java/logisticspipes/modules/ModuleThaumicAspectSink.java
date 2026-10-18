@@ -26,6 +26,9 @@ import logisticspipes.network.packets.module.ThaumicAspectsSinkList;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.CategoryInterestsCache;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
@@ -35,6 +38,7 @@ public class ModuleThaumicAspectSink extends LogisticsGuiModule
         implements IClientInformationProvider, IModuleWatchReciver {
 
     public final List<String> aspectList = new LinkedList<>();
+    private final CategoryInterestsCache categoryInterests = new CategoryInterestsCache(ItemCategory.THAUMIC_ASPECT);
 
     private final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
@@ -188,7 +192,15 @@ public class ModuleThaumicAspectSink extends LogisticsGuiModule
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only the items with one of the filter aspects are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return categoryInterests.get(aspectList);
     }
 
     @Override

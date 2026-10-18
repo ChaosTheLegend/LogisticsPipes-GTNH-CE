@@ -21,6 +21,7 @@ import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.utils.AdjacentTile;
@@ -185,7 +186,12 @@ public class PipeItemsApiaristAnalyser extends CoreRoutedPipe implements ISendRo
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return analyserModule.getCategoryInterests();
     }
 
     @Override

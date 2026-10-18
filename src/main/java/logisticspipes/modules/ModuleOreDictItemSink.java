@@ -37,6 +37,9 @@ import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.OreDictItemSinkList;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.CategoryInterestsCache;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
@@ -49,6 +52,7 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule
     public final List<String> oreList = new LinkedList<>();
     // map of Item:<set of damagevalues>, empty set if wildcard damage
     private Map<Item, Set<Integer>> oreItemIdMap;
+    private final CategoryInterestsCache categoryInterests = new CategoryInterestsCache(ItemCategory.ITEM);
 
     private final IHUDModuleRenderer HUD = new HUDOreDictItemSink(this);
     private List<ItemIdentifierStack> oreHudList;
@@ -231,7 +235,19 @@ public class ModuleOreDictItemSink extends LogisticsGuiModule
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only the items the ore names stand for are offered, instead of every item. By the item alone, the damage values
+     * are checked in sinksItem.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        if (oreItemIdMap == null) {
+            buildOreItemIdMap();
+        }
+        return categoryInterests.get(oreItemIdMap.keySet());
     }
 
     @Override

@@ -26,6 +26,8 @@ import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.FluidContainerUtil;
 import logisticspipes.utils.FluidFilter;
 import logisticspipes.utils.FluidIdentifier;
@@ -46,6 +48,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
     // the filled containers of the registry by their fluid, and the size of the registry they were read from
     private static final Map<FluidIdentifier, List<ItemIdentifier>> registeredContainers = new HashMap<>();
     private static int registrySize = -1;
+    private static final CategoryInterests FLUID_HOLDING = CategoryInterests.flag(ItemCategory.FLUID_HOLDING);
 
     private final FluidFilter filter = new FluidFilter();
     private final FluidRoomCache roomCache = new FluidRoomCache();
@@ -131,7 +134,8 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
 
     /**
      * The filled containers of the filter fluids. Fluids the tank has no room for aren't announced, so a full sink
-     * drops out of the destination searches.
+     * drops out of the destination searches. The items that keep their fluid in their data are announced as a category,
+     * see {@link #getCategoryInterests()}.
      */
     @Override
     public Collection<ItemIdentifier> getSpecificInterests() {
@@ -139,18 +143,30 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
         if (getHost() == null || getTankTile() == null) {
             return interests;
         }
-        boolean any = false;
         for (FluidIdentifier wanted : filter.getFluids()) {
-            if (getRoom(wanted) <= 0) {
-                continue;
+            if (getRoom(wanted) > 0) {
+                interests.addAll(getRegisteredContainers(wanted));
             }
-            any = true;
-            interests.addAll(getRegisteredContainers(wanted));
-        }
-        if (any) {
-            interests.addAll(getFluidHoldingItems());
         }
         return interests;
+    }
+
+    /**
+     * The items that hold fluid in their data, as long as one of the filter fluids has room. They are thousands in a
+     * big pack, so they are one category value instead of thousands of specific interests: the router would rebuild and
+     * compare them every second.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        if (getHost() == null || getTankTile() == null) {
+            return CategoryInterests.EMPTY;
+        }
+        for (FluidIdentifier wanted : filter.getFluids()) {
+            if (getRoom(wanted) > 0) {
+                return FLUID_HOLDING;
+            }
+        }
+        return CategoryInterests.EMPTY;
     }
 
     /**
@@ -176,7 +192,8 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
 
     /**
      * Items like large cells keep their fluid in their data, so there is no list of them filled with a certain fluid.
-     * The module asks to see the kinds of items that can hold fluid at all and looks at the fluid when one is offered.
+     * The module asks to see the kinds of items that can hold fluid at all ({@link ItemCategory#FLUID_HOLDING}) and
+     * looks at the fluid when one is offered.
      * <p>
      * Many items can be asked for a fluid without ever holding one: all the items of GregTech share one class that can.
      * So each damage value is asked for its capacity once, and only the ones with a capacity are of interest; anything
@@ -185,6 +202,21 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
     private static Set<ItemIdentifier> getFluidHoldingItems() {
         loadFluidHoldingItems();
         return fluidHoldingItems;
+    }
+
+    /**
+     * Whether the item is one of the kinds that hold fluid, in any of the forms the router lookup tries for an item
+     * (without data, undamaged, ...): the same items {@link #getFluidHoldingItems()} reached as specific interests.
+     */
+    public static boolean isFluidHoldingItem(ItemIdentifier item) {
+        Set<ItemIdentifier> items = getFluidHoldingItems();
+        ItemIdentifier undamaged = item.getUndamaged();
+        ItemIdentifier ignoringData = item.getIgnoringData();
+        return items.contains(item) || items.contains(undamaged)
+                || items.contains(item.getIgnoringNBT())
+                || items.contains(undamaged.getIgnoringNBT())
+                || items.contains(ignoringData)
+                || items.contains(ignoringData.getIgnoringNBT());
     }
 
     /**

@@ -30,6 +30,8 @@ import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
@@ -38,6 +40,8 @@ import logisticspipes.utils.tuples.Pair;
 
 public class ModuleApiaristAnalyser extends LogisticsGuiModule
         implements IClientInformationProvider, IModuleWatchReciver, IMUICompatibleModule {
+
+    private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.BEE);
 
     private final int ticksToAction = 100;
     private int currentTick = 0;
@@ -127,7 +131,15 @@ public class ModuleApiaristAnalyser extends LogisticsGuiModule
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only bees are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return INTERESTS;
     }
 
     @Override

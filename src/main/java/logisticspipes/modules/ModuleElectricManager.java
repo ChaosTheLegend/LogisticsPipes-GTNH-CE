@@ -46,6 +46,8 @@ import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
@@ -59,6 +61,8 @@ import logisticspipes.utils.tuples.Triplet;
 public class ModuleElectricManager extends LogisticsGuiModule
         implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler,
         IModuleInventoryReceive, IMUICompatibleModule, IModuleInventoryOverride {
+
+    private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.ELECTRIC);
 
     private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(
             9,
@@ -316,7 +320,15 @@ public class ModuleElectricManager extends LogisticsGuiModule
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only electric items are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return INTERESTS;
     }
 
     @Override
@@ -326,7 +338,7 @@ public class ModuleElectricManager extends LogisticsGuiModule
 
     @Override
     public boolean interestedInAttachedInventory() {
-        return false; // would be true, but hasGenericInterests means this is interested anyway.
+        return false; // the items in the inventory are electric, the category covers them
     }
 
     @Override

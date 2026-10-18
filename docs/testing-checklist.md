@@ -206,3 +206,39 @@ use the module's view (`IModuleInventoryOverride`).
       before).
 - [ ] Extractor and quicksort on an empty chest, drawer and AE interface: no errors, and they pick items up again once
       something is put in.
+
+## 10. Category interests
+
+Details: [router-rework/interest-keys/implementation-plan.md](router-rework/interest-keys/implementation-plan.md).
+Changed 2026-10-18: the modules that took every item (generic interest) and checked it in `sinksItem` now name the
+values of an item property instead (`ItemCategory`: mod, creative tab, item, electric, bee, enchanted, Thaumcraft
+aspect, fluid holding). The router offers them only the items with one of those values. The values must cover
+everything `sinksItem` accepts, so every item below checks that a module still gets what it used to.
+
+**Modules still get their items**
+- [ ] Mod based, creative tab and ore dictionary sinks on chassis sort as before. Items none of them takes go to the
+      default route.
+- [ ] Ore dictionary sink with an entry that covers every damage value of an item (wildcard), and one that covers a
+      single damage value.
+- [ ] Thaumic aspect sink: items with one of the aspects arrive, items without aspects don't.
+- [ ] Electric manager and electric buffer, with IC2 items and GT batteries: charge and discharge modes as in section 9.
+- [ ] Apiarist analyser gets unanalysed bees, apiarist sink gets analysed bees by its filter, terminus gets drones.
+      The same for the apiarist sink and analyser pipes, not only the modules.
+- [ ] Apiarist refiller (no longer generic, it takes nothing from the network) still refills the apiary.
+- [ ] Enchantment sink gets enchanted tools and armour, not enchanted books.
+- [ ] Fluid container sink: GT cells with different fluids and large cells with NBT are taken. A full tank lets them
+      pass on, and they are taken again once there is room.
+
+**Interest updates**
+- [ ] Changing a module's filter (adding or removing a mod, tab, ore name, aspect, fluid) takes effect within about a
+      second.
+- [ ] Unloading and loading the chunk of a chassis, breaking a chassis, and swapping a module in a slot leave no
+      routers behind in the categories (`doDebugStuff` on another pipe of the network).
+- [ ] Rejoining the server, or loading another world, doesn't mix up item ids (`ItemIdentifier` caches them per id
+      mapping): sorting and the request table still look right.
+
+**Performance**
+- [ ] Spark: the same base before and after. `updateInterests` was 39.4% of the tick on the server, it should stay
+      around 1%.
+- [ ] Spark: a network with dozens of category-based chassis and a heavy item flow. `LogisticsManager.getBestReply` →
+      `sinksItem` should be well below what it was when those modules were generic.

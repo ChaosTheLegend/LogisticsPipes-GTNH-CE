@@ -7,6 +7,7 @@ import logisticspipes.modules.ModuleApiaristSink;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 
@@ -43,6 +44,11 @@ public class PipeItemsApiaristSink extends CoreRoutedPipe {
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return sinkModule.getCategoryInterests();
     }
 }

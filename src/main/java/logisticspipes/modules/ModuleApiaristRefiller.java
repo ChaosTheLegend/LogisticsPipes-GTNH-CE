@@ -156,7 +156,7 @@ public class ModuleApiaristRefiller extends LogisticsModule {
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false; // takes nothing from the network, sinksItem always says no
     }
 
     @Override

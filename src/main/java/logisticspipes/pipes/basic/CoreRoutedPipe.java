@@ -102,7 +102,9 @@ import logisticspipes.routing.IRouter;
 import logisticspipes.routing.InTransitTracker;
 import logisticspipes.routing.ItemRoutingInformation;
 import logisticspipes.routing.ServerRouter;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.astar.InterestRegistry;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.routing.astar.JunctionRouter;
 import logisticspipes.routing.astar.LPJunctionNetwork;
 import logisticspipes.routing.astar.RouterIds;
@@ -574,6 +576,17 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
                 System.out.print(j.getSimpleID() + ",");
             }
             System.out.println();
+        }
+
+        for (Entry<ItemCategory, Map<Object, Set<IRouter>>> category : InterestRegistry.getInterestedInCategories()
+                .entrySet()) {
+            for (Entry<Object, Set<IRouter>> value : category.getValue().entrySet()) {
+                System.out.print(category.getKey() + "=" + value.getKey() + ":");
+                for (IRouter j : value.getValue()) {
+                    System.out.print(j.getSimpleID() + ",");
+                }
+                System.out.println();
+            }
         }
 
         System.out.print("ALL ITEMS:");
@@ -1310,6 +1323,10 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
 
     public boolean hasGenericInterests() {
         return false;
+    }
+
+    public CategoryInterests getCategoryInterests() {
+        return CategoryInterests.EMPTY;
     }
 
     public ISecurityProvider getSecurityProvider() {

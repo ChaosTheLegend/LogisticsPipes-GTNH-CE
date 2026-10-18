@@ -32,6 +32,7 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.Mod.Instance;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLModIdMappingEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
@@ -169,6 +170,7 @@ import logisticspipes.transport.ClumpTransit;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.InventoryUtilFactory;
 import logisticspipes.utils.RoutedItemHelper;
+import logisticspipes.utils.item.ItemIdentifier;
 
 // @formatter:off
 // CHECKSTYLE:OFF
@@ -641,6 +643,11 @@ public class LogisticsPipes {
         LogisticsEventListener.serverShutdown();
         SimpleServiceLocator.buildCraftProxy.cleanup();
         MainProxy.uuidToPlayerMap.clear();
+    }
+
+    @EventHandler
+    public void onIdMapping(FMLModIdMappingEvent event) {
+        ItemIdentifier.onIdMappingChanged();
     }
 
     @EventHandler

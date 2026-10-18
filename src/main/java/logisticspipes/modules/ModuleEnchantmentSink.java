@@ -10,11 +10,15 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
 public class ModuleEnchantmentSink extends LogisticsModule {
+
+    private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.ENCHANTED);
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {}
@@ -91,11 +95,19 @@ public class ModuleEnchantmentSink extends LogisticsModule {
 
     @Override
     /*
-     * We will check every item return true
+     * Enchanted items come as a category, see getCategoryInterests
      * @see logisticspipes.modules.LogisticsModule#hasGenericInterests()
      */
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only enchanted items are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return INTERESTS;
     }
 
     @Override

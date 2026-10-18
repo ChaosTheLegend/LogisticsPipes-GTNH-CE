@@ -48,6 +48,7 @@ import logisticspipes.items.LogisticsFluidContainer;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.computers.interfaces.ILPCCTypeHolder;
 import logisticspipes.renderer.LogisticsRenderPipe;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.FinalNBTTagCompound;
 import logisticspipes.utils.ReflectionHelper;
 import lombok.AllArgsConstructor;
@@ -188,6 +189,9 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
     private static final Lock keyRefRlock = ItemIdentifier.keyRefLock.readLock();
     private static final Lock keyRefWlock = ItemIdentifier.keyRefLock.writeLock();
 
+    // counts the id mappings FML applied; the item ids of the identifiers are cached per mapping
+    private static volatile int idMapping = 0;
+
     // Hide default constructor
     private ItemIdentifier(Item item, int itemDamage, FinalNBTTagCompound tag, int uniqueID) {
         this.item = item;
@@ -213,6 +217,11 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
     private Boolean isRenderListCompatible = null;
     private String modName;
     private String creativeTabName;
+    // the id mapping in the high half, the item id in the low half: one field, so a thread never sees the id of one
+    // mapping with the number of another. -1 is no mapping, the id is asked for on first use.
+    private volatile long cachedItemId = -1;
+    // the values of the item categories, by ordinal; filled when a category is first asked for
+    private Object[][] categoryKeys;
 
     public static boolean allowNullsForTesting;
 
@@ -653,9 +662,50 @@ public final class ItemIdentifier implements Comparable<ItemIdentifier>, ILPCCTy
         return getModName() + ":" + getFriendlyName() + ", " + Item.getIdFromItem(item) + ":" + itemDamage;
     }
 
+    /**
+     * FML gives the items other ids when a world is loaded or a server is joined. The cached ids are asked for again
+     * after that.
+     */
+    public static void onIdMappingChanged() {
+        idMapping++;
+    }
+
+    /**
+     * The registry id of the item. Sorted sets of identifiers compare them all the time, and asking the registry is a
+     * map lookup each time, so the id is kept until the id mapping changes.
+     */
+    public int getItemId() {
+        long cached = cachedItemId;
+        int mapping = idMapping;
+        if ((int) (cached >>> 32) == mapping) {
+            return (int) cached;
+        }
+        int id = Item.getIdFromItem(item);
+        cachedItemId = ((long) mapping << 32) | (id & 0xFFFFFFFFL);
+        return id;
+    }
+
+    /**
+     * The values the item has in a category, asked for when looking for routers interested in the item. They depend
+     * only on the item, so they are worked out once. Only the server thread asks.
+     */
+    public Object[] getCategoryKeys(ItemCategory category) {
+        Object[][] all = categoryKeys;
+        if (all == null) {
+            all = new Object[ItemCategory.values().length][];
+            categoryKeys = all;
+        }
+        Object[] keys = all[category.ordinal()];
+        if (keys == null) {
+            keys = category.computeKeys(this);
+            all[category.ordinal()] = keys;
+        }
+        return keys;
+    }
+
     @Override
     public int compareTo(ItemIdentifier o) {
-        int c = Item.getIdFromItem(item) - Item.getIdFromItem(o.item);
+        int c = getItemId() - o.getItemId();
         if (c != 0) {
             return c;
         }

@@ -3,6 +3,7 @@ package logisticspipes.pipes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTreeNode;
 import logisticspipes.request.resources.FluidResource;
 import logisticspipes.routing.FluidLogisticsPromise;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.order.IOrderInfoProvider;
 import logisticspipes.routing.order.IOrderInfoProvider.ResourceType;
 import logisticspipes.transport.LPTravelingItem.LPTravelingItemServer;
@@ -439,7 +441,8 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
 
     @Override
     public Set<ItemIdentifier> getSpecificInterests() {
-        Set<ItemIdentifier> interests = new TreeSet<>();
+        // no order needed: the router only compares and looks up
+        Set<ItemIdentifier> interests = new HashSet<>();
         if (getFluidTargetTile() == null) {
             return interests;
         }
@@ -463,6 +466,18 @@ public abstract class PipeLogisticsFluidChassi extends PipeLogisticsChassi
             }
         }
         return false;
+    }
+
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        CategoryInterests interests = CategoryInterests.EMPTY;
+        if (getFluidTargetTile() == null) {
+            return interests;
+        }
+        for (LogisticsFluidModule module : getModules(LogisticsFluidModule.class)) {
+            interests = interests.merge(module.getCategoryInterests());
+        }
+        return interests;
     }
 
     /*** save ***/

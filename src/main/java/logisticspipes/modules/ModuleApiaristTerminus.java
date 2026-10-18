@@ -12,11 +12,15 @@ import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
 public class ModuleApiaristTerminus extends LogisticsModule {
+
+    private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.BEE);
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {}
@@ -84,7 +88,15 @@ public class ModuleApiaristTerminus extends LogisticsModule {
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only bees are offered (it takes drones), instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return INTERESTS;
     }
 
     @Override
