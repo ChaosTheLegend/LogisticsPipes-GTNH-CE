@@ -11,8 +11,8 @@ import net.minecraftforge.client.IItemRenderer;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
+import logisticspipes.crafting.legacy.module.ModuleCrafter;
 import logisticspipes.items.ItemModule;
-import logisticspipes.modules.ModuleCrafter;
 import logisticspipes.utils.item.EzNBT;
 
 public class ItemModuleRenderer implements IItemRenderer {

@@ -33,11 +33,24 @@ import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkEntry;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3NetworkList;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3PlayerTarget;
+import logisticspipes.crafting.v3.mc.CraftingRequests;
+import logisticspipes.crafting.v3.mc.CraftingService;
+import logisticspipes.crafting.v3.mc.FluidKey;
+import logisticspipes.crafting.v3.mc.ItemKey;
+import logisticspipes.crafting.v3.mc.PlanPreview;
+import logisticspipes.crafting.v3.model.ResourceKey;
+import logisticspipes.crafting.v3.model.ResourceMatcher;
+import logisticspipes.crafting.v3.plan.Plan;
+import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.request.RequestHandler;
 import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTree.ActiveRequestType;
+import logisticspipes.request.resources.FluidResource;
+import logisticspipes.request.resources.IResource;
+import logisticspipes.request.resources.ItemResource;
+import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
@@ -61,6 +74,12 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private static final int C_SAVE_SEARCH = 10;
     private static final int C_VIEW = 11;
     private static final int C_AUTOCRAFT = 12;
+    private static final int C_PREVIEW = 13;
+    private static final int C_PREVIEW_START = 14;
+    private static final int C_PREVIEW_CANCEL = 15;
+    private static final int S_PREVIEW = 106;
+    // a preview older than this is planned again before it starts
+    private static final long PREVIEW_MAX_AGE_MILLIS = 60_000;
 
     private static final int SHIFT_CRAFT_LIMIT = 64;
     private static final int MAX_INGREDIENT_SETS = 999;
@@ -100,6 +119,10 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
     private Consumer<ItemStack[][]> recipeOffer;
     // client: is told what the network had no place for
     private Consumer<List<ItemIdentifierStack>> unsentListener;
+    // client: shows the crafting preview the server sent
+    private Consumer<PlanPreview> previewListener;
+    // server: the request the player is looking at a preview of
+    private PendingCraft pendingCraft;
     // client: the slots of the crafting grid the last craft had no ingredient for, a bit for each, and until when
     // they are marked
     private int missingSlots;
@@ -298,6 +321,34 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
         return (missingSlots & 1 << slot) != 0 && System.currentTimeMillis() < missingShownUntil;
     }
 
+    public void setPreviewListener(Consumer<PlanPreview> previewListener) {
+        this.previewListener = previewListener;
+    }
+
+    /**
+     * Asks for a request: what stock covers is requested right away, a request that needs crafting first comes back as
+     * a preview (plan section 10.1).
+     *
+     * @param craft true to have it crafted even if the network has it
+     */
+    public void preview(RequestTableMk3NetworkEntry entry, int amount, boolean craft) {
+        syncToServer(C_PREVIEW, buf -> {
+            new LPDataOutputStream(buf).writeItemIdentifierStack(entry.getStack());
+            buf.writeBoolean(entry.isFluid());
+            buf.writeInt(amount);
+            buf.writeBoolean(craft);
+        });
+    }
+
+    /** Starts the previewed craft. */
+    public void startPreview() {
+        syncToServer(C_PREVIEW_START);
+    }
+
+    public void cancelPreview() {
+        syncToServer(C_PREVIEW_CANCEL);
+    }
+
     public void setUnsentListener(Consumer<List<ItemIdentifierStack>> unsentListener) {
         this.unsentListener = unsentListener;
     }
@@ -386,6 +437,13 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
             int made = buf.readVarIntFromBuffer();
             if (answer != null) {
                 answer.complete(made);
+            }
+            return;
+        }
+        if (id == S_PREVIEW) {
+            PlanPreview preview = PlanPreview.read(new LPDataInputStream(buf));
+            if (previewListener != null) {
+                previewListener.accept(preview);
             }
             return;
         }
@@ -658,24 +716,19 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
                 if (stack == null) {
                     return;
                 }
-                ItemIdentifierStack toRequest = stack.getItem().makeStack(amount);
-                EntityPlayer player = getSyncManager().getPlayer();
-                RequestTableMk3DisplaySettings playerSettings = table.getDisplaySettings(player);
-                boolean messages = playerSettings.reportsRequests();
-                if (fluid) {
-                    RequestHandler.requestFluid(player, toRequest, table, table, messages, flags);
-                } else {
-                    boolean toPlayer = playerSettings.getDeliveryMode() == DeliveryMode.PLAYER;
-                    RequestHandler.request(
-                            player,
-                            toRequest,
-                            table,
-                            toPlayer ? new RequestTableMk3PlayerTarget(player.getUniqueID()) : null,
-                            messages,
-                            flags);
-                }
-                sendContent(false);
+                requestOnServer(stack.getItem().makeStack(amount), fluid, flags);
             }
+            case C_PREVIEW -> {
+                ItemIdentifierStack stack = new LPDataInputStream(buf).readItemIdentifierStack();
+                boolean fluid = buf.readBoolean();
+                int amount = Math.max(1, Math.min(MAX_REQUEST_AMOUNT, buf.readInt()));
+                boolean craftOnly = buf.readBoolean();
+                if (stack != null) {
+                    previewOnServer(stack.getItem().makeStack(amount), fluid, craftOnly);
+                }
+            }
+            case C_PREVIEW_START -> startPreviewOnServer();
+            case C_PREVIEW_CANCEL -> pendingCraft = null;
             case C_SEND_STORAGE -> {
                 if (buf.readBoolean()) {
                     table.sendStoredFluidsToNetwork();
@@ -706,6 +759,95 @@ public class RequestTableSyncHandler extends SyncHandler<RequestTableSyncHandler
             }
             default -> {}
         }
+    }
+
+    /** A plain request, as the player asked: what the network has comes from stock, the rest is crafted. */
+    private void requestOnServer(ItemIdentifierStack toRequest, boolean fluid, EnumSet<ActiveRequestType> flags) {
+        EntityPlayer player = getSyncManager().getPlayer();
+        RequestTableMk3DisplaySettings playerSettings = table.getDisplaySettings(player);
+        boolean messages = playerSettings.reportsRequests();
+        if (fluid) {
+            RequestHandler.requestFluid(player, toRequest, table, table, messages, flags);
+        } else {
+            RequestHandler.request(player, toRequest, table, deliveryTarget(player), messages, flags);
+        }
+        sendContent(false);
+    }
+
+    private IAdditionalTargetInformation deliveryTarget(EntityPlayer player) {
+        boolean toPlayer = table.getDisplaySettings(player).getDeliveryMode() == DeliveryMode.PLAYER;
+        return toPlayer ? new RequestTableMk3PlayerTarget(player.getUniqueID()) : null;
+    }
+
+    /** What the player is looking at a preview of. */
+    private static final class PendingCraft {
+
+        final ItemIdentifierStack stack;
+        final boolean fluid;
+        final boolean craftOnly;
+        final Plan plan;
+        final long planned;
+
+        PendingCraft(ItemIdentifierStack stack, boolean fluid, boolean craftOnly, Plan plan) {
+            this.stack = stack;
+            this.fluid = fluid;
+            this.craftOnly = craftOnly;
+            this.plan = plan;
+            this.planned = System.currentTimeMillis();
+        }
+    }
+
+    private Plan planFor(ItemIdentifierStack stack, boolean fluid, boolean craftOnly) {
+        ResourceKey key = fluid ? FluidKey.of(FluidIdentifier.get(stack.getItem())) : ItemKey.of(stack.getItem());
+        return CraftingService.INSTANCE
+                .plan(table.getRouter().getId(), ResourceMatcher.exact(key), stack.getStackSize(), craftOnly);
+    }
+
+    /**
+     * Requests that stock covers go through at once; anything that needs crafting is planned and shown to the player
+     * first.
+     */
+    private void previewOnServer(ItemIdentifierStack stack, boolean fluid, boolean craftOnly) {
+        EnumSet<ActiveRequestType> flags = craftOnly ? RequestTree.craftOnlyRequestFlags
+                : RequestTree.defaultRequestFlags;
+        if (CraftingService.INSTANCE.driver() == null || fluid && FluidIdentifier.get(stack.getItem()) == null) {
+            requestOnServer(stack, fluid, flags);
+            return;
+        }
+        Plan plan = planFor(stack, fluid, craftOnly);
+        if (!plan.isFailed() && plan.nodes.isEmpty() && plan.canStart()) {
+            pendingCraft = null;
+            requestOnServer(stack, fluid, flags);
+            return;
+        }
+        pendingCraft = new PendingCraft(stack, fluid, craftOnly, plan);
+        PlanPreview preview = PlanPreview.of(plan);
+        syncToClient(S_PREVIEW, buf -> preview.write(new LPDataOutputStream(buf)));
+    }
+
+    private void startPreviewOnServer() {
+        PendingCraft pending = pendingCraft;
+        pendingCraft = null;
+        if (pending == null) {
+            return;
+        }
+        Plan plan = pending.plan;
+        if (System.currentTimeMillis() - pending.planned > PREVIEW_MAX_AGE_MILLIS) {
+            plan = planFor(pending.stack, pending.fluid, pending.craftOnly);
+        }
+        if (!plan.canStart()) {
+            // something went missing since: show the new state instead
+            pendingCraft = new PendingCraft(pending.stack, pending.fluid, pending.craftOnly, plan);
+            PlanPreview preview = PlanPreview.of(plan);
+            syncToClient(S_PREVIEW, buf -> preview.write(new LPDataOutputStream(buf)));
+            return;
+        }
+        EntityPlayer player = getSyncManager().getPlayer();
+        IResource display = pending.fluid
+                ? new FluidResource(FluidIdentifier.get(pending.stack.getItem()), (int) plan.request.qty(), table)
+                : new ItemResource(pending.stack, table);
+        CraftingRequests.startPlanned(player, plan, display, pending.fluid ? null : deliveryTarget(player));
+        sendContent(false);
     }
 
     private void craftOnServer(boolean shift) {

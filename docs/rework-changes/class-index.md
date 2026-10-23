@@ -257,7 +257,7 @@ Totals: **390 files**: 250 added, 140 modified.
 
 | File | Status | Lines | Feature | Summary |
 |---|---|---|---|---|
-| [GuiCraftingPipe.java](../../src/main/java/logisticspipes/gui/GuiCraftingPipe.java) | Modified | +12 / -1 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Legacy crafting pipe GUI gets a "Blocking" button (sets blocking on only) |
+| [GuiCraftingPipe.java](../../src/main/java/logisticspipes/crafting/legacy/gui/GuiCraftingPipe.java) | Modified | +12 / -1 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Legacy crafting pipe GUI gets a "Blocking" button (sets blocking on only) |
 | [GuiLogisticsSettings.java](../../src/main/java/logisticspipes/gui/GuiLogisticsSettings.java) | Modified | +4 / -31 | [05 · Settings GUI](05-modularui-gui.md#settings-gui) | Removes VBO/fallback renderer and render distance controls |
 
 ## logisticspipes.gui.hud
@@ -293,7 +293,7 @@ Totals: **390 files**: 250 added, 140 modified.
 |---|---|---|---|---|
 | [ModuleActiveSupplierMuiDynamic.java](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleActiveSupplierMuiDynamic.java) | Added | +118 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Active supplier MUI: 3x3 stock slots, request mode |
 | [ModuleBeeAnalyzerMuiDynamic.java](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleBeeAnalyzerMuiDynamic.java) | Added | +61 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Apiarist analyser MUI: extract on/off toggle |
-| [ModuleCraftingMuiDynamic.java](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleCraftingMuiDynamic.java) | Added | +185 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Crafting module MUI; no callers, module deprecated |
+| [ModuleCraftingMuiDynamic.java](../../src/main/java/logisticspipes/crafting/legacy/gui/ModuleCraftingMuiDynamic.java) | Added | +185 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Crafting module MUI; no callers, module deprecated |
 | [ModuleCreativeTabBasedItemSinkMuiDynamic.java](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleCreativeTabBasedItemSinkMuiDynamic.java) | Added | +156 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Creative tab sink MUI: analyse slot, add, 9-entry removable list |
 | [ModuleElectricManagerMuiDynamic.java](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleElectricManagerMuiDynamic.java) | Added | +100 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Electric manager MUI: filter slots, charge/discharge toggle |
 | [ModuleEnchantmentSinkMK2MuiDynamic.java](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleEnchantmentSinkMK2MuiDynamic.java) | Added | +85 / -0 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Enchantment sink MK2 MUI: filter slots |
@@ -382,7 +382,7 @@ Totals: **390 files**: 250 added, 140 modified.
 | [ModuleActiveSupplier.java](../../src/main/java/logisticspipes/modules/ModuleActiveSupplier.java) | Modified | +24 / -4 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | MUI support; dummy inventory limit raised to Integer.MAX_VALUE |
 | [ModuleApiaristAnalyser.java](../../src/main/java/logisticspipes/modules/ModuleApiaristAnalyser.java) | Modified | +28 / -1 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | MUI support; boolean extract-mode accessors |
 | [ModuleCCBasedQuickSort.java](../../src/main/java/logisticspipes/modules/ModuleCCBasedQuickSort.java) | Modified | +3 / -2 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | Uses InterestRegistry instead of ServerRouter (router rework) |
-| [ModuleCrafter.java](../../src/main/java/logisticspipes/modules/ModuleCrafter.java) | Modified | +67 / -40 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Legacy crafter: fluid tanks for fluid slots, blocking packet, debug println |
+| [ModuleCrafter.java](../../src/main/java/logisticspipes/crafting/legacy/module/ModuleCrafter.java) | Modified | +67 / -40 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Legacy crafter: fluid tanks for fluid slots, blocking packet, debug println |
 | [ModuleCreativeTabBasedItemSink.java](../../src/main/java/logisticspipes/modules/ModuleCreativeTabBasedItemSink.java) | Modified | +39 / -49 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | MUI support; tab list API; drops string-based interface and HUD |
 | [ModuleElectricManager.java](../../src/main/java/logisticspipes/modules/ModuleElectricManager.java) | Modified | +50 / -5 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | MUI support; GT battery slot inventory override |
 | [ModuleEnchantmentSinkMK2.java](../../src/main/java/logisticspipes/modules/ModuleEnchantmentSinkMK2.java) | Modified | +21 / -2 | [05 · Module GUIs](05-modularui-gui.md#module-guis) | MUI support |
@@ -468,7 +468,7 @@ Totals: **390 files**: 250 added, 140 modified.
 
 | File | Status | Lines | Feature | Summary |
 |---|---|---|---|---|
-| [CraftingBlockingModePacket.java](../../src/main/java/logisticspipes/network/packets/pipe/CraftingBlockingModePacket.java) | Added | +53 / -0 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | C2S blocking flag for the legacy crafting pipe (no security checks) |
+| [CraftingBlockingModePacket.java](../../src/main/java/logisticspipes/crafting/legacy/network/CraftingBlockingModePacket.java) | Added | +53 / -0 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | C2S blocking flag for the legacy crafting pipe (no security checks) |
 | [ItemClumpPacket.java](../../src/main/java/logisticspipes/network/packets/pipe/ItemClumpPacket.java) | Added | +90 / -0 | [04 · Client sync and rendering of clumps](04-item-transport.md#client-sync-and-rendering-of-clumps) | Server-to-client clump hop: id, speed, input, per-pipe directions, up to 3 stacks |
 
 ## logisticspipes.network.packets.routingdebug
@@ -481,26 +481,26 @@ Totals: **390 files**: 250 added, 140 modified.
 
 | File | Status | Lines | Feature | Summary |
 |---|---|---|---|---|
-| [SatPipeNext.java](../../src/main/java/logisticspipes/network/packets/satpipe/SatPipeNext.java) | Modified | +7 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Ignores pattern satellites (ids set through MUI) |
-| [SatPipePrev.java](../../src/main/java/logisticspipes/network/packets/satpipe/SatPipePrev.java) | Modified | +7 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Ignores pattern satellites (ids set through MUI) |
-| [SatPipeSetID.java](../../src/main/java/logisticspipes/network/packets/satpipe/SatPipeSetID.java) | Modified | +8 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Server ignores set-id packets for pattern satellites |
+| [SatPipeNext.java](../../src/main/java/logisticspipes/crafting/legacy/network/SatPipeNext.java) | Modified | +7 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Ignores pattern satellites (ids set through MUI) |
+| [SatPipePrev.java](../../src/main/java/logisticspipes/crafting/legacy/network/SatPipePrev.java) | Modified | +7 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Ignores pattern satellites (ids set through MUI) |
+| [SatPipeSetID.java](../../src/main/java/logisticspipes/crafting/legacy/network/SatPipeSetID.java) | Modified | +8 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Server ignores set-id packets for pattern satellites |
 
 ## logisticspipes.pipes
 
 | File | Status | Lines | Feature | Summary |
 |---|---|---|---|---|
-| [ISatellitePipe.java](../../src/main/java/logisticspipes/pipes/ISatellitePipe.java) | Added | +10 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Common satellite id interface used by PipeSatelliteMui |
+| [ISatellitePipe.java](../../src/main/java/logisticspipes/crafting/legacy/satellite/ISatellitePipe.java) | Added | +10 / -0 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Common satellite id interface used by PipeSatelliteMui |
 | [PipeBlockRequestTable.java](../../src/main/java/logisticspipes/pipes/PipeBlockRequestTable.java) | Modified | +45 / -13 | [02 · Changes to upstream classes](02-request-table.md#changes-to-upstream-classes) | Watch helpers also send pattern-crafting monitor trees; client pattern-watch map |
 | [PipeFluidBasic.java](../../src/main/java/logisticspipes/pipes/PipeFluidBasic.java) | Modified | +21 / -11 | [06 · Fluid basic pipe: fluid filter is a phantom tank](06-modules-pipes-compat-build.md#fluid-basic-pipe-fluid-filter-is-a-phantom-tank) | Filter now FluidTank with MUI; old filter NBT not migrated |
 | [PipeFluidProvider.java](../../src/main/java/logisticspipes/pipes/PipeFluidProvider.java) | Modified | +2 / -0 | [06 · Fluid provider: orders carry their target information](06-modules-pipes-compat-build.md#fluid-provider-orders-carry-their-target-information) | Forwards order target information on sent fluid containers |
-| [PipeFluidSatellite.java](../../src/main/java/logisticspipes/pipes/PipeFluidSatellite.java) | Modified | +19 / -3 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
+| [PipeFluidSatellite.java](../../src/main/java/logisticspipes/crafting/legacy/satellite/PipeFluidSatellite.java) | Modified | +19 / -3 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
 | [PipeFluidSupplierMk2.java](../../src/main/java/logisticspipes/pipes/PipeFluidSupplierMk2.java) | Modified | +13 / -133 | [06 · Fluid supplier Mk2: GUI moved out of the pipe](06-modules-pipes-compat-build.md#fluid-supplier-mk2-gui-moved-out-of-the-pipe) | Inline MUI moved to PipeFluidSupplierMk2Mui; fields made public |
 | [PipeItemsApiaristAnalyser.java](../../src/main/java/logisticspipes/pipes/PipeItemsApiaristAnalyser.java) | Modified | +9 / -1 | [06 · Supplier and apiarist analyser pipes: module MUI](06-modules-pipes-compat-build.md#supplier-and-apiarist-analyser-pipes-module-mui) | Module MUI via IMUICompatiblePipeV2 |
 | [PipeItemsBasicLogistics.java](../../src/main/java/logisticspipes/pipes/PipeItemsBasicLogistics.java) | Modified | +26 / -9 | [06 · Basic logistics pipe: no random exits, interest fixes](06-modules-pipes-compat-build.md#basic-logistics-pipe-no-random-exits-interest-fixes) | stillWantItem transport layer reroutes unwanted items; interests delegate to sink |
-| [PipeItemsCraftingLogistics.java](../../src/main/java/logisticspipes/pipes/PipeItemsCraftingLogistics.java) | Modified | +31 / -1 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Unfinished blocking-mode buffer stub; itemArrived forwards twice |
+| [PipeItemsCraftingLogistics.java](../../src/main/java/logisticspipes/crafting/legacy/pipe/PipeItemsCraftingLogistics.java) | Modified | +31 / -1 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Unfinished blocking-mode buffer stub; itemArrived forwards twice |
 | [PipeItemsPatternCraftingLogistics.java](../../src/main/java/logisticspipes/pipes/PipeItemsPatternCraftingLogistics.java) | Added | +812 / -0 | [01 · Pattern crafting pipe](01-pattern-crafting.md#pattern-crafting-pipe) | Pattern crafting pipe shell: orders, fluid orders, target, sat links, HUD, MUI |
 | [PipeItemsProviderLogistics.java](../../src/main/java/logisticspipes/pipes/PipeItemsProviderLogistics.java) | Modified | +80 / -40 | [06 · Provider pipe: settings moved into a ModuleProvider](06-modules-pipes-compat-build.md#provider-pipe-settings-moved-into-a-moduleprovider) | Settings in ModuleProvider (NBT-compatible), MUI, staged crafting reservations |
-| [PipeItemsSatelliteLogistics.java](../../src/main/java/logisticspipes/pipes/PipeItemsSatelliteLogistics.java) | Modified | +21 / -4 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
+| [PipeItemsSatelliteLogistics.java](../../src/main/java/logisticspipes/crafting/legacy/satellite/PipeItemsSatelliteLogistics.java) | Modified | +21 / -4 | [01 · Satellites (item/fluid, routed vs instant)](01-pattern-crafting.md#satellites-itemfluid-routed-vs-instant) | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
 | [PipeItemsSupplierLogistics.java](../../src/main/java/logisticspipes/pipes/PipeItemsSupplierLogistics.java) | Modified | +10 / -1 | [06 · Supplier and apiarist analyser pipes: module MUI](06-modules-pipes-compat-build.md#supplier-and-apiarist-analyser-pipes-module-mui) | Module MUI via IMUICompatiblePipeV2 |
 | [PipeLogisticsChassi.java](../../src/main/java/logisticspipes/pipes/PipeLogisticsChassi.java) | Modified | +10 / -1 | [05 · Chassis GUI](05-modularui-gui.md#chassis-gui) | Implements IMUICompatiblePipeV2 returning ChassisGui; unused blockingMode field |
 | [PipeLogisticsChassiMk5.java](../../src/main/java/logisticspipes/pipes/PipeLogisticsChassiMk5.java) | Modified | +1 / -0 | [05 · Chassis GUI](05-modularui-gui.md#chassis-gui) | Blank line only |
@@ -627,9 +627,9 @@ Totals: **390 files**: 250 added, 140 modified.
 
 | File | Status | Lines | Feature | Summary |
 |---|---|---|---|---|
-| [BaseCraftingTemplate.java](../../src/main/java/logisticspipes/request/BaseCraftingTemplate.java) | Modified | +4 / -0 | [01 · Staged crafting & request tree integration](01-pattern-crafting.md#staged-crafting--request-tree-integration) | Exposes the raw ingredient list (getIngredients) |
-| [FluidCraftingTemplate.java](../../src/main/java/logisticspipes/request/FluidCraftingTemplate.java) | Modified | +56 / -4 | [01 · Fluid crafting](01-pattern-crafting.md#fluid-crafting) | Implements item and fluid byproducts for fluid crafting templates |
-| [ICraftingTemplate.java](../../src/main/java/logisticspipes/request/ICraftingTemplate.java) | Modified | +15 / -0 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Javadoc only (fluid-oriented comments on generic methods) |
+| [BaseCraftingTemplate.java](../../src/main/java/logisticspipes/crafting/legacy/template/BaseCraftingTemplate.java) | Modified | +4 / -0 | [01 · Staged crafting & request tree integration](01-pattern-crafting.md#staged-crafting--request-tree-integration) | Exposes the raw ingredient list (getIngredients) |
+| [FluidCraftingTemplate.java](../../src/main/java/logisticspipes/crafting/legacy/template/FluidCraftingTemplate.java) | Modified | +56 / -4 | [01 · Fluid crafting](01-pattern-crafting.md#fluid-crafting) | Implements item and fluid byproducts for fluid crafting templates |
+| [ICraftingTemplate.java](../../src/main/java/logisticspipes/crafting/legacy/template/ICraftingTemplate.java) | Modified | +15 / -0 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Javadoc only (fluid-oriented comments on generic methods) |
 | [IExtraPromise.java](../../src/main/java/logisticspipes/request/IExtraPromise.java) | Modified | +6 / -0 | [01 · Changes to upstream classes](01-pattern-crafting.md#changes-to-upstream-classes) | Javadoc only on registerExtras |
 | [RequestHandler.java](../../src/main/java/logisticspipes/request/RequestHandler.java) | Modified | +85 / -25 | [01 · Fluid crafting](01-pattern-crafting.md#fluid-crafting) | Fluid refresh shows craftable fluids by DisplayOptions; adds simulateFluid |
 | [RequestTree.java](../../src/main/java/logisticspipes/request/RequestTree.java) | Modified | +37 / -5 | [01 · Crafting debug tooling](01-pattern-crafting.md#crafting-debug-tooling) | Records request snapshots to debug manager; fluid partial request with info |

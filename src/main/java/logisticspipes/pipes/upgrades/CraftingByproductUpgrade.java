@@ -2,9 +2,9 @@ package logisticspipes.pipes.upgrades;
 
 import logisticspipes.crafting.PipeFluidPatternSatelliteLogistics;
 import logisticspipes.crafting.PipeItemsPatternSatelliteLogistics;
-import logisticspipes.modules.ModuleCrafter;
+import logisticspipes.crafting.legacy.module.ModuleCrafter;
+import logisticspipes.crafting.legacy.pipe.PipeItemsCraftingLogistics;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.pipes.PipeItemsCraftingLogistics;
 import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 

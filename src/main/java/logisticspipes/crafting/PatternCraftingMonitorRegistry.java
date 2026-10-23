@@ -2,211 +2,227 @@ package logisticspipes.crafting;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.routing.ExitRoute;
+import logisticspipes.crafting.v3.exec.CraftingDriver;
+import logisticspipes.crafting.v3.exec.CraftingJob;
+import logisticspipes.crafting.v3.exec.JobState;
+import logisticspipes.crafting.v3.exec.SetState;
+import logisticspipes.crafting.v3.exec.StallCause;
+import logisticspipes.crafting.v3.exec.Ticket;
+import logisticspipes.crafting.v3.exec.TicketState;
+import logisticspipes.crafting.v3.mc.CraftingService;
+import logisticspipes.crafting.v3.mc.FluidKey;
+import logisticspipes.crafting.v3.mc.ItemKey;
+import logisticspipes.crafting.v3.model.ResourceKey;
 import logisticspipes.routing.IRouter;
-import logisticspipes.routing.order.IOrderInfoProvider;
 import logisticspipes.routing.order.LinkedLogisticsOrderList;
+import logisticspipes.utils.item.ItemIdentifierStack;
 
-/** Builds the request-table monitor view from the stable crafting reference index. */
+/**
+ * Builds the crafting monitor views (crafting monitor block, request table) from the v3 crafting jobs (plan section
+ * 10.2): one entry per job, one child per plan node, each with its set state as an icon, a label and a color, and the
+ * stall detail when it waits on something.
+ */
 public final class PatternCraftingMonitorRegistry {
+
+    /** Marks monitor ids that stand for v3 jobs: {@code new UUID(JOB_MARKER, jobId)}. */
+    private static final long JOB_MARKER = 0x4C50_4A4F_4256_3300L;
 
     private PatternCraftingMonitorRegistry() {}
 
-    static PatternCraftingOrder find(IOrderInfoProvider outputOrder) {
-        return PatternCraftingInstanceRegistry.find(outputOrder);
-    }
+    public static void clear() {}
 
-    public static void clear() {
-        PatternCraftingInstanceRegistry.clear();
-    }
-
+    /** Request-table watches of plain provider orders: crafting no longer goes through order lists. */
     public static List<PatternCraftingMonitorNode> build(LinkedLogisticsOrderList orders) {
-        if (orders == null) {
-            return Collections.emptyList();
-        }
-        cleanupFinishedOrders();
-        List<PatternCraftingMonitorNode> result = new ArrayList<>();
-        appendMonitorNodes(orders, result);
-        return result;
+        return Collections.emptyList();
     }
 
-    /**
-     * Builds one cancellable entry per live crafting instance reachable from the supplied network router.
-     */
+    /** One entry per running crafting job whose requester is on the network of {@code networkRouter}. */
     public static List<PatternCraftingMonitorEntry> buildAll(IRouter networkRouter) {
-        if (networkRouter == null) {
+        CraftingDriver driver = CraftingService.INSTANCE.driver();
+        if (networkRouter == null || driver == null) {
             return Collections.emptyList();
         }
-        cleanupFinishedOrders();
-        Map<UUID, List<PatternCraftingOrder>> ordersByInstance = new LinkedHashMap<>();
-        for (PatternCraftingOrder order : PatternCraftingInstanceRegistry.liveOrders()) {
-            if (order.outputOrder == null || !belongsToNetwork(order, networkRouter)) {
+        List<PatternCraftingMonitorEntry> result = new ArrayList<>();
+        for (CraftingJob job : driver.jobs()) {
+            if (!onNetwork(job, networkRouter)) {
                 continue;
             }
-            ordersByInstance.computeIfAbsent(order.reference().instanceId(), ignored -> new ArrayList<>()).add(order);
+            result.add(
+                    new PatternCraftingMonitorEntry(
+                            new UUID(JOB_MARKER, job.id),
+                            Collections.singletonList(jobNode(driver, job))));
         }
-
-        Map<UUID, PatternCraftingMonitorEntry> entriesByInstance = new LinkedHashMap<>();
-        for (Map.Entry<UUID, List<PatternCraftingOrder>> instance : ordersByInstance.entrySet()) {
-            Set<PatternCraftingOrder> nestedOrders = new HashSet<>();
-            for (PatternCraftingOrder order : instance.getValue()) {
-                order.collectNestedCraftingOrders(nestedOrders);
-            }
-            List<PatternCraftingMonitorNode> roots = new ArrayList<>();
-            for (PatternCraftingOrder order : instance.getValue()) {
-                if (!nestedOrders.contains(order)) {
-                    PatternCraftingMonitorNode node = order.toMonitorNode(new HashSet<>());
-                    if (node.hasVisibleWork()) {
-                        roots.add(node);
-                    }
-                }
-            }
-            if (roots.isEmpty() && !instance.getValue().isEmpty()) {
-                PatternCraftingMonitorNode fallback = instance.getValue().get(0).toMonitorNode(new HashSet<>());
-                if (fallback.hasVisibleWork()) {
-                    roots.add(fallback);
-                }
-            }
-            if (!roots.isEmpty()) {
-                entriesByInstance.put(instance.getKey(), new PatternCraftingMonitorEntry(instance.getKey(), roots));
-            }
-        }
-        List<ModulePatternCrafting> modules = networkPatternModules(networkRouter);
-        for (ModulePatternCrafting module : modules) {
-            for (PatternCraftingMonitorEntry standalone : module.getStandaloneOrderEntries()) {
-                mergeEntry(entriesByInstance, standalone);
-            }
-        }
-        for (ModulePatternCrafting module : modules) {
-            for (PatternCraftingMonitorEntry pending : module.getPendingRestoreEntries()) {
-                mergeEntry(entriesByInstance, pending);
-            }
-        }
-        List<PatternCraftingMonitorEntry> result = new ArrayList<>(entriesByInstance.values());
-        result.sort(
-                Comparator.comparing(PatternCraftingMonitorRegistry::displayName)
-                        .thenComparing(entry -> entry.getInstanceId().toString()));
         return result;
     }
 
-    /** Cancels a crafting instance only when it belongs to the supplied logistics network. */
+    /** Cancels a job shown in a monitor on the same network. */
     public static boolean cancelInstance(UUID instanceId, IRouter networkRouter) {
-        if (instanceId == null || networkRouter == null) {
+        CraftingDriver driver = CraftingService.INSTANCE.driver();
+        if (instanceId == null || networkRouter == null
+                || driver == null
+                || instanceId.getMostSignificantBits() != JOB_MARKER) {
             return false;
         }
-        boolean foundInNetwork = false;
-        for (PatternCraftingOrder order : PatternCraftingInstanceRegistry.ordersForInstance(instanceId)) {
-            if (belongsToNetwork(order, networkRouter)) {
-                foundInNetwork = true;
+        CraftingJob job = driver.job(instanceId.getLeastSignificantBits());
+        return job != null && onNetwork(job, networkRouter) && driver.cancelJob(job.id);
+    }
+
+    private static boolean onNetwork(CraftingJob job, IRouter networkRouter) {
+        if (networkRouter.getId().equals(job.requester)) {
+            return true;
+        }
+        IRouter requester = CraftingService.router(job.requester);
+        return requester != null && !networkRouter.getDistanceTo(requester).isEmpty();
+    }
+
+    private static PatternCraftingMonitorNode jobNode(CraftingDriver driver, CraftingJob job) {
+        Ticket delivery = job.delivery();
+        long delivered = delivery == null ? 0 : delivery.delivered();
+        boolean winding = job.state() == JobState.CANCELLING;
+        PatternCraftingMonitorNode root = new PatternCraftingMonitorNode(
+                display(job.target.key(), job.qty),
+                (int) Math.min(Integer.MAX_VALUE, job.qty - delivered),
+                (int) Math.min(Integer.MAX_VALUE, job.qty),
+                !winding);
+        Map<Integer, List<Ticket>> byNode = new LinkedHashMap<>();
+        for (Ticket t : job.tickets()) {
+            if (!t.isDelivery()) byNode.computeIfAbsent(t.node, k -> new ArrayList<>()).add(t);
+        }
+        SetState worst = SetState.DONE;
+        for (CraftingJob.NodeInfo info : job.nodes()) {
+            List<Ticket> tickets = byNode.getOrDefault(info.node(), Collections.emptyList());
+            PatternCraftingMonitorNode node = nodeView(driver, info, tickets);
+            root.addChild(node);
+            worst = worse(worst, stateOf(node));
+        }
+        if (winding) {
+            root.withStatus(
+                    "[-] " + (job.isDelivered() ? "Finishing" : "Cancelling"),
+                    0xFF9E9E9E,
+                    "Waiting for running sets and items in transit");
+        } else {
+            String detail = stallSummary(driver, job);
+            root.withStatus(worst.icon + " " + worst.label, worst.color, detail);
+        }
+        return root;
+    }
+
+    private static PatternCraftingMonitorNode nodeView(CraftingDriver driver, CraftingJob.NodeInfo info,
+            List<Ticket> tickets) {
+        long remaining = 0;
+        boolean running = false;
+        SetState worst = SetState.DONE;
+        StringBuilder detail = new StringBuilder();
+        for (Ticket t : tickets) {
+            SetState s = driver.displayState(t);
+            if (t.state() != TicketState.DONE && t.state() != TicketState.CANCELLED) remaining += t.crafts;
+            if (s == SetState.DISPATCHED) running = true;
+            worst = worse(worst, s);
+            if (s.isStalled() && detail.length() == 0) detail.append(stallText(driver, t));
+        }
+        if (info.legacy()) {
+            if (detail.length() > 0) detail.append(" | ");
+            detail.append("[!] Deprecated crafter: ").append(info.crafterName()).append(" will be removed");
+        }
+        PatternCraftingMonitorNode node = new PatternCraftingMonitorNode(
+                display(info.output(), info.crafts()),
+                (int) Math.min(Integer.MAX_VALUE, remaining),
+                (int) Math.min(Integer.MAX_VALUE, info.crafts()),
+                running);
+        String label = worst.icon + " " + worst.label + (info.legacy() ? " [!] legacy" : "");
+        return node.withStatus(label, worst.color, detail.toString());
+    }
+
+    private static String stallText(CraftingDriver driver, Ticket t) {
+        for (CraftingDriver.Stall stall : driver.stalls(t.job)) {
+            if (stall.ticket() != t) continue;
+            if (stall.key() != null) {
+                String cause = stall.cause() == StallCause.MISSING ? "missing" : "unreachable";
+                return stall.qty() + "x "
+                        + stall.key().displayName()
+                        + " "
+                        + cause
+                        + (stall.problem() != null ? " (" + stall.problem() + ")" : "");
+            }
+            if (stall.problem() != null) return stall.problem();
+        }
+        return t.problem() == null ? "" : t.problem();
+    }
+
+    /** Short text of the job's stalls plus what it holds reserved (plan sections 7.5 and 10.3). */
+    private static String stallSummary(CraftingDriver driver, CraftingJob job) {
+        List<CraftingDriver.Stall> stalls = driver.stalls(job.id);
+        if (stalls.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        int shown = 0;
+        for (CraftingDriver.Stall stall : stalls) {
+            if (shown++ >= 3) {
+                sb.append(", ...");
                 break;
             }
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(
+                    stall.key() == null ? stall.problem()
+                            : stall.qty() + "x "
+                                    + stall.key().displayName()
+                                    + " "
+                                    + (stall.cause() == StallCause.MISSING ? "missing" : "unreachable"));
         }
-        List<ModulePatternCrafting> modules = networkPatternModules(networkRouter);
-        boolean pendingInNetwork = false;
-        boolean standaloneInNetwork = false;
-        for (ModulePatternCrafting module : modules) {
-            pendingInNetwork |= module.hasPendingRestoreInstance(instanceId);
-            standaloneInNetwork |= module.hasStandaloneOrderInstance(instanceId);
-        }
-        if (!foundInNetwork && !pendingInNetwork && !standaloneInNetwork) {
-            return false;
-        }
-
-        PatternCraftingInstanceRegistry.recordCancellation(instanceId);
-        boolean changed = foundInNetwork && PatternCraftingInstanceRegistry.cancelInstance(instanceId);
-        for (ModulePatternCrafting module : modules) {
-            changed |= module.cancelPendingRestore(instanceId);
-            changed |= module.cancelStandaloneOrderInstance(instanceId);
-        }
-        return changed;
-    }
-
-    private static void mergeEntry(Map<UUID, PatternCraftingMonitorEntry> entriesByInstance,
-            PatternCraftingMonitorEntry addition) {
-        PatternCraftingMonitorEntry existing = entriesByInstance.get(addition.getInstanceId());
-        if (existing == null) {
-            entriesByInstance.put(addition.getInstanceId(), addition);
-            return;
-        }
-        List<PatternCraftingMonitorNode> roots = new ArrayList<>(existing.getRoots());
-        roots.addAll(addition.getRoots());
-        if (existing.isRestoring() || addition.isRestoring()) {
-            entriesByInstance.put(
-                    addition.getInstanceId(),
-                    PatternCraftingMonitorEntry.restoring(
-                            addition.getInstanceId(),
-                            roots,
-                            Math.max(existing.getRestoreAttempts(), addition.getRestoreAttempts()),
-                            Math.max(existing.getMaxRestoreAttempts(), addition.getMaxRestoreAttempts())));
-            return;
-        }
-        entriesByInstance
-                .put(addition.getInstanceId(), new PatternCraftingMonitorEntry(addition.getInstanceId(), roots));
-    }
-
-    private static void appendMonitorNodes(LinkedLogisticsOrderList orders, List<PatternCraftingMonitorNode> result) {
-        for (IOrderInfoProvider order : orders) {
-            PatternCraftingOrder stagedOrder = find(order);
-            if (stagedOrder == null) {
-                continue;
-            }
-            PatternCraftingMonitorNode node = stagedOrder.toMonitorNode(new HashSet<>());
-            if (node.hasVisibleWork()) {
-                result.add(node);
+        Map<ResourceKey, Long> reserved = driver.reservedBy(job.id);
+        if (!reserved.isEmpty()) {
+            sb.append(" | reserved: ");
+            int n = 0;
+            for (Map.Entry<ResourceKey, Long> e : reserved.entrySet()) {
+                if (n++ >= 3) {
+                    sb.append("...");
+                    break;
+                }
+                sb.append(e.getValue()).append("x ").append(e.getKey().displayName()).append(' ');
             }
         }
-        for (LinkedLogisticsOrderList subOrder : orders.getSubOrders()) {
-            appendMonitorNodes(subOrder, result);
+        return sb.toString().trim();
+    }
+
+    private static SetState stateOf(PatternCraftingMonitorNode node) {
+        for (SetState s : SetState.values()) {
+            if (node.getStatus().startsWith(s.icon + " " + s.label)) return s;
+        }
+        return SetState.WAITING;
+    }
+
+    /** Stalls first (missing, unreachable, wrong craft), then running work, then waiting, then done. */
+    private static SetState worse(SetState a, SetState b) {
+        return rank(b) > rank(a) ? b : a;
+    }
+
+    private static int rank(SetState s) {
+        switch (s) {
+            case MISSING:
+                return 7;
+            case WRONG_CRAFT:
+                return 6;
+            case UNREACHABLE:
+                return 5;
+            case DISPATCHED:
+                return 4;
+            case READY:
+                return 3;
+            case WAITING:
+                return 2;
+            default:
+                return 1;
         }
     }
 
-    private static void cleanupFinishedOrders() {
-        for (PatternCraftingOrder order : PatternCraftingInstanceRegistry.liveOrders()) {
-            IOrderInfoProvider output = order.outputOrder;
-            if (output == null || output.isFinished() && output.getProgresses().isEmpty() && order.isFullyRequested()) {
-                PatternCraftingInstanceRegistry.unregister(order);
-            }
-        }
-    }
-
-    private static boolean belongsToNetwork(PatternCraftingOrder order, IRouter networkRouter) {
-        IRouter craftingRouter = order.module().getRouter();
-        return craftingRouter != null
-                && (craftingRouter == networkRouter || craftingRouter.getSimpleID() == networkRouter.getSimpleID()
-                        || !networkRouter.getDistanceTo(craftingRouter).isEmpty());
-    }
-
-    private static List<ModulePatternCrafting> networkPatternModules(IRouter networkRouter) {
-        List<ModulePatternCrafting> result = new ArrayList<>();
-        Set<LogisticsModule> seen = Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-        appendPatternModule(networkRouter, seen, result);
-        for (ExitRoute route : networkRouter.getIRoutersByCost()) {
-            appendPatternModule(route.destination, seen, result);
-        }
-        return result;
-    }
-
-    private static void appendPatternModule(IRouter router, Set<LogisticsModule> seen,
-            List<ModulePatternCrafting> result) {
-        if (router == null) {
-            return;
-        }
-        LogisticsModule module = router.getLogisticsModule();
-        if (module instanceof ModulePatternCrafting patternModule && seen.add(module)) {
-            result.add(patternModule);
-        }
-    }
-
-    private static String displayName(PatternCraftingMonitorEntry entry) {
-        return entry.getDisplayStack() == null ? "" : entry.getDisplayStack().getItem().getFriendlyName();
+    private static ItemIdentifierStack display(ResourceKey key, long amount) {
+        int n = (int) Math.min(Integer.MAX_VALUE, amount);
+        if (key instanceof ItemKey) return ((ItemKey) key).id.makeStack(n);
+        if (key instanceof FluidKey) return ((FluidKey) key).routingItem().makeStack(n);
+        return null;
     }
 }

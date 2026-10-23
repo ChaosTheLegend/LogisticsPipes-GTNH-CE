@@ -1,5 +1,10 @@
 # Pattern Crafting — Reference & Issue Tracker
 
+> **2026-10-23:** the staged execution layer described in §1, §4 and §5 (branches, orders, coordinator, scheduler,
+> buffers, result extractor, request-tree templates) is replaced by the v3 crafting system. See
+> [crafting/v3-implementation.md](crafting/v3-implementation.md). World IO (§6), the pattern format (§3), satellites
+> and the GUI (§7) are still current. Issues in §8 that live in deleted classes are gone with them.
+
 Working reference for the pattern crafting system (branch `pattern-crafting`). Written 2026-09-27 from a full
 read-through of the code; line numbers drift — re-grep before trusting them.
 

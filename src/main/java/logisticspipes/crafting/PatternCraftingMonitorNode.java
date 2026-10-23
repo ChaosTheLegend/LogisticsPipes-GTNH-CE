@@ -20,6 +20,15 @@ public class PatternCraftingMonitorNode {
     private final int orderedAmount;
     @Getter
     private boolean inProgress;
+    /** Set state label with its icon, e.g. "⚠ Unreachable"; empty when there is none. */
+    @Getter
+    private String status = "";
+    /** ARGB color of the status; always shown next to the label, never alone. */
+    @Getter
+    private int statusColor;
+    /** Why it is stalled, for the stall detail; empty when it isn't. */
+    @Getter
+    private String detail = "";
     private final List<PatternCraftingMonitorNode> children = new ArrayList<>();
 
     public PatternCraftingMonitorNode(ItemIdentifierStack stack, int unrequestedAmount, int orderedAmount,
@@ -28,6 +37,13 @@ public class PatternCraftingMonitorNode {
         this.unrequestedAmount = Math.max(0, unrequestedAmount);
         this.orderedAmount = Math.max(0, orderedAmount);
         this.inProgress = inProgress;
+    }
+
+    public PatternCraftingMonitorNode withStatus(String status, int color, String detail) {
+        this.status = status == null ? "" : status;
+        this.statusColor = color;
+        this.detail = detail == null ? "" : detail;
+        return this;
     }
 
     public List<PatternCraftingMonitorNode> getChildren() {
@@ -72,6 +88,9 @@ public class PatternCraftingMonitorNode {
         data.writeInt(unrequestedAmount);
         data.writeInt(orderedAmount);
         data.writeBoolean(inProgress);
+        data.writeUTF(status);
+        data.writeInt(statusColor);
+        data.writeUTF(detail);
         data.writeInt(children.size());
         for (PatternCraftingMonitorNode child : children) {
             child.writeData(data);
@@ -84,6 +103,7 @@ public class PatternCraftingMonitorNode {
                 data.readInt(),
                 data.readInt(),
                 data.readBoolean());
+        node.withStatus(data.readUTF(), data.readInt(), data.readUTF());
         int childCount = data.readInt();
         for (int i = 0; i < childCount; i++) {
             node.addChild(PatternCraftingMonitorNode.readData(data));

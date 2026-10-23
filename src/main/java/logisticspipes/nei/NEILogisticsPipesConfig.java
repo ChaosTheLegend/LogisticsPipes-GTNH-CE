@@ -1,7 +1,5 @@
 package logisticspipes.nei;
 
-// import com.glodblock.github.nei.recipes.FluidRecipe;
-
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
@@ -11,6 +9,7 @@ import codechicken.nei.guihook.GuiContainerManager;
 import cpw.mods.fml.common.Mod;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.config.Configs;
+import logisticspipes.crafting.legacy.gui.CraftingPipeOverlayHandler;
 import logisticspipes.crafting.requesttable.gui.RequestTableGui;
 import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.GuiSolderingStation;
@@ -63,23 +62,28 @@ public class NEILogisticsPipesConfig implements IConfigureNEI {
         // pattern editors (pipe and handheld) get NEI transfer from PatternCraftingContainer
 
         API.registerGuiOverlayHandler(
-                logisticspipes.gui.GuiCraftingPipe.class,
+                logisticspipes.crafting.legacy.gui.GuiCraftingPipe.class,
                 new CraftingPipeOverlayHandler(),
                 "crafting");
         API.registerGuiOverlayHandler(
-                logisticspipes.gui.GuiCraftingPipe.class,
+                logisticspipes.crafting.legacy.gui.GuiCraftingPipe.class,
                 new CraftingPipeOverlayHandler(),
                 "smelting");
 
-        API.registerGuiOverlayHandler(logisticspipes.gui.GuiCraftingPipe.class, new CraftingPipeOverlayHandler(), null);
+        API.registerGuiOverlayHandler(
+                logisticspipes.crafting.legacy.gui.GuiCraftingPipe.class,
+                new CraftingPipeOverlayHandler(),
+                null);
 
         if (LogisticsPipes.isGTNH) {
 
             for (gregtech.api.recipe.RecipeMap<?> map : gregtech.api.recipe.RecipeMap.ALL_RECIPE_MAPS.values()) {
                 if (!map.unlocalizedName.isEmpty()) {
-                    API.registerGuiOverlay(logisticspipes.gui.GuiCraftingPipe.class, map.unlocalizedName);
+                    API.registerGuiOverlay(
+                            logisticspipes.crafting.legacy.gui.GuiCraftingPipe.class,
+                            map.unlocalizedName);
                     API.registerGuiOverlayHandler(
-                            logisticspipes.gui.GuiCraftingPipe.class,
+                            logisticspipes.crafting.legacy.gui.GuiCraftingPipe.class,
                             new CraftingPipeOverlayHandler(),
                             map.unlocalizedName);
                     API.registerGuiOverlay(GuiLogisticsCraftingTable.class, map.unlocalizedName);

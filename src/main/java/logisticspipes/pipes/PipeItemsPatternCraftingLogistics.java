@@ -30,6 +30,9 @@ import logisticspipes.crafting.PatternCraftingHudState;
 import logisticspipes.crafting.PatternCraftingTargetSelector;
 import logisticspipes.crafting.PipeFluidPatternSatelliteLogistics;
 import logisticspipes.crafting.PipeItemsPatternSatelliteLogistics;
+import logisticspipes.crafting.legacy.template.ICraftingTemplate;
+import logisticspipes.crafting.v3.mc.IV3Crafter;
+import logisticspipes.crafting.v3.mc.IV3CrafterHolder;
 import logisticspipes.gui.hud.HUDPatternCrafting;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.pipes.patterncrafting.PipePatternCraftingMui;
@@ -55,11 +58,11 @@ import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
-import logisticspipes.request.ICraftingTemplate;
 import logisticspipes.request.IPromise;
 import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTreeNode;
 import logisticspipes.request.resources.IResource;
+import logisticspipes.routing.ItemRoutingInformation;
 import logisticspipes.routing.LogisticsPromise;
 import logisticspipes.routing.order.LogisticsFluidOrderManager;
 import logisticspipes.routing.order.LogisticsOrder;
@@ -85,7 +88,7 @@ import lombok.Getter;
  */
 public class PipeItemsPatternCraftingLogistics extends FluidRoutedPipe
         implements ICraftItems, IRequireReliableTransport, IFluidSink, IHeadUpDisplayRendererProvider, IChangeListener,
-        IOrderManagerContentReceiver, IMUICompatiblePipeV2 {
+        IOrderManagerContentReceiver, IMUICompatiblePipeV2, IV3CrafterHolder {
 
     public enum BlockingMode {
         OFF,
@@ -417,6 +420,20 @@ public class PipeItemsPatternCraftingLogistics extends FluidRoutedPipe
 
     public ModulePatternCrafting getPatternModule() {
         return module;
+    }
+
+    @Override
+    public IV3Crafter v3Crafter() {
+        return module;
+    }
+
+    /** Crafting deliveries go into the module's buffer; the rest arrives as usual. */
+    @Override
+    public void notifyOfItemArival(ItemRoutingInformation information) {
+        if (information.craftDelivery != null && MainProxy.isServer(getWorld())) {
+            module.acceptDelivery(information);
+        }
+        super.notifyOfItemArival(information);
     }
 
     public void cancelPatternCraft(int patternSlot) {

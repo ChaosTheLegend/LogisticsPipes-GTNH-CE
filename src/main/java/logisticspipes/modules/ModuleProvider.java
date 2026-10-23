@@ -18,7 +18,11 @@ import net.minecraftforge.common.util.ForgeDirection;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.api.IMUICompatibleModule;
-import logisticspipes.crafting.IStagedProviderReservation;
+import logisticspipes.crafting.v3.exec.CraftDelivery;
+import logisticspipes.crafting.v3.mc.CraftingService;
+import logisticspipes.crafting.v3.mc.ICraftingStockSource;
+import logisticspipes.crafting.v3.mc.ItemKey;
+import logisticspipes.crafting.v3.model.ResourceKey;
 import logisticspipes.gui.hud.modules.HUDProviderModule;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.dynamicModules.ModuleProviderMuiDynamic;
@@ -74,7 +78,7 @@ import logisticspipes.utils.string.StringUtils;
 @CCType(name = "Provider Module")
 public class ModuleProvider extends LogisticsSneakyDirectionModule
         implements ILegacyActiveModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver,
-        IModuleInventoryReceive, IMUICompatibleModule, IStagedProviderReservation {
+        IModuleInventoryReceive, IMUICompatibleModule, ICraftingStockSource {
 
     private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(
             9,
@@ -92,7 +96,6 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule
     protected ExtractionMode _extractionMode = ExtractionMode.Normal;
 
     private final Map<ItemIdentifier, Integer> displayMap = new TreeMap<>();
-    private final Map<ItemIdentifier, Integer> stagedCraftingReservations = new TreeMap<>();
     public final ArrayList<ItemIdentifierStack> displayList = new ArrayList<>();
     private final ArrayList<ItemIdentifierStack> oldList = new ArrayList<>();
 
@@ -279,7 +282,6 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule
     @Override
     public LogisticsOrder fullFill(LogisticsPromise promise, IRequestItems destination,
             IAdditionalTargetInformation info) {
-        releaseStagedCrafting(promise.item, promise.numberOfItems);
         return _service.getItemOrderManager().addOrder(
                 new ItemIdentifierStack(promise.item, promise.numberOfItems),
                 destination,
@@ -330,38 +332,75 @@ public class ModuleProvider extends LogisticsSneakyDirectionModule
     }
 
     /**
-     * Tracks provider stock that belongs to a staged crafting tree but has not been sent yet.
-     */
-    @Override
-    public void reserveStagedCrafting(ItemIdentifier item, int amount) {
-        if (item == null || amount <= 0) {
-            return;
-        }
-        stagedCraftingReservations.put(item, getReservedStagedCrafting(item) + amount);
-    }
-
-    /**
-     * Releases staged provider stock before the real provider order is inserted into this module's order manager.
-     */
-    @Override
-    public void releaseStagedCrafting(ItemIdentifier item, int amount) {
-        if (item == null || amount <= 0) {
-            return;
-        }
-        int remaining = getReservedStagedCrafting(item) - amount;
-        if (remaining <= 0) {
-            stagedCraftingReservations.remove(item);
-        } else {
-            stagedCraftingReservations.put(item, remaining);
-        }
-    }
-
-    /**
-     * Returns the staged reservation amount for an item.
+     * Stock that crafting jobs reserved here and haven't moved yet; no other request may take it.
      */
     private int getReservedStagedCrafting(ItemIdentifier item) {
-        Integer reserved = stagedCraftingReservations.get(item);
-        return reserved != null ? reserved : 0;
+        if (_service == null || _service.getRouter() == null) {
+            return 0;
+        }
+        return (int) Math.min(
+                Integer.MAX_VALUE,
+                CraftingService.INSTANCE.reserved(_service.getRouter().getId(), ItemKey.of(item)));
+    }
+
+    // ------------------------------------------------------------------ crafting stock source
+
+    @Override
+    public void listCraftingStock(Map<ResourceKey, Long> into) {
+        IInventoryUtil inv = _service.getPointedInventory(_extractionMode, true);
+        if (inv == null) {
+            return;
+        }
+        for (Entry<ItemIdentifier, Integer> item : inv.getItemsAndCount().entrySet()) {
+            if (!filterAllowsItem(item.getKey())) {
+                continue;
+            }
+            long count = item.getValue() - _service.getItemOrderManager().totalItemsCountInOrders(item.getKey());
+            if (count > 0) {
+                // several provider modules of one chassis see the same inventory: count it once
+                into.putIfAbsent(ItemKey.of(item.getKey()), count);
+            }
+        }
+    }
+
+    @Override
+    public long craftingStockCount(ResourceKey key) {
+        if (!(key instanceof ItemKey)) {
+            return 0;
+        }
+        ItemIdentifier item = ((ItemKey) key).id;
+        return Math.max(0, getTotalItemCount(item) - _service.getItemOrderManager().totalItemsCountInOrders(item));
+    }
+
+    /**
+     * Extracts and routes items for the crafting driver right away, without going through the order manager, so the
+     * driver knows immediately what left.
+     */
+    @Override
+    public long sendForCrafting(ResourceKey key, long qty, int destination, CraftDelivery delivery) {
+        if (!(key instanceof ItemKey) || qty <= 0) {
+            return 0;
+        }
+        ItemIdentifier item = ((ItemKey) key).id;
+        IInventoryUtil inv = _service.getPointedInventory(_extractionMode, true);
+        if (inv == null || !filterAllowsItem(item)) {
+            return 0;
+        }
+        long sent = 0;
+        while (sent < qty) {
+            int wanted = (int) Math.min(Math.min(qty - sent, inv.itemCount(item)), item.getMaxStackSize());
+            if (wanted <= 0 || !_service.canUseEnergy(wanted * neededEnergy())) {
+                break;
+            }
+            ItemStack removed = inv.getMultipleItems(item, wanted);
+            if (removed == null || removed.stackSize <= 0) {
+                break;
+            }
+            _service.useEnergy(removed.stackSize * neededEnergy());
+            _service.sendStack(removed, destination, itemSendMode(), delivery);
+            sent += removed.stackSize;
+        }
+        return sent;
     }
 
     // returns -1 on permanently failed, don't try another stack this tick

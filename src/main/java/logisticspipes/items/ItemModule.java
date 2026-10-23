@@ -28,6 +28,9 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.crafting.legacy.module.ModuleCrafter;
+import logisticspipes.crafting.legacy.module.ModuleCrafterMK2;
+import logisticspipes.crafting.legacy.module.ModuleCrafterMK3;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.ItemModuleInformationManager;
@@ -41,9 +44,6 @@ import logisticspipes.modules.ModuleApiaristSink;
 import logisticspipes.modules.ModuleApiaristTerminus;
 import logisticspipes.modules.ModuleCCBasedItemSink;
 import logisticspipes.modules.ModuleCCBasedQuickSort;
-import logisticspipes.modules.ModuleCrafter;
-import logisticspipes.modules.ModuleCrafterMK2;
-import logisticspipes.modules.ModuleCrafterMK3;
 import logisticspipes.modules.ModuleCreativeTabBasedItemSink;
 import logisticspipes.modules.ModuleElectricBuffer;
 import logisticspipes.modules.ModuleElectricManager;
@@ -445,6 +445,14 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
 
     @Override
     public void addInformation(ItemStack itemStack, EntityPlayer player, List<String> list, boolean flag) {
+        if (isCrafter(itemStack)) {
+            list.add(
+                    net.minecraft.util.EnumChatFormatting.RED
+                            + "Deprecated: will be removed in the next major version.");
+            list.add(
+                    net.minecraft.util.EnumChatFormatting.GRAY
+                            + "Use a pattern crafting pipe and crafting patterns instead.");
+        }
         if (itemStack.hasTagCompound()) {
             NBTTagCompound nbt = itemStack.getTagCompound();
             if (nbt.hasKey("informationList")) {

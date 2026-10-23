@@ -1,6 +1,6 @@
 package logisticspipes.interfaces.routing;
 
-import logisticspipes.request.ICraftingTemplate;
+import logisticspipes.crafting.legacy.template.ICraftingTemplate;
 import logisticspipes.request.IPromise;
 import logisticspipes.request.resources.IResource;
 

@@ -10,6 +10,11 @@ import java.util.Map.Entry;
 import net.minecraftforge.fluids.FluidStack;
 
 import logisticspipes.config.Configs;
+import logisticspipes.crafting.v3.exec.CraftDelivery;
+import logisticspipes.crafting.v3.mc.CraftingService;
+import logisticspipes.crafting.v3.mc.FluidKey;
+import logisticspipes.crafting.v3.mc.ICraftingStockSource;
+import logisticspipes.crafting.v3.model.ResourceKey;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.dynamicModules.ModuleFluidInfoMuiDynamic;
 import logisticspipes.interfaces.IFluidModuleHost;
@@ -35,7 +40,8 @@ import logisticspipes.utils.item.ItemIdentifier;
 /**
  * Offers the fluids in the tank to requests from the network, like the fluid provider pipe.
  */
-public class ModuleFluidProvider extends LogisticsFluidModule implements IProvideFluids, IFluidReserver {
+public class ModuleFluidProvider extends LogisticsFluidModule
+        implements IProvideFluids, IFluidReserver, ICraftingStockSource {
 
     private static final int TICKS_PER_SEND = 6;
 
@@ -109,13 +115,60 @@ public class ModuleFluidProvider extends LogisticsFluidModule implements IProvid
             return result;
         }
         for (Entry<FluidIdentifier, Integer> entry : getTankContents().entrySet()) {
-            // what any module of the chassis promised is taken, not only what this one did
-            int remaining = entry.getValue() - getHost().getReservedFluid(entry.getKey());
+            // what any module of the chassis promised is taken, not only what this one did, and what crafting jobs
+            // reserved here
+            int remaining = entry.getValue() - getHost().getReservedFluid(entry.getKey())
+                    - (int) Math.min(Integer.MAX_VALUE, craftingReserved(entry.getKey()));
             if (remaining > 0) {
                 result.put(entry.getKey(), remaining);
             }
         }
         return result;
+    }
+
+    private long craftingReserved(FluidIdentifier fluid) {
+        IRouter router = getRouter();
+        return router == null ? 0 : CraftingService.INSTANCE.reserved(router.getId(), FluidKey.of(fluid));
+    }
+
+    // ------------------------------------------------------------------ crafting stock source
+
+    @Override
+    public void listCraftingStock(Map<ResourceKey, Long> into) {
+        if (getHost() == null) {
+            return;
+        }
+        for (Entry<FluidIdentifier, Integer> entry : getTankContents().entrySet()) {
+            long count = entry.getValue() - getHost().getReservedFluid(entry.getKey());
+            if (count > 0) {
+                // several fluid provider modules of one chassis see the same tank: count it once
+                into.putIfAbsent(FluidKey.of(entry.getKey()), count);
+            }
+        }
+    }
+
+    @Override
+    public long craftingStockCount(ResourceKey key) {
+        if (!(key instanceof FluidKey) || getHost() == null) {
+            return 0;
+        }
+        FluidIdentifier fluid = ((FluidKey) key).id;
+        Integer inTank = getTankContents().get(fluid);
+        return inTank == null ? 0 : Math.max(0, inTank - getHost().getReservedFluid(fluid));
+    }
+
+    /** Drains and routes fluid for the crafting driver right away. */
+    @Override
+    public long sendForCrafting(ResourceKey key, long qty, int destination, CraftDelivery delivery) {
+        if (!(key instanceof FluidKey) || qty <= 0 || getHost() == null) {
+            return 0;
+        }
+        FluidStack drained = drainTank(((FluidKey) key).id, (int) Math.min(qty, FluidKey.MAX_PER_CONTAINER));
+        if (drained == null || drained.amount <= 0) {
+            return 0;
+        }
+        sendFluid(drained, destination, TransportMode.Active, delivery);
+        return drained.amount;
     }
 
     @Override

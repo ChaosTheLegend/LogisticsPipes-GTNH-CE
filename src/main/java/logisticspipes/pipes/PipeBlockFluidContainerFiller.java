@@ -23,6 +23,8 @@ import net.minecraftforge.fluids.FluidStack;
 
 import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.compat.ModularUIHelper;
+import logisticspipes.crafting.legacy.template.ICraftingTemplate;
+import logisticspipes.crafting.legacy.template.ItemCraftingTemplate;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.PipeGuiFactory;
 import logisticspipes.gui.modularUI.pipes.PipeBlockFluidContainerFillerMui;
@@ -40,9 +42,7 @@ import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
-import logisticspipes.request.ICraftingTemplate;
 import logisticspipes.request.IPromise;
-import logisticspipes.request.ItemCraftingTemplate;
 import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTreeNode;
 import logisticspipes.request.resources.FluidResource;

@@ -32,6 +32,8 @@ public abstract class AbstractPattern {
     private static final String FLUID_BYPRODUCT_SATELLITE_TARGET_UUIDS_TAG = "patternFluidByproductSatelliteTargetUuids";
     private static final String ORE_DICT_SUBSTITUTION_TAG = "patternOreDictSubstitution";
     private static final String IGNORE_NBT_TAG = "patternIgnoreNbt";
+    /** Input slots that are not consumed by the craft. */
+    private static final String NON_CONSUMED_TAG = "patternNonConsumed";
 
     private final ItemStack patternStack;
 
@@ -225,6 +227,52 @@ public abstract class AbstractPattern {
      */
     public void toggleIgnoreNbt() {
         setIgnoreNbtEnabled(!isIgnoreNbtEnabled());
+    }
+
+    /**
+     * Whether the input in {@code slot} stays in the machine (mold, shape, lens, programmed circuit, tool). Such inputs
+     * are requested once per crafter, not per craft, and don't keep the blocking modes waiting.
+     */
+    public boolean isInputConsumed(int slot) {
+        if (patternStack == null || !patternStack.hasTagCompound()) {
+            return true;
+        }
+        for (int s : patternStack.getTagCompound().getIntArray(NON_CONSUMED_TAG)) {
+            if (s == slot) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public void setInputConsumed(int slot, boolean consumed) {
+        if (slot < 0 || slot >= getIngredientSlotCount() || isInputConsumed(slot) == consumed) {
+            return;
+        }
+        NBTTagCompound tag = getOrCreateTag(patternStack);
+        int[] current = tag.getIntArray(NON_CONSUMED_TAG);
+        List<Integer> slots = new ArrayList<>();
+        for (int s : current) {
+            if (s != slot) {
+                slots.add(s);
+            }
+        }
+        if (!consumed) {
+            slots.add(slot);
+        }
+        if (slots.isEmpty()) {
+            tag.removeTag(NON_CONSUMED_TAG);
+            return;
+        }
+        int[] updated = new int[slots.size()];
+        for (int i = 0; i < updated.length; i++) {
+            updated[i] = slots.get(i);
+        }
+        tag.setIntArray(NON_CONSUMED_TAG, updated);
+    }
+
+    public void toggleInputConsumed(int slot) {
+        setInputConsumed(slot, !isInputConsumed(slot));
     }
 
     public int getSatelliteIdForInputSlot(int slot) {

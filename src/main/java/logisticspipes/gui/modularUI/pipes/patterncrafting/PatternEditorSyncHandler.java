@@ -40,6 +40,7 @@ public class PatternEditorSyncHandler extends SyncHandler<PatternEditorSyncHandl
     private static final int C_IMPORT = 3;
     private static final int C_REFRESH_SATELLITES = 4;
     private static final int C_MAIN_OUTPUT = 5;
+    private static final int C_TOGGLE_CONSUMED = 6;
 
     private static final int S_SATELLITES = 100;
     private static final int S_SELECT = 101;
@@ -124,6 +125,10 @@ public class PatternEditorSyncHandler extends SyncHandler<PatternEditorSyncHandl
         syncToServer(C_MAIN_OUTPUT, buf -> buf.writeVarIntToBuffer(outputSlot));
     }
 
+    public void toggleConsumed(int inputSlot) {
+        syncToServer(C_TOGGLE_CONSUMED, buf -> buf.writeVarIntToBuffer(inputSlot));
+    }
+
     public void refreshSatellites() {
         syncToServer(C_REFRESH_SATELLITES);
     }
@@ -171,6 +176,13 @@ public class PatternEditorSyncHandler extends SyncHandler<PatternEditorSyncHandl
                 int outputSlot = buf.readVarIntFromBuffer();
                 if (state.hasPattern()) {
                     state.getPattern().setMainOutputSlot(outputSlot);
+                    state.markChanged();
+                }
+            }
+            case C_TOGGLE_CONSUMED -> {
+                int inputSlot = buf.readVarIntFromBuffer();
+                if (state.hasPattern()) {
+                    state.getPattern().toggleInputConsumed(inputSlot);
                     state.markChanged();
                 }
             }

@@ -51,6 +51,18 @@ public class PatternIngredientSlot extends PhantomItemSlot {
         return this;
     }
 
+    /**
+     * Input slots: Alt+click marks the ingredient as not consumed (molds, programmed circuits, lenses, tools), shown
+     * with an orange border.
+     */
+    public PatternIngredientSlot notConsumed(Runnable toggle, BooleanSupplier notConsumed) {
+        mainOutputClick = toggle;
+        notConsumedMark = notConsumed;
+        return this;
+    }
+
+    private BooleanSupplier notConsumedMark = () -> false;
+
     @Override
     public @NotNull Result onMousePressed(int mouseButton) {
         if (mouseButton == 0 && Interactable.hasControlDown()) {
@@ -105,6 +117,9 @@ public class PatternIngredientSlot extends PhantomItemSlot {
         super.drawOverlay();
         if (mainOutput.getAsBoolean()) {
             GuiDraw.drawBorderInsideXYWH(0, 0, 18, 18, 1, 0xff55ff55);
+        }
+        if (notConsumedMark.getAsBoolean() && getSlot().getStack() != null) {
+            GuiDraw.drawBorderInsideXYWH(0, 0, 18, 18, 1, 0xffff9800);
         }
         badgeDraw.run();
         ItemStack stack = getSlot().getStack();

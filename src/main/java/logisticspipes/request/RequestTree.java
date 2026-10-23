@@ -10,6 +10,7 @@ import java.util.Map;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
 
+import logisticspipes.crafting.v3.mc.CraftingRequests;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IProvide;
 import logisticspipes.interfaces.routing.IRequestFluid;
@@ -151,6 +152,14 @@ public class RequestTree extends RequestTreeNode {
 
     public static boolean request(List<ItemIdentifierStack> items, IRequestItems requester, RequestLog log,
             EnumSet<ActiveRequestType> requestFlags, IAdditionalTargetInformation info) {
+        if (CraftingRequests.handles(requestFlags)) {
+            EnumSet<ActiveRequestType> stockFlags = CraftingRequests.withoutCrafting(requestFlags);
+            if (!requestFlags.contains(ActiveRequestType.Provide)
+                    || !canProvideAll(items, requester, stockFlags, info)) {
+                return CraftingRequests.requestList(items, requester, log, requestFlags, info);
+            }
+            requestFlags = stockFlags;
+        }
         Map<IResource, Integer> messages = new HashMap<>();
         RequestTree tree = new RequestTree(
                 new ItemResource(
@@ -188,10 +197,46 @@ public class RequestTree extends RequestTreeNode {
         }
     }
 
+    /** Whether stock alone covers every item of a list request (nothing is ordered). */
+    private static boolean canProvideAll(List<ItemIdentifierStack> items, IRequestItems requester,
+            EnumSet<ActiveRequestType> flags, IAdditionalTargetInformation info) {
+        RequestTree tree = new RequestTree(
+                new ItemResource(
+                        new ItemIdentifierStack(ItemIdentifier.get(Item.getItemFromBlock(Blocks.stone), 0, null), 0),
+                        requester),
+                null,
+                flags,
+                info);
+        for (ItemIdentifierStack stack : items) {
+            if (!new RequestTree(new ItemResource(stack, requester), tree, flags, info).isDone()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static int request(ItemIdentifierStack item, IRequestItems requester, RequestLog log, boolean acceptPartial,
             boolean simulateOnly, boolean logMissing, boolean logUsed, EnumSet<ActiveRequestType> requestFlags,
             IAdditionalTargetInformation info) {
         ItemResource req = new ItemResource(item, requester);
+        if (CraftingRequests.handles(requestFlags)) {
+            // crafting is planned and run by the v3 crafting system; stock-only requests keep this path
+            EnumSet<ActiveRequestType> stockFlags = CraftingRequests.withoutCrafting(requestFlags);
+            if (!requestFlags.contains(ActiveRequestType.Provide)
+                    || !new RequestTree(req, null, stockFlags, info).isDone()) {
+                return CraftingRequests.requestItem(
+                        item,
+                        requester,
+                        log,
+                        acceptPartial,
+                        simulateOnly,
+                        logMissing,
+                        logUsed,
+                        requestFlags,
+                        info);
+            }
+            requestFlags = stockFlags;
+        }
         RequestTree tree = new RequestTree(req, null, requestFlags, info);
         if (!simulateOnly && (tree.isDone() || ((tree.getPromiseAmount() > 0) && acceptPartial))) {
             int crafted = tree.getCraftedAmount();
@@ -279,6 +324,22 @@ public class RequestTree extends RequestTreeNode {
     private static int requestFluid(FluidIdentifier liquid, int amount, IRequestFluid pipe, RequestLog log,
             boolean acceptPartial, EnumSet<ActiveRequestType> requestFlags, IAdditionalTargetInformation info) {
         FluidResource req = new FluidResource(liquid, amount, pipe);
+        if (CraftingRequests.handles(requestFlags)) {
+            EnumSet<ActiveRequestType> stockFlags = CraftingRequests.withoutCrafting(requestFlags);
+            if (!requestFlags.contains(ActiveRequestType.Provide)
+                    || !new RequestTree(req, null, stockFlags, info).isDone()) {
+                return CraftingRequests.requestFluid(
+                        liquid,
+                        amount,
+                        pipe,
+                        log,
+                        acceptPartial,
+                        requestFlags,
+                        info,
+                        () -> requestFluid(liquid, amount, pipe, log, acceptPartial, stockFlags, info));
+            }
+            requestFlags = stockFlags;
+        }
         RequestTree request = new RequestTree(req, null, requestFlags, info);
         if (request.isDone() || acceptPartial) {
             int crafted = request.getCraftedAmount();

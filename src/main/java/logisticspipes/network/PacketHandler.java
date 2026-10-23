@@ -89,6 +89,11 @@ public class PacketHandler extends MessageToMessageCodec<FMLProxyPacket, ModernP
         final List<ClassInfo> classes = new ArrayList<>(
                 ClassPath.from(PacketHandler.class.getClassLoader())
                         .getTopLevelClassesRecursive("logisticspipes.network.packets"));
+        // the packets of the deprecated crafting modules/pipes moved with them; ids stay the same, they are given
+        // by simple name over the whole list
+        classes.addAll(
+                ClassPath.from(PacketHandler.class.getClassLoader())
+                        .getTopLevelClassesRecursive("logisticspipes.crafting.legacy.network"));
         classes.sort(Comparator.comparing(ClassInfo::getSimpleName));
 
         PacketHandler.packetlist = new ArrayList<>(classes.size());

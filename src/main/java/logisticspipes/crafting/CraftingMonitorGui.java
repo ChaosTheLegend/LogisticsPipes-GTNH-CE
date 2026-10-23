@@ -197,7 +197,12 @@ public class CraftingMonitorGui extends LogisticsBaseGuiScreen {
                 mc.fontRenderer.drawString(name, guiLeft + 32, rowTop + 5, 0x404040);
                 String status;
                 int statusColor;
-                if (entry.isRestoring()) {
+                PatternCraftingMonitorNode root = entry.getRoots().isEmpty() ? null : entry.getRoots().get(0);
+                if (root != null && !root.getStatus().isEmpty()) {
+                    // crafting job: set state icon and label, colored
+                    status = root.getStatus();
+                    statusColor = root.getStatusColor() & 0xFFFFFF;
+                } else if (entry.isRestoring()) {
                     status = StringUtils.translate(PREFIX + "restoring") + " "
                             + entry.getRestoreAttempts()
                             + "/"
@@ -262,12 +267,28 @@ public class CraftingMonitorGui extends LogisticsBaseGuiScreen {
                             + ": "
                             + EnumChatFormatting.YELLOW
                             + node.getOrderedAmount());
+            if (!node.getStatus().isEmpty()) {
+                details.add(node.getStatus());
+            }
+            if (!node.getDetail().isEmpty()) {
+                details.add(EnumChatFormatting.GRAY + node.getDetail());
+            }
             renderStack(node.getStack(), guiLeft + 184 + indent, rowTop, mouseX, mouseY, details);
             int textLeft = guiLeft + 204 + indent;
             int textWidth = Math.max(20, right - 14 - textLeft);
             String name = StringUtils
                     .getCuttedString(node.getStack().getItem().getFriendlyName(), textWidth, mc.fontRenderer);
             mc.fontRenderer.drawString(name, textLeft, rowTop + 2, 0x404040);
+            if (!node.getStatus().isEmpty()) {
+                // crafting step: remaining crafts and its set state, icon and label next to the color
+                String state = node.getUnrequestedAmount() + "/" + node.getOrderedAmount() + " " + node.getStatus();
+                mc.fontRenderer.drawString(
+                        StringUtils.getCuttedString(state, textWidth, mc.fontRenderer),
+                        textLeft,
+                        rowTop + 11,
+                        node.getStatusColor() & 0xFFFFFF);
+                continue;
+            }
             String state = node.getUnrequestedAmount() > 0
                     ? node.getUnrequestedAmount() + " " + StringUtils.translate(PREFIX + "waiting")
                     : node.getOrderedAmount() + " " + StringUtils.translate(PREFIX + "orderedshort");

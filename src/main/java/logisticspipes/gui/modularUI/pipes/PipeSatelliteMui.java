@@ -13,8 +13,8 @@ import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 
 import logisticspipes.crafting.IPatternSatellitePipe;
 import logisticspipes.crafting.SatelliteInventoryClearer;
+import logisticspipes.crafting.legacy.satellite.ISatellitePipe;
 import logisticspipes.gui.modularUI.LogisticsPipeMUI;
-import logisticspipes.pipes.ISatellitePipe;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 
 public class PipeSatelliteMui extends LogisticsPipeMUI {

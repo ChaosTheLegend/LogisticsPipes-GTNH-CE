@@ -15,6 +15,11 @@ import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidHandler;
 
 import logisticspipes.config.Configs;
+import logisticspipes.crafting.v3.exec.CraftDelivery;
+import logisticspipes.crafting.v3.mc.CraftingService;
+import logisticspipes.crafting.v3.mc.FluidKey;
+import logisticspipes.crafting.v3.mc.ICraftingStockSource;
+import logisticspipes.crafting.v3.model.ResourceKey;
 import logisticspipes.interfaces.ISpecialTankAccessHandler;
 import logisticspipes.interfaces.ISpecialTankHandler;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
@@ -39,7 +44,7 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
 
-public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids {
+public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids, ICraftingStockSource {
 
     public PipeFluidProvider(Item item) {
         super(item);
@@ -203,13 +208,69 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
         Map<FluidIdentifier, Integer> result = new HashMap<>();
         // Reduce what has been reserved, add.
         for (Entry<FluidIdentifier, Integer> fluid : map.entrySet()) {
-            int remaining = fluid.getValue() - getFluidOrderManager().totalFluidsCountInOrders(fluid.getKey());
+            int remaining = fluid.getValue() - getFluidOrderManager().totalFluidsCountInOrders(fluid.getKey())
+                    - CraftingService.INSTANCE.reserved(this, fluid.getKey());
             if (remaining < 1) {
                 continue;
             }
             result.put(fluid.getKey(), remaining);
         }
         return result;
+    }
+
+    // ------------------------------------------------------------------ crafting stock source
+
+    @Override
+    public void listCraftingStock(Map<ResourceKey, Long> into) {
+        // getAvailableFluids already takes the crafting reservations out; the driver subtracts them itself
+        for (Entry<FluidIdentifier, Integer> fluid : getAvailableFluids().entrySet()) {
+            long count = (long) fluid.getValue() + CraftingService.INSTANCE.reserved(this, fluid.getKey());
+            into.merge(FluidKey.of(fluid.getKey()), count, Long::sum);
+        }
+    }
+
+    @Override
+    public long craftingStockCount(ResourceKey key) {
+        if (!(key instanceof FluidKey)) {
+            return 0;
+        }
+        FluidIdentifier fluid = ((FluidKey) key).id;
+        Integer available = getAvailableFluids().get(fluid);
+        return (available == null ? 0 : available) + CraftingService.INSTANCE.reserved(this, fluid);
+    }
+
+    /** Drains and routes fluid for the crafting driver right away, in one container per tank. */
+    @Override
+    public long sendForCrafting(ResourceKey key, long qty, int destination, CraftDelivery delivery) {
+        if (!(key instanceof FluidKey) || qty <= 0) {
+            return 0;
+        }
+        FluidIdentifier fluid = ((FluidKey) key).id;
+        long sent = 0;
+        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(false)) {
+            if (sent >= qty) {
+                break;
+            }
+            IFluidHandler handler = (IFluidHandler) pair.getValue1();
+            ForgeDirection side = pair.getValue2().getOpposite();
+            int want = (int) Math.min(qty - sent, FluidKey.MAX_PER_CONTAINER);
+            FluidStack simulated = handler.drain(side, fluid.makeFluidStack(want), false);
+            if (simulated == null || simulated.amount <= 0 || !fluid.equals(FluidIdentifier.get(simulated))) {
+                continue;
+            }
+            FluidStack drained = handler.drain(side, fluid.makeFluidStack(simulated.amount), true);
+            if (drained == null || drained.amount <= 0) {
+                continue;
+            }
+            ItemIdentifierStack stack = SimpleServiceLocator.logisticsFluidManager.getFluidContainer(drained);
+            IRoutedItem item = SimpleServiceLocator.routedItemHelper.createNewTravelItem(stack);
+            item.setDestination(destination);
+            item.setTransportMode(TransportMode.Active);
+            item.setAdditionalTargetInformation(delivery);
+            this.queueRoutedItem(item, pair.getValue2());
+            sent += drained.amount;
+        }
+        return sent;
     }
 
     @Override
@@ -281,7 +342,8 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
 
         int promiseAmount = Math.min(
                 tree.getMissingAmount(),
-                containedAmount - root.getAllPromissesFor(this, fluid.getItemIdentifier()));
+                containedAmount - root.getAllPromissesFor(this, fluid.getItemIdentifier())
+                        - CraftingService.INSTANCE.reserved(this, fluid));
 
         FluidLogisticsPromise promise = new FluidLogisticsPromise(fluid, promiseAmount, this, ResourceType.PROVIDER);
 

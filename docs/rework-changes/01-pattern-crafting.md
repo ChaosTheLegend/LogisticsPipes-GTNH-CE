@@ -173,7 +173,7 @@ server stop (`LogisticsPipes` calls `cleanup()`). Cancelled routed deliveries th
 intercepted and sent back to storage (`PendingCancelledArrival`, 640-tick timeout).
 
 **Upstream changes:** `PipeItemsSatelliteLogistics` and `PipeFluidSatellite` implement the new
-[ISatellitePipe](../../src/main/java/logisticspipes/pipes/ISatellitePipe.java) and `IMUICompatiblePipeV2`
+[ISatellitePipe](../../src/main/java/logisticspipes/crafting/legacy/satellite/ISatellitePipe.java) and `IMUICompatiblePipeV2`
 (`getPipeGui()` → `PipeSatelliteMui`). They gain `setNextFreeId()`, and `satelliteId` gets a Lombok getter/setter
 (this replaces the old `setSatelliteId(int)`).
 
@@ -597,7 +597,7 @@ Flags are read once per tick through [PatternCraftingUpgradeCache](../../src/mai
 
 | Class/file | Status | +/- | Summary |
 |---|---|---|---|
-| [GuiCraftingPipe](../../src/main/java/logisticspipes/gui/GuiCraftingPipe.java) | Modified | +12/-1 | Legacy crafting pipe GUI gets a "Blocking" button (sets blocking on only) |
+| [GuiCraftingPipe](../../src/main/java/logisticspipes/crafting/legacy/gui/GuiCraftingPipe.java) | Modified | +12/-1 | Legacy crafting pipe GUI gets a "Blocking" button (sets blocking on only) |
 
 **logisticspipes.gui.hud**
 
@@ -637,7 +637,7 @@ Flags are read once per tick through [PatternCraftingUpgradeCache](../../src/mai
 
 | Class/file | Status | +/- | Summary |
 |---|---|---|---|
-| [ModuleCrafter](../../src/main/java/logisticspipes/modules/ModuleCrafter.java) | Modified | +67/-40 | Legacy crafter: fluid tanks for fluid slots, blocking packet, debug println |
+| [ModuleCrafter](../../src/main/java/logisticspipes/crafting/legacy/module/ModuleCrafter.java) | Modified | +67/-40 | Legacy crafter: fluid tanks for fluid slots, blocking packet, debug println |
 
 **logisticspipes.nei**
 
@@ -674,25 +674,25 @@ Flags are read once per tick through [PatternCraftingUpgradeCache](../../src/mai
 
 | Class/file | Status | +/- | Summary |
 |---|---|---|---|
-| [CraftingBlockingModePacket](../../src/main/java/logisticspipes/network/packets/pipe/CraftingBlockingModePacket.java) | Added | +53/-0 | C2S blocking flag for the legacy crafting pipe (no security checks) |
+| [CraftingBlockingModePacket](../../src/main/java/logisticspipes/crafting/legacy/network/CraftingBlockingModePacket.java) | Added | +53/-0 | C2S blocking flag for the legacy crafting pipe (no security checks) |
 
 **logisticspipes.network.packets.satpipe**
 
 | Class/file | Status | +/- | Summary |
 |---|---|---|---|
-| [SatPipeNext](../../src/main/java/logisticspipes/network/packets/satpipe/SatPipeNext.java) | Modified | +7/-0 | Ignores pattern satellites (ids set through MUI) |
-| [SatPipePrev](../../src/main/java/logisticspipes/network/packets/satpipe/SatPipePrev.java) | Modified | +7/-0 | Ignores pattern satellites (ids set through MUI) |
-| [SatPipeSetID](../../src/main/java/logisticspipes/network/packets/satpipe/SatPipeSetID.java) | Modified | +8/-0 | Server ignores set-id packets for pattern satellites |
+| [SatPipeNext](../../src/main/java/logisticspipes/crafting/legacy/network/SatPipeNext.java) | Modified | +7/-0 | Ignores pattern satellites (ids set through MUI) |
+| [SatPipePrev](../../src/main/java/logisticspipes/crafting/legacy/network/SatPipePrev.java) | Modified | +7/-0 | Ignores pattern satellites (ids set through MUI) |
+| [SatPipeSetID](../../src/main/java/logisticspipes/crafting/legacy/network/SatPipeSetID.java) | Modified | +8/-0 | Server ignores set-id packets for pattern satellites |
 
 **logisticspipes.pipes**
 
 | Class/file | Status | +/- | Summary |
 |---|---|---|---|
-| [ISatellitePipe](../../src/main/java/logisticspipes/pipes/ISatellitePipe.java) | Added | +10/-0 | Common satellite id interface used by PipeSatelliteMui |
-| [PipeFluidSatellite](../../src/main/java/logisticspipes/pipes/PipeFluidSatellite.java) | Modified | +19/-3 | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
-| [PipeItemsCraftingLogistics](../../src/main/java/logisticspipes/pipes/PipeItemsCraftingLogistics.java) | Modified | +31/-1 | Unfinished blocking-mode buffer stub; itemArrived forwards twice |
+| [ISatellitePipe](../../src/main/java/logisticspipes/crafting/legacy/satellite/ISatellitePipe.java) | Added | +10/-0 | Common satellite id interface used by PipeSatelliteMui |
+| [PipeFluidSatellite](../../src/main/java/logisticspipes/crafting/legacy/satellite/PipeFluidSatellite.java) | Modified | +19/-3 | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
+| [PipeItemsCraftingLogistics](../../src/main/java/logisticspipes/crafting/legacy/pipe/PipeItemsCraftingLogistics.java) | Modified | +31/-1 | Unfinished blocking-mode buffer stub; itemArrived forwards twice |
 | [PipeItemsPatternCraftingLogistics](../../src/main/java/logisticspipes/pipes/PipeItemsPatternCraftingLogistics.java) | Added | +812/-0 | Pattern crafting pipe shell: orders, fluid orders, target, sat links, HUD, MUI |
-| [PipeItemsSatelliteLogistics](../../src/main/java/logisticspipes/pipes/PipeItemsSatelliteLogistics.java) | Modified | +21/-4 | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
+| [PipeItemsSatelliteLogistics](../../src/main/java/logisticspipes/crafting/legacy/satellite/PipeItemsSatelliteLogistics.java) | Modified | +21/-4 | Implements ISatellitePipe and MUI (PipeSatelliteMui); setNextFreeId |
 
 **logisticspipes.pipes.signs**
 
@@ -720,9 +720,9 @@ Flags are read once per tick through [PatternCraftingUpgradeCache](../../src/mai
 
 | Class/file | Status | +/- | Summary |
 |---|---|---|---|
-| [BaseCraftingTemplate](../../src/main/java/logisticspipes/request/BaseCraftingTemplate.java) | Modified | +4/-0 | Exposes the raw ingredient list (getIngredients) |
-| [FluidCraftingTemplate](../../src/main/java/logisticspipes/request/FluidCraftingTemplate.java) | Modified | +56/-4 | Implements item and fluid byproducts for fluid crafting templates |
-| [ICraftingTemplate](../../src/main/java/logisticspipes/request/ICraftingTemplate.java) | Modified | +15/-0 | Javadoc only (fluid-oriented comments on generic methods) |
+| [BaseCraftingTemplate](../../src/main/java/logisticspipes/crafting/legacy/template/BaseCraftingTemplate.java) | Modified | +4/-0 | Exposes the raw ingredient list (getIngredients) |
+| [FluidCraftingTemplate](../../src/main/java/logisticspipes/crafting/legacy/template/FluidCraftingTemplate.java) | Modified | +56/-4 | Implements item and fluid byproducts for fluid crafting templates |
+| [ICraftingTemplate](../../src/main/java/logisticspipes/crafting/legacy/template/ICraftingTemplate.java) | Modified | +15/-0 | Javadoc only (fluid-oriented comments on generic methods) |
 | [IExtraPromise](../../src/main/java/logisticspipes/request/IExtraPromise.java) | Modified | +6/-0 | Javadoc only on registerExtras |
 | [RequestHandler](../../src/main/java/logisticspipes/request/RequestHandler.java) | Modified | +85/-25 | Fluid refresh shows craftable fluids by DisplayOptions; adds simulateFluid |
 | [RequestTree](../../src/main/java/logisticspipes/request/RequestTree.java) | Modified | +37/-5 | Records request snapshots to debug manager; fluid partial request with info |

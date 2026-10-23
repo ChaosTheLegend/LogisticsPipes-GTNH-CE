@@ -181,6 +181,7 @@ public class PatternEditor {
                 new PatternIngredientSlot().progressText(() -> inputProgress.apply(inputSlot))
                         .satelliteClick(() -> openSatelliteSelector(inputSlot))
                         .badgeDraw(() -> drawSatelliteBadge(inputSlot))
+                        .notConsumed(() -> actions.toggleConsumed(inputSlot), () -> !isConsumed(inputSlot))
                         .extraTooltip(tooltip -> addInputTooltip(tooltip, inputSlot))
                         .syncHandler(new PatternIngredientSlotSH(slot)).pos(x, y)
                         .setEnabledIf(w -> visible.getAsBoolean()));
@@ -295,7 +296,17 @@ public class PatternEditor {
             tooltip.addLine(IKey.lang(LANG + "buffered", buffered).style(EnumChatFormatting.AQUA));
         }
         addSatelliteTooltip(tooltip, inputSlot);
+        if (!isConsumed(inputSlot)) {
+            tooltip.addLine(IKey.str("Not consumed: stays in the machine").style(EnumChatFormatting.GOLD));
+        }
+        tooltip.addLine(
+                IKey.str("Alt+click: toggle not consumed (molds, circuits, lenses, tools)")
+                        .style(EnumChatFormatting.DARK_GRAY));
         addEntryHint(tooltip, inputSlot);
+    }
+
+    private boolean isConsumed(int inputSlot) {
+        return !state.hasPattern() || state.getPattern().isInputConsumed(inputSlot);
     }
 
     private void addEntryHint(RichTooltip tooltip, int patternSlot) {

@@ -12,9 +12,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.fluids.FluidStack;
 
+import logisticspipes.crafting.legacy.network.NEISetAdvancedCraftingRecipe;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractpackets.ModuleCoordinatesPacket;
-import logisticspipes.network.packets.NEISetAdvancedCraftingRecipe;
 import logisticspipes.network.packets.NEISetCraftingRecipe;
 import logisticspipes.network.packets.pipe.FindMostLikelyRecipeComponents;
 import logisticspipes.proxy.MainProxy;

@@ -39,9 +39,9 @@ import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import logisticspipes.api.IMUICompatibleModule;
 import logisticspipes.compat.ModularUIHelper;
+import logisticspipes.crafting.legacy.module.ModuleCrafter;
 import logisticspipes.items.ItemModule;
 import logisticspipes.logisticspipes.ItemModuleInformationManager;
-import logisticspipes.modules.ModuleCrafter;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.PipeLogisticsChassi;
 

@@ -1,6 +1,6 @@
 package logisticspipes.crafting;
 
-import logisticspipes.pipes.ISatellitePipe;
+import logisticspipes.crafting.legacy.satellite.ISatellitePipe;
 
 /**
  * A satellite that pattern crafting pipes can target; it carries a player-defined name next to its numeric id.

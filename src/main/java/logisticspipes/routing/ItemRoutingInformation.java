@@ -10,6 +10,7 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import logisticspipes.crafting.PatternCraftingReference;
 import logisticspipes.crafting.PatternTargetInformation;
+import logisticspipes.crafting.v3.exec.CraftDelivery;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.proxy.MainProxy;
@@ -27,6 +28,7 @@ public class ItemRoutingInformation {
     private static final String TARGET_INPUT_SLOT_TAG = "inputSlot";
     private static final String TARGET_ORDER_REFERENCE_PREFIX = "order";
     private static final String TARGET_DELIVERY_REFERENCE_PREFIX = "delivery";
+    private static final String CRAFT_DELIVERY_TAG = "craftDelivery";
 
     public static class DelayComparator implements Comparator<ItemRoutingInformation> {
 
@@ -49,6 +51,7 @@ public class ItemRoutingInformation {
         that.jamlist = new ArrayList<>(jamlist);
         that.tracker = tracker;
         that.targetInfo = targetInfo;
+        that.craftDelivery = craftDelivery;
         that.item = getItem().clone();
         return that;
     }
@@ -62,6 +65,11 @@ public class ItemRoutingInformation {
     public List<Integer> jamlist = new ArrayList<>();
     public IDistanceTracker tracker = null;
     public IAdditionalTargetInformation targetInfo;
+    /**
+     * Set when the crafting driver routed this item: which job and shipment it belongs to. Kept apart from
+     * {@link #targetInfo} so the destination still sees the target information it expects.
+     */
+    public CraftDelivery craftDelivery;
 
     private long delay = 640 + MainProxy.getGlobalTick();
 
@@ -81,6 +89,14 @@ public class ItemRoutingInformation {
             setItem(ItemIdentifierStack.getFromStack(stack));
         }
         targetInfo = readTargetInfo(nbttagcompound.getCompoundTag(TARGET_INFO_TAG));
+        if (nbttagcompound.hasKey(CRAFT_DELIVERY_TAG)) {
+            NBTTagCompound delivery = nbttagcompound.getCompoundTag(CRAFT_DELIVERY_TAG);
+            craftDelivery = new CraftDelivery(
+                    delivery.getLong("job"),
+                    delivery.getLong("shipment"),
+                    delivery.getLong("ticket"),
+                    targetInfo);
+        }
     }
 
     public void writeToNBT(NBTTagCompound nbttagcompound) {
@@ -97,6 +113,13 @@ public class ItemRoutingInformation {
         NBTTagCompound targetTag = writeTargetInfo(targetInfo);
         if (!targetTag.hasNoTags()) {
             nbttagcompound.setTag(TARGET_INFO_TAG, targetTag);
+        }
+        if (craftDelivery != null) {
+            NBTTagCompound delivery = new NBTTagCompound();
+            delivery.setLong("job", craftDelivery.job());
+            delivery.setLong("shipment", craftDelivery.shipment());
+            delivery.setLong("ticket", craftDelivery.ticket());
+            nbttagcompound.setTag(CRAFT_DELIVERY_TAG, delivery);
         }
     }
 

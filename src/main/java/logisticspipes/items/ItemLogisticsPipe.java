@@ -55,6 +55,13 @@ public class ItemLogisticsPipe extends LogisticsItem {
      */
     @Override
     public void addInformation(ItemStack stack, EntityPlayer player, List<String> list, boolean flags) {
+        if (this == LogisticsPipes.LogisticsCraftingPipeMk1 || this == LogisticsPipes.LogisticsCraftingPipeMk2
+                || this == LogisticsPipes.LogisticsCraftingPipeMk3) {
+            list.add(
+                    net.minecraft.util.EnumChatFormatting.RED
+                            + "Deprecated: will be removed in the next major version.");
+            list.add(net.minecraft.util.EnumChatFormatting.GRAY + "Use a pattern crafting pipe instead.");
+        }
         StringUtils.addShiftAddition(stack, list);
         RequestTablePipe.addStorageUpgradeTooltip(stack, list);
     }

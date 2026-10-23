@@ -41,6 +41,8 @@ import logisticspipes.asm.te.ILPTEInformation;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.blocks.powertile.PowerPoolStorage;
 import logisticspipes.config.Configs;
+import logisticspipes.crafting.v3.exec.CraftDelivery;
+import logisticspipes.crafting.v3.mc.CraftingService;
 import logisticspipes.interfaces.IClientState;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.ILPPositionProvider;
@@ -1142,6 +1144,11 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
 
     @Override
     public void itemCouldNotBeSend(ItemIdentifierStack item, IAdditionalTargetInformation info) {
+        if (info instanceof CraftDelivery delivery) {
+            // an order for a crafting job failed: the driver re-sources it
+            CraftingService.INSTANCE.onSendFailed(delivery, item);
+            return;
+        }
         if (this instanceof IRequireReliableTransport) {
             ((IRequireReliableTransport) this).itemLost(item, info);
         }
@@ -1407,6 +1414,10 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
 
     public void notifyOfItemArival(ItemRoutingInformation information) {
         removeFromInTransit(information);
+        if (information.craftDelivery != null) {
+            // a crafting delivery reached a requester or a legacy crafter (pattern pipes take theirs earlier)
+            CraftingService.INSTANCE.onDelivered(this, information);
+        }
         if (this instanceof IRequireReliableTransport) {
             ((IRequireReliableTransport) this).itemArrived(information.getItem(), information.targetInfo);
         }

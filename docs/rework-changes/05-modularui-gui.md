@@ -118,7 +118,7 @@ manager is passed, it creates unregistered sync values instead). Each module cla
 | [ModuleApiaristAnalyser](../../src/main/java/logisticspipes/modules/ModuleApiaristAnalyser.java) | [ModuleBeeAnalyzerMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleBeeAnalyzerMuiDynamic.java) | "Extract items: On/Off" | `setExtractMode(boolean)`, `getExtractModeBool()` |
 | [ModuleModBasedItemSink](../../src/main/java/logisticspipes/modules/ModuleModBasedItemSink.java) | [ModuleModBasedItemSinkMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleModBasedItemSinkMuiDynamic.java) | analyse slot + "Add", list of up to 9 mods with remove buttons | see below |
 | [ModuleCreativeTabBasedItemSink](../../src/main/java/logisticspipes/modules/ModuleCreativeTabBasedItemSink.java) | [ModuleCreativeTabBasedItemSinkMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleCreativeTabBasedItemSinkMuiDynamic.java) | same, for creative tabs | see below |
-| `ModuleCrafter` (deprecated) | [ModuleCraftingMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleCraftingMuiDynamic.java) exists but has no callers | - | module does not implement `IMUICompatibleModule`; keeps the legacy GUI |
+| `ModuleCrafter` (deprecated) | [ModuleCraftingMuiDynamic](../../src/main/java/logisticspipes/crafting/legacy/gui/ModuleCraftingMuiDynamic.java) exists but has no callers | - | module does not implement `IMUICompatibleModule`; keeps the legacy GUI |
 
 Mod / creative-tab based sinks: both dropped `IStringBasedModule` and `IHUDModuleHandler` (no HUD, no `listChanged()`
 packet sync any more) and gained a never-saved 1-slot `analyseInventory`, `MAX_ENTRIES = 9`, and
@@ -389,7 +389,7 @@ Reference written for working on MUI GUIs: `public-api.md` (condensed index of t
 | [PatternCraftingTableMui](../../src/main/java/logisticspipes/gui/modularUI/blocks/PatternCraftingTableMui.java) | A | +107/-0 | Pattern crafting table MUI: 3x3 input, 3 outputs, speed upgrades (01) |
 | [ModuleActiveSupplierMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleActiveSupplierMuiDynamic.java) | A | +118/-0 | Active supplier MUI: 3x3 stock slots, request mode |
 | [ModuleBeeAnalyzerMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleBeeAnalyzerMuiDynamic.java) | A | +61/-0 | Apiarist analyser MUI: extract on/off |
-| [ModuleCraftingMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleCraftingMuiDynamic.java) | A | +185/-0 | Crafting module MUI; no callers (module deprecated) |
+| [ModuleCraftingMuiDynamic](../../src/main/java/logisticspipes/crafting/legacy/gui/ModuleCraftingMuiDynamic.java) | A | +185/-0 | Crafting module MUI; no callers (module deprecated) |
 | [ModuleCreativeTabBasedItemSinkMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleCreativeTabBasedItemSinkMuiDynamic.java) | A | +156/-0 | Creative tab sink MUI: analyse slot, add, 9-entry list with remove |
 | [ModuleElectricManagerMuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleElectricManagerMuiDynamic.java) | A | +100/-0 | Electric manager MUI: filter slots, charge/discharge |
 | [ModuleEnchantmentSinkMK2MuiDynamic](../../src/main/java/logisticspipes/gui/modularUI/dynamicModules/ModuleEnchantmentSinkMK2MuiDynamic.java) | A | +85/-0 | Enchantment sink MK2 MUI: filter slots |

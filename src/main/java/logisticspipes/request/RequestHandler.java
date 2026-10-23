@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
@@ -19,6 +20,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ChatComponentTranslation;
 
+import logisticspipes.crafting.v3.mc.CraftingRequests;
 import logisticspipes.interfaces.IRequestWatcher;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IRequestFluid;
@@ -84,58 +86,68 @@ public class RequestHandler {
             }
             return;
         }
-        RequestTree.request(stack.clone(), pipe, new RequestLog() {
+        UUID previousPlayer = CraftingRequests.beginPlayer(player);
+        try {
+            RequestTree.request(stack.clone(), pipe, new RequestLog() {
 
-            private int crafted;
+                private int crafted;
 
-            @Override
-            public void handleMissingItems(List<IResource> resources) {
-                if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
-                        player);
-            }
-
-            @Override
-            public void handleCraftedAmount(int amount) {
-                crafted = amount;
-            }
-
-            @Override
-            public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {
-                Collection<IResource> coll = new ArrayList<>(1);
-                coll.add(item);
-                if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false)
-                                .setCrafted(Collections.singletonList(crafted)),
-                        player);
-                if (pipe instanceof IRequestWatcher) {
-                    ((IRequestWatcher) pipe).handleOrderList(item, parts);
+                @Override
+                public void handleMissingItems(List<IResource> resources) {
+                    if (showMessages) MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
+                            player);
                 }
-            }
 
-            @Override
-            public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {}
-        }, requestFlags, info);
+                @Override
+                public void handleCraftedAmount(int amount) {
+                    crafted = amount;
+                }
+
+                @Override
+                public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {
+                    Collection<IResource> coll = new ArrayList<>(1);
+                    coll.add(item);
+                    if (showMessages) MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false)
+                                    .setCrafted(Collections.singletonList(crafted)),
+                            player);
+                    if (pipe instanceof IRequestWatcher) {
+                        ((IRequestWatcher) pipe).handleOrderList(item, parts);
+                    }
+                }
+
+                @Override
+                public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {}
+            }, requestFlags, info);
+        } finally {
+            CraftingRequests.endPlayer(previousPlayer);
+        }
     }
 
     public static void simulate(final EntityPlayer player, final ItemIdentifierStack stack, CoreRoutedPipe pipe) {
         final List<IResource> usedList = new ArrayList<>();
         final List<IResource> missingList = new ArrayList<>();
-        RequestTree.simulate(stack.clone(), pipe, new RequestLog() {
+        UUID previousPlayer = CraftingRequests.beginPlayer(player);
+        try {
+            RequestTree.simulate(stack.clone(), pipe, new RequestLog() {
 
-            @Override
-            public void handleMissingItems(List<IResource> resources) {
-                missingList.addAll(resources);
-            }
+                @Override
+                public void handleMissingItems(List<IResource> resources) {
+                    missingList.addAll(resources);
+                }
 
-            @Override
-            public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {}
+                @Override
+                public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {}
 
-            @Override
-            public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {
-                usedList.addAll(resources);
-            }
-        });
+                @Override
+                public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {
+                    usedList.addAll(resources);
+                }
+            });
+        } finally {
+            CraftingRequests.endPlayer(previousPlayer);
+        }
         MainProxy.sendPacketToPlayer(
                 PacketHandler.getPacket(ComponentList.class).setUsed(usedList).setMissing(missingList),
                 player);
@@ -186,28 +198,33 @@ public class RequestHandler {
             }
             return;
         }
-        RequestTree.request(list, pipe, new RequestLog() {
+        UUID previousPlayer = CraftingRequests.beginPlayer(player);
+        try {
+            RequestTree.request(list, pipe, new RequestLog() {
 
-            @Override
-            public void handleMissingItems(List<IResource> resources) {
-                if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
-                        player);
-            }
-
-            @Override
-            public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {}
-
-            @Override
-            public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {
-                if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(false),
-                        player);
-                if (pipe instanceof IRequestWatcher) {
-                    ((IRequestWatcher) pipe).handleOrderList(null, parts);
+                @Override
+                public void handleMissingItems(List<IResource> resources) {
+                    if (showMessages) MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
+                            player);
                 }
-            }
-        }, RequestTree.defaultRequestFlags, null);
+
+                @Override
+                public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {}
+
+                @Override
+                public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {
+                    if (showMessages) MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(false),
+                            player);
+                    if (pipe instanceof IRequestWatcher) {
+                        ((IRequestWatcher) pipe).handleOrderList(null, parts);
+                    }
+                }
+            }, RequestTree.defaultRequestFlags, null);
+        } finally {
+            CraftingRequests.endPlayer(previousPlayer);
+        }
     }
 
     public static void requestMacrolist(NBTTagCompound itemlist, final CoreRoutedPipe requester,
@@ -229,28 +246,33 @@ public class RequestHandler {
                     .makeStack(itemnbt.getInteger("amount"));
             transaction.add(stack);
         }
-        RequestTree.request(transaction, requester, new RequestLog() {
+        UUID previousPlayer = CraftingRequests.beginPlayer(player);
+        try {
+            RequestTree.request(transaction, requester, new RequestLog() {
 
-            @Override
-            public void handleMissingItems(List<IResource> resources) {
-                MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
-                        player);
-            }
-
-            @Override
-            public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {}
-
-            @Override
-            public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {
-                MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(false),
-                        player);
-                if (requester instanceof IRequestWatcher) {
-                    ((IRequestWatcher) requester).handleOrderList(null, parts);
+                @Override
+                public void handleMissingItems(List<IResource> resources) {
+                    MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
+                            player);
                 }
-            }
-        }, RequestTree.defaultRequestFlags, null);
+
+                @Override
+                public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {}
+
+                @Override
+                public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {
+                    MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(false),
+                            player);
+                    if (requester instanceof IRequestWatcher) {
+                        ((IRequestWatcher) requester).handleOrderList(null, parts);
+                    }
+                }
+            }, RequestTree.defaultRequestFlags, null);
+        } finally {
+            CraftingRequests.endPlayer(previousPlayer);
+        }
     }
 
     public static Object[] computerRequest(final ItemIdentifierStack makeStack, final CoreRoutedPipe pipe,
@@ -371,35 +393,40 @@ public class RequestHandler {
             return;
         }
 
-        RequestTree.requestFluid(fluid, stack.getStackSize(), requester, new RequestLog() {
+        UUID previousPlayer = CraftingRequests.beginPlayer(player);
+        try {
+            RequestTree.requestFluid(fluid, stack.getStackSize(), requester, new RequestLog() {
 
-            private int crafted;
+                private int crafted;
 
-            @Override
-            public void handleMissingItems(List<IResource> resources) {
-                if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
-                        player);
-            }
+                @Override
+                public void handleMissingItems(List<IResource> resources) {
+                    if (showMessages) MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(resources).setFlag(true),
+                            player);
+                }
 
-            @Override
-            public void handleCraftedAmount(int amount) {
-                crafted = amount;
-            }
+                @Override
+                public void handleCraftedAmount(int amount) {
+                    crafted = amount;
+                }
 
-            @Override
-            public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {
-                Collection<IResource> coll = new ArrayList<>(1);
-                coll.add(item);
-                if (showMessages) MainProxy.sendPacketToPlayer(
-                        PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false)
-                                .setCrafted(Collections.singletonList(crafted)),
-                        player);
-            }
+                @Override
+                public void handleSucessfullRequestOf(IResource item, LinkedLogisticsOrderList parts) {
+                    Collection<IResource> coll = new ArrayList<>(1);
+                    coll.add(item);
+                    if (showMessages) MainProxy.sendPacketToPlayer(
+                            PacketHandler.getPacket(MissingItems.class).setItems(coll).setFlag(false)
+                                    .setCrafted(Collections.singletonList(crafted)),
+                            player);
+                }
 
-            @Override
-            public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {}
-        }, requestFlags);
+                @Override
+                public void handleSucessfullRequestOfList(List<IResource> resources, LinkedLogisticsOrderList parts) {}
+            }, requestFlags);
+        } finally {
+            CraftingRequests.endPlayer(previousPlayer);
+        }
     }
 
     public static void simulateFluid(final EntityPlayer player, final ItemIdentifierStack stack, CoreRoutedPipe pipe,

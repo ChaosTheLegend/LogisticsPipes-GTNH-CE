@@ -11,16 +11,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import logisticspipes.crafting.IStagedCraftingProvider;
-import logisticspipes.crafting.PatternByproductPromise;
-import logisticspipes.crafting.PatternByproductTarget;
-import logisticspipes.crafting.PatternCraftingBranch;
+import logisticspipes.crafting.legacy.template.ICraftingTemplate;
 import logisticspipes.interfaces.IStack;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.ICraft;
@@ -197,22 +193,6 @@ public class RequestTreeNode {
         }
     }
 
-    /** Counts claims on one exact registered pattern byproduct without including new crafts of the same resource. */
-    public int getPromisedByproductAmount(IProvide provider, ItemIdentifier item, PatternByproductTarget target) {
-        int amount = 0;
-        for (IPromise promise : promises) {
-            if (promise instanceof PatternByproductPromise byproduct && promise.getProvider() == provider
-                    && item.equals(promise.getItemType())
-                    && Objects.equals(target, byproduct.getByproductTarget())) {
-                amount += promise.getAmount();
-            }
-        }
-        for (RequestTreeNode child : subRequests) {
-            amount += child.getPromisedByproductAmount(provider, item, target);
-        }
-        return amount;
-    }
-
     protected void checkForExtras(IResource item, HashMap<IProvide, List<IExtraPromise>> extraMap) {
         for (IExtraPromise extra : extrapromises) {
             if (item.matches(extra.getItemType(), IResource.MatchSettings.NORMAL)) {
@@ -258,9 +238,6 @@ public class RequestTreeNode {
     }
 
     protected LinkedLogisticsOrderList fullFill() {
-        if (hasStagedCraftingPromise()) {
-            return fullFillStaged();
-        }
         LinkedLogisticsOrderList list = new LinkedLogisticsOrderList();
         for (RequestTreeNode subNode : subRequests) {
             list.getSubOrders().add(subNode.fullFill());
@@ -281,107 +258,6 @@ public class RequestTreeNode {
             logisticspipes.crafting.monitor.CraftingMonitorService.INSTANCE.observe(requestType, list);
         }
         return list;
-    }
-
-    /**
-     * Returns true when this node has at least one promise that should be fulfilled by staged crafting.
-     */
-    private boolean hasStagedCraftingPromise() {
-        for (IPromise promise : promises) {
-            if (isStagedCraftingPromise(promise)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Checks whether a promise belongs to a staged pattern crafting provider.
-     */
-    private boolean isStagedCraftingPromise(IPromise promise) {
-        return promise.getType() == ResourceType.CRAFTING && promise.getProvider() instanceof IStagedCraftingProvider;
-    }
-
-    /**
-     * Starts a staged request by handing each staged crafting promise a branch of the already-built request tree.
-     * <p>
-     * Provider promises inside that branch are reserved before the branch is handed off, then released later when the
-     * staged pipe places real provider orders for the ingredients it can currently store.
-     */
-    private LinkedLogisticsOrderList fullFillStaged() {
-        LinkedLogisticsOrderList list = new LinkedLogisticsOrderList();
-        PatternCraftingBranch branch = toPatternCraftingBranch();
-        for (IPromise promise : promises) {
-            IOrderInfoProvider result;
-            if (isStagedCraftingPromise(promise)) {
-                IPromise promiseCopy = promise.copy();
-                PatternCraftingBranch stagedBranch = branch.copyForAmount(promise.getAmount());
-                stagedBranch.reserveProviderPromises();
-                result = ((IStagedCraftingProvider) promise.getProvider()).fullFillStagedCrafting(
-                        promiseCopy,
-                        requestType.copyForDisplayWith(promise.getAmount()),
-                        info,
-                        stagedBranch);
-                if (result == null) {
-                    stagedBranch.releaseProviderPromises();
-                } else {
-                    branch.reserve(promise.getAmount());
-                }
-            } else {
-                result = promise.fullFill(requestType.copyForDisplayWith(promise.getAmount()), info);
-                if (result != null) {
-                    branch.reserve(promise.getAmount());
-                }
-            }
-            if (result != null) {
-                list.add(result);
-            }
-        }
-        for (IExtraPromise promise : extrapromises) {
-            promise.registerExtras(requestType);
-        }
-        for (IExtraPromise promise : byproducts) {
-            // Staged providers register these byproducts only when their ingredient sets are dispatched.
-            if (!(promise.getProvider() instanceof IStagedCraftingProvider)) {
-                promise.registerExtras(requestType);
-            }
-        }
-        return list;
-    }
-
-    /**
-     * Converts this request node and all descendants into a staged crafting branch.
-     */
-    private PatternCraftingBranch toPatternCraftingBranch() {
-        List<IPromise> promiseCopies = new ArrayList<>();
-        for (IPromise promise : promises) {
-            promiseCopies.add(promise.copy());
-        }
-        List<IExtraPromise> extraCopies = copyExtraPromises(extrapromises);
-        List<IExtraPromise> byproductCopies = copyExtraPromises(byproducts);
-        List<PatternCraftingBranch> children = new ArrayList<>();
-        for (RequestTreeNode subRequest : subRequests) {
-            children.add(subRequest.toPatternCraftingBranch());
-        }
-        return new PatternCraftingBranch(
-                requestType.copyForDisplayWith(requestType.getRequestedAmount()),
-                info,
-                promiseCopies,
-                extraCopies,
-                byproductCopies,
-                children);
-    }
-
-    /**
-     * Copies extra promises into a staged crafting branch so branch fulfilment can register the matching extra output
-     * later.
-     */
-    private List<IExtraPromise> copyExtraPromises(List<IExtraPromise> promises) {
-        List<IExtraPromise> copies = new ArrayList<>();
-        for (IExtraPromise promise : promises) {
-            copies.add(promise.copy());
-        }
-        return copies;
     }
 
     protected void buildMissingMap(Map<IResource, Integer> missing) {

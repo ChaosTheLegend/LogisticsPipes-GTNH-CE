@@ -15,6 +15,8 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
+import logisticspipes.crafting.v3.exec.CraftDelivery;
+import logisticspipes.crafting.v3.mc.CraftingService;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.interfaces.routing.IRequireReliableTransport;
@@ -302,10 +304,18 @@ public abstract class LPTravelingItem {
                     return;
                 }
             }
+            boolean craftDelivery = info.craftDelivery != null;
+            if (craftDelivery) {
+                // the crafting driver owns this item: it re-sources it, the destination must not re-request it
+                CraftingService.INSTANCE.onLost(info, null);
+            }
             if (info.destinationint >= 0 && SimpleServiceLocator.routerManager.isRouter(info.destinationint)) {
                 IRouter destinationRouter = SimpleServiceLocator.routerManager.getRouter(info.destinationint);
                 if (destinationRouter.getPipe() != null) {
                     destinationRouter.getPipe().notifyOfReroute(info);
+                    if (craftDelivery) {
+                        return;
+                    }
                     if (destinationRouter.getPipe() instanceof IRequireReliableTransport) {
                         ((IRequireReliableTransport) destinationRouter.getPipe())
                                 .itemLost(info.getItem().clone(), info.targetInfo);
@@ -367,6 +377,10 @@ public abstract class LPTravelingItem {
             ItemIdentifierStack stackToSend = stackToKeep.clone();
             stackToKeep.setStackSize(itemsToTake);
             stackToSend.setStackSize(stackToSend.getStackSize() - itemsToTake);
+            if (info.craftDelivery != null && stackToSend.getStackSize() > 0) {
+                // the split-off part goes elsewhere: the crafting driver re-sources it
+                CraftingService.INSTANCE.onLost(info, stackToSend);
+            }
 
             newId();
 
@@ -451,6 +465,12 @@ public abstract class LPTravelingItem {
 
         @Override
         public void setAdditionalTargetInformation(IAdditionalTargetInformation targetInfo) {
+            if (targetInfo instanceof CraftDelivery delivery) {
+                // tracked by the crafting driver; the destination sees the information it asked for
+                info.craftDelivery = delivery;
+                info.targetInfo = delivery.inner();
+                return;
+            }
             info.targetInfo = targetInfo;
         }
 

@@ -30,7 +30,7 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 import logisticspipes.utils.tuples.Pair;
 
-public class PipeFluidPatternSatelliteLogistics extends logisticspipes.pipes.PipeFluidSatellite
+public class PipeFluidPatternSatelliteLogistics extends logisticspipes.crafting.legacy.satellite.PipeFluidSatellite
         implements IPatternSatellitePipe, PatternByproductExtractionTarget {
 
     private static final Set<PipeFluidPatternSatelliteLogistics> ALL_PATTERN_FLUID_SATELLITES = Collections

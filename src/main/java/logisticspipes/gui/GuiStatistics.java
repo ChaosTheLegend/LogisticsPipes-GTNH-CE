@@ -16,11 +16,11 @@ import org.lwjgl.opengl.GL12;
 
 import logisticspipes.blocks.stats.LogisticsStatisticsTileEntity;
 import logisticspipes.blocks.stats.TrackingTask;
+import logisticspipes.crafting.legacy.network.RequestRunningCraftingTasks;
 import logisticspipes.gui.popup.GuiAddTracking;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.block.RemoveAmoundTask;
 import logisticspipes.network.packets.block.RequestAmountTaskSubGui;
-import logisticspipes.network.packets.block.RequestRunningCraftingTasks;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.Color;
 import logisticspipes.utils.gui.GuiGraphics;

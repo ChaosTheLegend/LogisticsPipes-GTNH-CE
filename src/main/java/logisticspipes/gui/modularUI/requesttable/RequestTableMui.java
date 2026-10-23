@@ -232,9 +232,12 @@ public class RequestTableMui extends LogisticsPipeMUI {
             // NEI hands a recipe over while its own screen is shown, the window for it opens from here
             RequestTableResultPopup resultPopup = new RequestTableResultPopup(panel, handler);
             handler.setUnsentListener(resultPopup::showUnsent);
+            RequestTablePreviewPopup previewPopup = new RequestTablePreviewPopup(panel, handler);
+            handler.setPreviewListener(previewPopup::show);
             panel.child(new Widget<>().size(0, 0).onUpdateListener(w -> {
                 recipeChooser.openPending();
                 resultPopup.openPending();
+                previewPopup.openPending();
             }));
         }
         RequestTableGridWidget.RequestOpener requestOpener = (entry, fluid, startAmount, craft) -> amountPopup.open(
@@ -246,7 +249,8 @@ public class RequestTableMui extends LogisticsPipeMUI {
                 // a craft has no button for all the network has
                 craft ? 0 : entry.getNetworkAmount(),
                 craft,
-                amount -> handler.request(entry, amount, craft));
+                // stock is requested at once; a craft shows its preview first
+                amount -> handler.preview(entry, amount, craft));
         RequestTableGridWidget grid = new RequestTableGridWidget(handler, search::getText, requestOpener)
                 .pos(MARGIN, GRID_Y).setEnabledIf(w -> view == RequestTableView.NETWORK);
         if (client) {

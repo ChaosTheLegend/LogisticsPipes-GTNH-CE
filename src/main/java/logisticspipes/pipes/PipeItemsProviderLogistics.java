@@ -24,7 +24,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import logisticspipes.api.IMUICompatiblePipeV2;
-import logisticspipes.crafting.IStagedProviderReservation;
+import logisticspipes.crafting.v3.exec.CraftDelivery;
+import logisticspipes.crafting.v3.mc.CraftingService;
+import logisticspipes.crafting.v3.mc.ICraftingStockSource;
+import logisticspipes.crafting.v3.mc.ItemKey;
+import logisticspipes.crafting.v3.model.ResourceKey;
 import logisticspipes.gui.hud.HUDProvider;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.PipeGuiFactory;
@@ -77,13 +81,12 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 
 public class PipeItemsProviderLogistics extends CoreRoutedPipe
         implements IProvideItems, IHeadUpDisplayRendererProvider, IChestContentReceiver, IChangeListener,
-        IOrderManagerContentReceiver, IMUICompatiblePipeV2, IStagedProviderReservation {
+        IOrderManagerContentReceiver, IMUICompatiblePipeV2, ICraftingStockSource {
 
     private static final Logger log = LogManager.getLogger(PipeItemsProviderLogistics.class);
     public final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
     private final Map<ItemIdentifier, Integer> displayMap = new TreeMap<>();
-    private final Map<ItemIdentifier, Integer> stagedCraftingReservations = new TreeMap<>();
     public final ArrayList<ItemIdentifierStack> displayList = new ArrayList<>();
     private final ArrayList<ItemIdentifierStack> oldList = new ArrayList<>();
 
@@ -356,7 +359,6 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe
     public LogisticsOrder fullFill(LogisticsPromise promise, IRequestItems destination,
             IAdditionalTargetInformation info) {
         spawnParticle(Particles.WhiteParticle, 2);
-        releaseStagedCrafting(promise.item, promise.numberOfItems);
         return _orderManager.addOrder(
                 new ItemIdentifierStack(promise.item, promise.numberOfItems),
                 destination,
@@ -416,38 +418,94 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe
     }
 
     /**
-     * Tracks provider stock that belongs to a staged crafting tree but has not been sent yet.
-     */
-    @Override
-    public void reserveStagedCrafting(ItemIdentifier item, int amount) {
-        if (item == null || amount <= 0) {
-            return;
-        }
-        stagedCraftingReservations.put(item, getReservedStagedCrafting(item) + amount);
-    }
-
-    /**
-     * Releases staged provider stock before the real provider order is inserted into this pipe's order manager.
-     */
-    @Override
-    public void releaseStagedCrafting(ItemIdentifier item, int amount) {
-        if (item == null || amount <= 0) {
-            return;
-        }
-        int remaining = getReservedStagedCrafting(item) - amount;
-        if (remaining <= 0) {
-            stagedCraftingReservations.remove(item);
-        } else {
-            stagedCraftingReservations.put(item, remaining);
-        }
-    }
-
-    /**
-     * Returns the staged reservation amount for an item.
+     * Stock that crafting jobs reserved here and haven't moved yet; no other request may take it.
      */
     private int getReservedStagedCrafting(ItemIdentifier item) {
-        Integer reserved = stagedCraftingReservations.get(item);
-        return reserved != null ? reserved : 0;
+        return CraftingService.INSTANCE.reserved(this, item);
+    }
+
+    // ------------------------------------------------------------------ crafting stock source
+
+    @Override
+    public void listCraftingStock(Map<ResourceKey, Long> into) {
+        if (!isEnabled()) {
+            return;
+        }
+        HashMap<ItemIdentifier, Integer> seen = new HashMap<>();
+        WorldUtil wUtil = new WorldUtil(getWorld(), getX(), getY(), getZ());
+        for (AdjacentTile tile : wUtil.getAdjacentTileEntities(true)) {
+            if (!(tile.tile instanceof IInventory)
+                    || SimpleServiceLocator.pipeInformationManager.isItemPipe(tile.tile)) {
+                continue;
+            }
+            for (Entry<ItemIdentifier, Integer> item : getAdaptedInventoryUtil(tile).getItemsAndCount().entrySet()) {
+                if (hasFilter() && ((isExcludeFilter() && itemIsFiltered(item.getKey()))
+                        || (!isExcludeFilter() && !itemIsFiltered(item.getKey())))) {
+                    continue;
+                }
+                seen.merge(item.getKey(), item.getValue(), Integer::sum);
+            }
+        }
+        for (Entry<ItemIdentifier, Integer> item : seen.entrySet()) {
+            long count = item.getValue() - _orderManager.totalItemsCountInOrders(item.getKey());
+            if (count > 0) {
+                into.merge(ItemKey.of(item.getKey()), count, Long::sum);
+            }
+        }
+    }
+
+    @Override
+    public long craftingStockCount(ResourceKey key) {
+        if (!(key instanceof ItemKey) || !isEnabled()) {
+            return 0;
+        }
+        ItemIdentifier item = ((ItemKey) key).id;
+        return Math.max(0, getTotalItemCount(item) - _orderManager.totalItemsCountInOrders(item));
+    }
+
+    /**
+     * Extracts and routes items for the crafting driver right away, without going through the order manager, so the
+     * driver knows immediately what left.
+     */
+    @Override
+    public long sendForCrafting(ResourceKey key, long qty, int destination, CraftDelivery delivery) {
+        if (!(key instanceof ItemKey) || qty <= 0 || !isEnabled()) {
+            return 0;
+        }
+        ItemIdentifier item = ((ItemKey) key).id;
+        if (craftingStockCount(key) <= 0) {
+            return 0;
+        }
+        long sent = 0;
+        WorldUtil wUtil = new WorldUtil(getWorld(), getX(), getY(), getZ());
+        for (AdjacentTile tile : wUtil.getAdjacentTileEntities(true)) {
+            if (sent >= qty) {
+                break;
+            }
+            if (!(tile.tile instanceof IInventory)
+                    || SimpleServiceLocator.pipeInformationManager.isItemPipe(tile.tile)) {
+                continue;
+            }
+            IInventoryUtil inv = getAdaptedInventoryUtil(tile);
+            while (sent < qty) {
+                int wanted = (int) Math.min(Math.min(qty - sent, inv.itemCount(item)), item.getMaxStackSize());
+                if (wanted <= 0 || !canUseEnergy(wanted * neededEnergy())) {
+                    break;
+                }
+                ItemStack removed = inv.getMultipleItems(item, wanted);
+                if (removed == null || removed.stackSize <= 0) {
+                    break;
+                }
+                useEnergy(removed.stackSize * neededEnergy());
+                IRoutedItem routedItem = SimpleServiceLocator.routedItemHelper.createNewTravelItem(removed);
+                routedItem.setDestination(destination);
+                routedItem.setTransportMode(TransportMode.Active);
+                routedItem.setAdditionalTargetInformation(delivery);
+                super.queueRoutedItem(routedItem, tile.orientation);
+                sent += removed.stackSize;
+            }
+        }
+        return sent;
     }
 
     @Override
