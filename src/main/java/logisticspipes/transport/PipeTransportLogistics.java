@@ -1235,7 +1235,14 @@ public class PipeTransportLogistics {
                 TileEntity tile = container.getTile(item.output);
                 if (items.scheduleRemoval(item)) {
                     if (MainProxy.isServer(container.getWorldObj())) {
-                        handleTileReachedServer((LPTravelingItemServer) item, tile, item.output);
+                        LPTravelingItemServer serverItem = (LPTravelingItemServer) item;
+                        // an item loaded from NBT knows its destination only by UUID until it is routed again, and
+                        // one that was already past the routing point of this pipe when the world was saved reaches
+                        // the end without that
+                        if (serverItem.getDestination() < 0 && serverItem.getDestinationUUID() != null) {
+                            serverItem.checkIDFromUUID();
+                        }
+                        handleTileReachedServer(serverItem, tile, item.output);
                     } else {
                         handleTileReachedClient((LPTravelingItemClient) item, tile);
                     }

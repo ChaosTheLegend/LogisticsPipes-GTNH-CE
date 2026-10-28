@@ -18,6 +18,7 @@ import logisticspipes.proxy.computers.interfaces.CCCommand;
 import logisticspipes.proxy.computers.interfaces.CCType;
 import logisticspipes.proxy.computers.interfaces.ILPCCTypeHolder;
 import logisticspipes.proxy.computers.objects.CCSinkResponder;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
@@ -132,6 +133,14 @@ public abstract class LogisticsModule implements ISaveState, ILPCCTypeHolder {
      * of the list here does not influence the ongoing computational cost.
      */
     public abstract Collection<ItemIdentifier> getSpecificInterests();
+
+    /**
+     * The values of item categories this module takes items by, for a module that would otherwise have to be interested
+     * in all items. They must cover everything sinksItem can take.
+     */
+    public CategoryInterests getCategoryInterests() {
+        return CategoryInterests.EMPTY;
+    }
 
     public abstract boolean interestedInAttachedInventory();
 

@@ -29,8 +29,8 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 
 /**
- * Base of the modules that work on the tank a fluid chassis points at. Fluid travels through the network as a fluid
- * container item; the module fills and drains the tank directly, the pipe itself holds no fluid.
+ * Base of the modules that work on the tank a chassis points at. Fluid travels through the network as a fluid container
+ * item; the module fills and drains the tank directly, the pipe itself holds no fluid.
  */
 public abstract class LogisticsFluidModule extends LogisticsGuiModule implements IMUICompatibleModule {
 

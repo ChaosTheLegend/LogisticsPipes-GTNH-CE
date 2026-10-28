@@ -30,7 +30,7 @@
 - Many modules (extractor, itemsink) are duplicates of each other with upgraded functionality, remove duplicate modules, replace them with upgrades
 - Modules that don't really fit the upgrades (aspect sink, beesink, polymorphic) will be interchangeable in chisel
 - Crafting modules - remove, they will be replaced by pattern crafting pipe and crafting pattern respectively
-- Fluid modules (new) - modules that will work exactly like fluid pipes, they will work with fluid chassis
+- Fluid modules (new) - modules that will work exactly like fluid pipes, they go into the regular chassis next to the item modules
 - Satellite and fluid satellite module - same as satellite pipes
 - Electric manager - allow for extraction/incertion of batteries into energy slots of machines
 
@@ -48,7 +48,7 @@
 
 ## New pipes
 
-- Logistics fluid chassis - same as regular chassis, but support fluid modules
+- ~~Logistics fluid chassis~~ - merged into the regular chassis: it takes item and fluid modules and points at an inventory, a tank or a block that is both
 - Pattern crafting pipe - new driver for autocrafting, the old crafting system is going to be deprecated
 - Inv. system connector pipe - to be re-enabled and upgraded. this is the major advantage of LP allowing to connect 2 networks using *ANY* intermediate buffer (chests, ender chests, long distance pipelines, *chest minecarts*, *CARGO ROCKETS* <- wild one, and more), can be used to automate cleanroom and connect LP networks from different outposts
 - Extractor pipe - same as extractor module (why don't we have this yet?)

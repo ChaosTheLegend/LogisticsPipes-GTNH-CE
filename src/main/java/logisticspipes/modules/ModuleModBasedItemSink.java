@@ -29,6 +29,9 @@ import logisticspipes.network.guis.module.inpipe.StringBasedItemSinkModuleGuiSlo
 import logisticspipes.network.packets.module.ItemSinkListPacket;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.CategoryInterestsCache;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
@@ -42,6 +45,7 @@ public class ModuleModBasedItemSink extends LogisticsGuiModule
 
     public final List<String> modList = new LinkedList<>();
     private final Set<String> modIdSet = new HashSet<>();
+    private final CategoryInterestsCache categoryInterests = new CategoryInterestsCache(ItemCategory.MOD);
 
     // scratch, single-slot inventory used only by the MUI to identify an item's owning mod - never persisted
     private final ItemIdentifierInventory analyseInventory = new ItemIdentifierInventory(1, "Analyse Slot", 1);
@@ -147,7 +151,15 @@ public class ModuleModBasedItemSink extends LogisticsGuiModule
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only the items of the filter mods are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return categoryInterests.get(modIdSet);
     }
 
     @Override

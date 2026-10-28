@@ -926,7 +926,7 @@ public class RecipeManager {
                     'd',
                     parts.getChipTear3());
 
-            RecipeManager.addFluidChassisRecipes();
+            RecipeManager.addFluidModuleRecipes();
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsPipeControllerItem, 1),
@@ -2306,7 +2306,7 @@ public class RecipeManager {
                     'd',
                     logproc);
 
-            RecipeManager.addFluidChassisRecipes();
+            RecipeManager.addFluidModuleRecipes();
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsPipeControllerItem, 1),
@@ -2959,7 +2959,7 @@ public class RecipeManager {
         RecipeManager.craftingManager.addRecipe(new FrequencyCardLinkRecipe());
 
         if (LogisticsPipes.isGTNH) {
-            loadFluidChassisAssemblerRecipes();
+            loadFluidModuleAssemblerRecipes();
             GregTechConversionRecipes.addInvSysConnector(
                     new ItemStack(LogisticsPipes.LogisticsBasicPipe, 2),
                     new ItemStack(LogisticsPipes.LogisticsInvSysConPipe, 2));
@@ -3068,31 +3068,11 @@ public class RecipeManager {
             // the container sink is a fluid sink that opens containers itself
             { ItemModule.FLUID_CONTAINER_SINK, ItemModule.FLUID_SINK } };
 
-    private static Item[] getChassis() {
-        return new Item[] { LogisticsPipes.LogisticsChassisPipeMk1, LogisticsPipes.LogisticsChassisPipeMk2,
-                LogisticsPipes.LogisticsChassisPipeMk3, LogisticsPipes.LogisticsChassisPipeMk4,
-                LogisticsPipes.LogisticsChassisPipeMk5 };
-    }
-
-    private static Item[] getFluidChassis() {
-        return new Item[] { LogisticsPipes.LogisticsFluidChassisPipeMk1, LogisticsPipes.LogisticsFluidChassisPipeMk2,
-                LogisticsPipes.LogisticsFluidChassisPipeMk3, LogisticsPipes.LogisticsFluidChassisPipeMk4,
-                LogisticsPipes.LogisticsFluidChassisPipeMk5 };
-    }
-
     /**
-     * The pack sets the recipes of the mod itself and doesn't know the fluid chassis and its modules, so they get
-     * assembler recipes here that follow the fluid pipes of the pack.
+     * The pack sets the recipes of the mod itself and doesn't know the fluid modules, so they get assembler recipes here
+     * that follow the fluid pipes of the pack.
      */
-    private static void loadFluidChassisAssemblerRecipes() {
-        Item[] chassis = getChassis();
-        Item[] fluidChassis = getFluidChassis();
-        for (int i = 0; i < chassis.length; i++) {
-            GregTechConversionRecipes.addFluidChassis(
-                    new ItemStack(chassis[i], 2),
-                    new ItemStack(LogisticsPipes.LogisticsFluidBasicPipe, 2),
-                    new ItemStack(fluidChassis[i], 2));
-        }
+    private static void loadFluidModuleAssemblerRecipes() {
         for (int[] module : FLUID_MODULE_SOURCES) {
             GregTechConversionRecipes.addFluidModule(
                     new ItemStack(LogisticsPipes.ModuleItem, 2, module[1]),
@@ -3104,16 +3084,7 @@ public class RecipeManager {
                 new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.FLUID_CONTAINER_SUPPLIER));
     }
 
-    private static void addFluidChassisRecipes() {
-        Item[] chassis = getChassis();
-        Item[] fluidChassis = getFluidChassis();
-        for (int i = 0; i < chassis.length; i++) {
-            RecipeManager.craftingManager.addShapelessRecipe(
-                    new ItemStack(fluidChassis[i], 1),
-                    CraftingDependency.Modular_Pipes,
-                    chassis[i],
-                    LogisticsPipes.LogisticsFluidBasicPipe);
-        }
+    private static void addFluidModuleRecipes() {
         for (int[] module : FLUID_MODULE_SOURCES) {
             RecipeManager.craftingManager.addShapelessRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, module[0]),

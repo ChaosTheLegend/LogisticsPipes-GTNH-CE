@@ -18,11 +18,15 @@ import logisticspipes.network.guis.module.inhand.ApiaristSinkModuleInHand;
 import logisticspipes.network.guis.module.inpipe.ApiaristSinkModuleSlot;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
 public class ModuleApiaristSink extends LogisticsGuiModule {
+
+    private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.BEE);
 
     public enum FilterType {
 
@@ -303,7 +307,15 @@ public class ModuleApiaristSink extends LogisticsGuiModule {
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only bees are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return INTERESTS;
     }
 
     @Override

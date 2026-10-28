@@ -16,12 +16,16 @@ import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
+import logisticspipes.routing.astar.ItemCategory;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.tuples.Triplet;
 
 public class ModuleElectricBuffer extends LogisticsModule {
+
+    private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.ELECTRIC);
 
     private int currentTickCount = 0;
     private final int ticksToAction = 80;
@@ -118,7 +122,15 @@ public class ModuleElectricBuffer extends LogisticsModule {
 
     @Override
     public boolean hasGenericInterests() {
-        return true;
+        return false;
+    }
+
+    /**
+     * Only electric items are offered, instead of every item.
+     */
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return INTERESTS;
     }
 
     @Override

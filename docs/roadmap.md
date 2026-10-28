@@ -46,7 +46,7 @@ Phases 2 and 3 both depend on Phase 1 (request handler API) but not on each othe
 **1c. Fluid crafting**
 - [ ] 🟠 Fluid crafting for pattern crafting pipes without needing satellites
 - [ ] 🟠 Fluid byproducts
-- [ ] 🔴 Fluid crafting, the general case (the module-based part waits for the fluid chassis in 2c)
+- [ ] 🔴 Fluid crafting, the general case (the module-based part waits for the fluid modules in 2c)
 
 **Done when:** large multi-step item and fluid requests resolve, can be cancelled cleanly, and reserved ingredients stay
 reserved.
@@ -101,7 +101,7 @@ upgrades.
 - [ ] 🟡 Priority for providers and basic pipes
 - [ ] 🟡 Satellite and fluid satellite modules
 - [ ] 🟡 Extractor pipe
-- [ ] 🔴 Logistics fluid chassis and fluid modules (unblocks module-based fluid crafting from 1c)
+- [ ] 🔴 Fluid modules in the chassis (unblocks module-based fluid crafting from 1c)
 
 **Done when:** the upgrade list is final, every upgrade/module has a single clear purpose, and no connection behaviour
 needs an upgrade item.
