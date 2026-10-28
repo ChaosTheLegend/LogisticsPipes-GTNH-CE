@@ -423,7 +423,7 @@ public abstract class LPTravelingItem {
         public void checkIDFromUUID() {
             IRouterManager rm = SimpleServiceLocator.routerManager;
             IRouter router = rm.getRouter(info.destinationint);
-            if (router == null || info.destinationUUID != router.getId()) {
+            if (router == null || !router.getId().equals(info.destinationUUID)) {
                 info.destinationint = rm.getIDforUUID(info.destinationUUID);
             }
         }
