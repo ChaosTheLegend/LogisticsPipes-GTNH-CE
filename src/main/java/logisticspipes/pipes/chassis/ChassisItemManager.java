@@ -41,13 +41,13 @@ import logisticspipes.utils.item.ItemIdentifierStack;
  * The inventory a chassis points at and the item modules that work on it: providing, crafting and the interests in
  * items.
  */
-public class ChassisItemSide implements ChassisSide {
+public class ChassisItemManager implements IChassisResourceManager {
 
     private final PipeLogisticsChassi pipe;
 
     private final LinkedList<LogisticsOrder> extras = new LinkedList<>();
 
-    public ChassisItemSide(PipeLogisticsChassi pipe) {
+    public ChassisItemManager(PipeLogisticsChassi pipe) {
         this.pipe = pipe;
     }
 

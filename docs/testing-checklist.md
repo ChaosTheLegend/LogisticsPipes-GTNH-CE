@@ -246,7 +246,7 @@ everything `sinksItem` accepts, so every item below checks that a module still g
 ## 11. Fluid modules in the chassis
 
 Changed 2026-10-18: the fluid chassis is gone, every chassis takes item and fluid modules
-(`pipes/chassis/ChassisItemSide`, `ChassisFluidSide`). A chassis without fluid modules has to behave exactly as before.
+(`pipes/chassis/ChassisItemManager`, `ChassisFluidManager`). A chassis without fluid modules has to behave exactly as before.
 
 **Regression of the item chassis**
 - [ ] Item sink, provider, crafter (also as the answer to a request), extractor on a chassis without fluid modules.

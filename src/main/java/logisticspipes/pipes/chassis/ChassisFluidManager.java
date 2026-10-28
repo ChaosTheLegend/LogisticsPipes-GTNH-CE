@@ -54,9 +54,9 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 /**
  * The tank a chassis points at and the fluid modules that work on it. Fluid arrives and leaves as fluid container items
  * over the normal item transport, and the modules fill and drain the tank directly, so the chassis has no tanks of its
- * own. Without a fluid module this side takes nothing and offers nothing.
+ * own. Without a fluid module this manager takes nothing and offers nothing.
  */
-public class ChassisFluidSide implements ChassisSide {
+public class ChassisFluidManager implements IChassisResourceManager {
 
     private static final int TICKS_PER_PENDING_RETRY = 20;
     private static final String PENDING_KEY = "pendingFluids";
@@ -68,7 +68,7 @@ public class ChassisFluidSide implements ChassisSide {
 
     private boolean hasModules;
 
-    public ChassisFluidSide(PipeLogisticsChassi pipe) {
+    public ChassisFluidManager(PipeLogisticsChassi pipe) {
         this.pipe = pipe;
     }
 

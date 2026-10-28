@@ -65,9 +65,9 @@ import logisticspipes.network.packets.pipe.ChassiePipeModuleContent;
 import logisticspipes.network.packets.pipe.RequestChassiOrientationPacket;
 import logisticspipes.network.packets.pipe.SendQueueContent;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
-import logisticspipes.pipes.chassis.ChassisFluidSide;
-import logisticspipes.pipes.chassis.ChassisItemSide;
-import logisticspipes.pipes.chassis.ChassisSide;
+import logisticspipes.pipes.chassis.ChassisFluidManager;
+import logisticspipes.pipes.chassis.ChassisItemManager;
+import logisticspipes.pipes.chassis.IChassisResourceManager;
 import logisticspipes.pipes.upgrades.ModuleUpgradeManager;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -107,9 +107,9 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         IProvideFluids, IFluidContainerReceiver {
 
     private final ChassiModule _module;
-    private final ChassisItemSide itemSide;
-    private final ChassisFluidSide fluidSide;
-    private final List<ChassisSide> sides;
+    private final ChassisItemManager itemManager;
+    private final ChassisFluidManager fluidManager;
+    private final List<IChassisResourceManager> managers;
     private final ItemIdentifierInventory _moduleInventory;
     private final ModuleUpgradeManager[] _upgradeManagers;
     private boolean switchOrientationOnTick = true;
@@ -125,9 +125,9 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     public PipeLogisticsChassi(Item item) {
         super(item);
-        itemSide = new ChassisItemSide(this);
-        fluidSide = new ChassisFluidSide(this);
-        sides = Arrays.asList(itemSide, fluidSide);
+        itemManager = new ChassisItemManager(this);
+        fluidManager = new ChassisFluidManager(this);
+        managers = Arrays.asList(itemManager, fluidManager);
         _moduleInventory = new ItemIdentifierInventory(getChassiSize(), "Chassi pipe", 1);
         _moduleInventory.addListener(this);
         _upgradeManagers = new ModuleUpgradeManager[getChassiSize()];
@@ -198,8 +198,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         if (tile == null) {
             return false;
         }
-        for (ChassisSide side : sides) {
-            if (side.isValidTarget(tile, connection)) {
+        for (IChassisResourceManager manager : managers) {
+            if (manager.isValidTarget(tile, connection)) {
                 return true;
             }
         }
@@ -208,12 +208,12 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     @Override
     public boolean hasFluidPipeLook() {
-        return fluidSide.hasModules();
+        return fluidManager.hasModules();
     }
 
     @Override
     public boolean logisitcsIsPipeConnected(TileEntity tile, ForgeDirection dir) {
-        return fluidSide.isValidTarget(tile, dir);
+        return fluidManager.isValidTarget(tile, dir);
     }
 
     public IInventory getModuleInventory() {
@@ -285,8 +285,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
             for (int i = 0; i < getChassiSize(); i++) {
                 _upgradeManagers[i].readFromNBT(nbttagcompound, Integer.toString(i));
             }
-            for (ChassisSide side : sides) {
-                side.readFromNBT(nbttagcompound);
+            for (IChassisResourceManager manager : managers) {
+                manager.readFromNBT(nbttagcompound);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -305,8 +305,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         for (int i = 0; i < getChassiSize(); i++) {
             _upgradeManagers[i].writeToNBT(nbttagcompound, Integer.toString(i));
         }
-        for (ChassisSide side : sides) {
-            side.writeToNBT(nbttagcompound);
+        for (IChassisResourceManager manager : managers) {
+            manager.writeToNBT(nbttagcompound);
         }
     }
 
@@ -314,8 +314,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
     public void onAllowedRemoval() {
         _moduleInventory.removeListener(this);
         if (MainProxy.isServer(getWorld())) {
-            for (ChassisSide side : sides) {
-                side.onRemoved();
+            for (IChassisResourceManager manager : managers) {
+                manager.onRemoved();
             }
             for (int i = 0; i < _moduleInventory.getSizeInventory(); i++) {
                 ItemIdentifierStack ms = _moduleInventory.getIDStackInSlot(i);
@@ -421,8 +421,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
                 inventory.setInventorySlotContents(i, stack);
             }
         }
-        for (ChassisSide side : sides) {
-            side.onModulesChanged();
+        for (IChassisResourceManager manager : managers) {
+            manager.onModulesChanged();
         }
         if (reInitGui) {
             if (MainProxy.isClient(getWorld())) {
@@ -445,8 +445,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
     @Override
     public void enabledUpdateEntity() {
         super.enabledUpdateEntity();
-        for (ChassisSide side : sides) {
-            side.tick();
+        for (IChassisResourceManager manager : managers) {
+            manager.tick();
         }
     }
 
@@ -539,21 +539,21 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
     @Override
     public void canProvide(RequestTreeNode tree, RequestTree root, List<IFilter> filters) {
         if (tree.getRequestType() instanceof FluidResource) {
-            fluidSide.canProvide(tree, root, filters);
+            fluidManager.canProvide(tree, root, filters);
         } else {
-            itemSide.canProvide(tree, root, filters);
+            itemManager.canProvide(tree, root, filters);
         }
     }
 
     @Override
     public LogisticsOrder fullFill(LogisticsPromise promise, IRequestItems destination,
             IAdditionalTargetInformation info) {
-        return itemSide.fullFill(promise, destination, info);
+        return itemManager.fullFill(promise, destination, info);
     }
 
     @Override
     public void getAllItems(Map<ItemIdentifier, Integer> list, List<IFilter> filter) {
-        itemSide.getAllItems(list, filter);
+        itemManager.getAllItems(list, filter);
     }
 
     @Override
@@ -664,14 +664,14 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
         return getRouterId();
     }
 
-    /*** interests: a module only counts while the chassis points at something its side works on ***/
+    /*** interests: a module only counts while the chassis points at something its manager works on ***/
 
     @Override
     public Set<ItemIdentifier> getSpecificInterests() {
         Set<ItemIdentifier> interests = new TreeSet<>();
-        for (ChassisSide side : sides) {
-            if (side.isActive()) {
-                side.addSpecificInterests(interests);
+        for (IChassisResourceManager manager : managers) {
+            if (manager.isActive()) {
+                manager.addSpecificInterests(interests);
             }
         }
         return interests;
@@ -679,8 +679,8 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
 
     @Override
     public boolean hasGenericInterests() {
-        for (ChassisSide side : sides) {
-            if (side.isActive() && side.hasGenericInterests()) {
+        for (IChassisResourceManager manager : managers) {
+            if (manager.isActive() && manager.hasGenericInterests()) {
                 return true;
             }
         }
@@ -690,9 +690,9 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
     @Override
     public CategoryInterests getCategoryInterests() {
         CategoryInterests interests = CategoryInterests.EMPTY;
-        for (ChassisSide side : sides) {
-            if (side.isActive()) {
-                interests = interests.merge(side.getCategoryInterests());
+        for (IChassisResourceManager manager : managers) {
+            if (manager.isActive()) {
+                interests = interests.merge(manager.getCategoryInterests());
             }
         }
         return interests;
@@ -713,25 +713,25 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
     /*** arriving items ***/
 
     /**
-     * @return the side an item sent to this chassis is for
+     * @return the manager an item sent to this chassis is for
      */
-    public ChassisSide getSideFor(ItemIdentifierStack stack, IAdditionalTargetInformation info) {
+    public IChassisResourceManager getManagerFor(ItemIdentifierStack stack, IAdditionalTargetInformation info) {
         if (info instanceof ChassiTargetInformation target) {
             LogisticsModule module = _module.getSubModule(target.getModuleSlot());
             if (module != null) {
-                return fluidSide.ownsModule(module) ? fluidSide : itemSide;
+                return fluidManager.ownsModule(module) ? fluidManager : itemManager;
             }
         }
-        if (ChassisFluidSide.isFluidInTransit(stack)) {
-            return fluidSide;
+        if (ChassisFluidManager.isFluidInTransit(stack)) {
+            return fluidManager;
         }
-        if (itemSide.isActive() && itemSide.wantsArrival(stack)) {
-            return itemSide;
+        if (itemManager.isActive() && itemManager.wantsArrival(stack)) {
+            return itemManager;
         }
-        if (fluidSide.isActive() && fluidSide.wantsArrival(stack)) {
-            return fluidSide;
+        if (fluidManager.isActive() && fluidManager.wantsArrival(stack)) {
+            return fluidManager;
         }
-        return itemSide;
+        return itemManager;
     }
 
     @Override
@@ -741,71 +741,71 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe
             return false;
         }
         IAdditionalTargetInformation info = arrivingItem.getInfo() == null ? null : arrivingItem.getInfo().targetInfo;
-        return getSideFor(stack, info).takeArrival(arrivingItem);
+        return getManagerFor(stack, info).takeArrival(arrivingItem);
     }
 
     /*** IFluidModuleHost ***/
 
     @Override
     public TileEntity getFluidTargetTile() {
-        return fluidSide.getTargetTile();
+        return fluidManager.getTargetTile();
     }
 
     @Override
     public ForgeDirection getFluidTargetSide(int moduleSlot) {
-        return fluidSide.getTargetSide(moduleSlot);
+        return fluidManager.getTargetSide(moduleSlot);
     }
 
     @Override
     public int getReservedFluid(FluidIdentifier fluid) {
-        return fluidSide.getReservedFluid(fluid);
+        return fluidManager.getReservedFluid(fluid);
     }
 
     /*** IFluidSink ***/
 
     @Override
     public int sinkAmount(FluidStack stack) {
-        return fluidSide.sinkAmount(stack);
+        return fluidManager.sinkAmount(stack);
     }
 
     @Override
     public FixedPriority getFluidSinkPriority(FluidStack stack) {
-        return fluidSide.getFluidSinkPriority(stack);
+        return fluidManager.getFluidSinkPriority(stack);
     }
 
     /*** IProvideFluids ***/
 
     @Override
     public Map<FluidIdentifier, Integer> getAvailableFluids() {
-        return fluidSide.getAvailableFluids();
+        return fluidManager.getAvailableFluids();
     }
 
     @Override
     public IOrderInfoProvider fullFill(FluidLogisticsPromise promise, IRequestFluid destination, ResourceType type,
             IAdditionalTargetInformation info) {
-        return fluidSide.fullFill(promise, destination, type, info);
+        return fluidManager.fullFill(promise, destination, type, info);
     }
 
     /*** ICraftItems ***/
 
     @Override
     public void registerExtras(IPromise promise) {
-        itemSide.registerExtras(promise);
+        itemManager.registerExtras(promise);
     }
 
     @Override
     public ICraftingTemplate addCrafting(IResource toCraft) {
-        return itemSide.addCrafting(toCraft);
+        return itemManager.addCrafting(toCraft);
     }
 
     @Override
     public List<ItemIdentifierStack> getConfiguredCraftResults() {
-        return itemSide.getConfiguredCraftResults();
+        return itemManager.getConfiguredCraftResults();
     }
 
     @Override
     public boolean canCraft(IResource toCraft) {
-        return itemSide.canCraft(toCraft);
+        return itemManager.canCraft(toCraft);
     }
 
     @Override
