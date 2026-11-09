@@ -22,56 +22,47 @@ import com.google.common.primitives.Ints;
 public final class SidedInventoryMinecraftAdapter implements IInventory {
 
     public final ISidedInventory _sidedInventory;
-    private final int _side;
+    // the faces the inventory is seen through, in order; UNKNOWN stands for all six
+    private final int[] _sides;
     private final boolean _forExtraction;
     private int[] _slotMapCache;
 
     public SidedInventoryMinecraftAdapter(ISidedInventory sidedInventory, ForgeDirection side, boolean forExtraction) {
+        this(sidedInventory, new ForgeDirection[] { side }, forExtraction);
+    }
+
+    /**
+     * The inventory seen through several faces: the slots of the first face, then the ones the next face adds. A slot
+     * takes an item if one of the faces it is reached through lets it in.
+     */
+    public SidedInventoryMinecraftAdapter(ISidedInventory sidedInventory, ForgeDirection[] faces,
+            boolean forExtraction) {
         _sidedInventory = sidedInventory;
-        _side = side.ordinal();
+        if (faces.length == 1 && faces[0] == ForgeDirection.UNKNOWN) {
+            faces = ForgeDirection.VALID_DIRECTIONS;
+        }
+        _sides = new int[faces.length];
+        for (int i = 0; i < faces.length; i++) {
+            _sides[i] = faces[i].ordinal();
+        }
         _forExtraction = forExtraction;
     }
 
     private int[] getSlotMap() {
         if (_slotMapCache == null) {
-            if (_side == ForgeDirection.UNKNOWN.ordinal()) {
-                _slotMapCache = buildAllSidedMap();
-            } else {
-                ArrayList<Integer> list = new ArrayList<>();
-
-                int[] allSlots = _sidedInventory.getAccessibleSlotsFromSide(_side);
-                for (int number : allSlots) {
+            ArrayList<Integer> list = new ArrayList<>();
+            for (int side : _sides) {
+                for (int number : _sidedInventory.getAccessibleSlotsFromSide(side)) {
                     ItemStack item = _sidedInventory.getStackInSlot(number);
-                    if (!list.contains(number) && (!_forExtraction || // check extract condition
-                            (item != null && _sidedInventory.canExtractItem(number, item, _side)))) {
+                    if (!list.contains(number) && (!_forExtraction
+                            || (item != null && _sidedInventory.canExtractItem(number, item, side)))) {
                         list.add(number);
                     }
                 }
-                _slotMapCache = Ints.toArray(list);
             }
+            _slotMapCache = Ints.toArray(list);
         }
         return _slotMapCache;
-    }
-
-    private int[] buildAllSidedMap() {
-        ArrayList<Integer> list = new ArrayList<>();
-
-        for (int i = 0; i < 6; i++) {
-            int[] slots = _sidedInventory.getAccessibleSlotsFromSide(i);
-            for (int number : slots) {
-                ItemStack item = _sidedInventory.getStackInSlot(number);
-                if (!list.contains(number) && (!_forExtraction || // check extract condition
-                        (item != null && _sidedInventory.canExtractItem(number, item, i)))) {
-                    list.add(number);
-                }
-            }
-        }
-        int[] slotmap = new int[list.size()];
-        int count = 0;
-        for (int i : list) {
-            slotmap[count++] = i;
-        }
-        return slotmap;
     }
 
     @Override
@@ -136,7 +127,16 @@ public final class SidedInventoryMinecraftAdapter implements IInventory {
 
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack itemstack) {
-        return _sidedInventory.isItemValidForSlot(getSlotMap()[slot], itemstack)
-                && _sidedInventory.canInsertItem(getSlotMap()[slot], itemstack, _side);
+        int number = getSlotMap()[slot];
+        if (!_sidedInventory.isItemValidForSlot(number, itemstack)) {
+            return false;
+        }
+        for (int side : _sides) {
+            if (Ints.contains(_sidedInventory.getAccessibleSlotsFromSide(side), number)
+                    && _sidedInventory.canInsertItem(number, itemstack, side)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

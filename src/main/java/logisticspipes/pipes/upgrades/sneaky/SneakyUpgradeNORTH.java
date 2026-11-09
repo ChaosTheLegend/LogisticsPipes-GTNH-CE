@@ -2,9 +2,7 @@ package logisticspipes.pipes.upgrades.sneaky;
 
 import net.minecraftforge.common.util.ForgeDirection;
 
-import logisticspipes.pipes.upgrades.SneakyUpgrade;
-
-public class SneakyUpgradeNORTH extends SneakyUpgrade {
+public class SneakyUpgradeNORTH extends SidedSneakyUpgrade {
 
     @Override
     public ForgeDirection getSneakyOrientation() {
