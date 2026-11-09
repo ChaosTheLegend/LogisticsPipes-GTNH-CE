@@ -5,7 +5,7 @@ public class GuiIDs {
     // Pipes
     // public static final int GUI_CRAFTINGPIPE_ID = 10;
     public static final int GUI_FluidSupplier_ID = 11;
-    public static final int GUI_ProviderPipe_ID = 12;
+    // 12 was the old provider pipe window
     public static final int GUI_SatelitePipe_ID = 13;
     // public static final int GUI_SupplierPipe_ID = 14;
     public static final int GUI_Freq_Card_ID = 15;

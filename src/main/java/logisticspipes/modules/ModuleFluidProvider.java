@@ -7,11 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fluids.FluidStack;
 
 import logisticspipes.config.Configs;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
-import logisticspipes.gui.modularUI.dynamicModules.ModuleFluidInfoMuiDynamic;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleInfoMuiDynamic;
 import logisticspipes.interfaces.IFluidModuleHost;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IFilter;
@@ -19,6 +20,7 @@ import logisticspipes.interfaces.routing.IProvideFluids;
 import logisticspipes.interfaces.routing.IRequestFluid;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
+import logisticspipes.modules.abstractmodules.IPrioritizedModule;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTreeNode;
@@ -33,11 +35,14 @@ import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.item.ItemIdentifier;
 
 /**
- * Offers the fluids in the tank to requests from the network, like the fluid provider pipe.
+ * Offers the fluids in the tank to requests from the network, like the fluid provider pipe. With a sneaky upgrade it
+ * drains through the first face of the upgrade only.
  */
-public class ModuleFluidProvider extends LogisticsFluidModule implements IProvideFluids, IFluidReserver {
+public class ModuleFluidProvider extends LogisticsFluidModule
+        implements IProvideFluids, IFluidReserver, IPrioritizedModule {
 
-    private static final int TICKS_PER_SEND = 6;
+    // ticks between two sends by speed upgrades (0-4)
+    private static final int[] TICKS_PER_SEND = { 6, 4, 3, 2, 1 };
 
     private LogisticsFluidOrderManager orderManager;
 
@@ -53,7 +58,7 @@ public class ModuleFluidProvider extends LogisticsFluidModule implements IProvid
         IFluidModuleHost host = getHost();
         if (host == null || orderManager == null
                 || !orderManager.hasOrders(ResourceType.PROVIDER)
-                || !_service.isNthTick(TICKS_PER_SEND)) {
+                || !_service.isNthTick(TICKS_PER_SEND[getSpeedLevel()])) {
             return;
         }
         LogisticsFluidOrder order = orderManager.peekAtTopRequest(ResourceType.PROVIDER);
@@ -151,16 +156,26 @@ public class ModuleFluidProvider extends LogisticsFluidModule implements IProvid
 
     @Override
     public LogisticsModularUI getHandGui() {
-        return new ModuleFluidInfoMuiDynamic(this, "", "gui.module.ModuleFluidProvider");
+        return ModuleInfoMuiDynamic.of(this, "");
     }
 
     @Override
     public LogisticsModularUI getPipeGui() {
-        return new ModuleFluidInfoMuiDynamic(this, "", "gui.module.ModuleFluidProvider");
+        return ModuleInfoMuiDynamic.of(this, "");
     }
 
     @Override
     public LogisticsModularUI getPipeGui(String prefix) {
-        return new ModuleFluidInfoMuiDynamic(this, prefix, "gui.module.ModuleFluidProvider");
+        return ModuleInfoMuiDynamic.of(this, prefix);
+    }
+
+    @Override
+    public void readFromNBT(NBTTagCompound nbt) {
+        readPriority(nbt);
+    }
+
+    @Override
+    public void writeToNBT(NBTTagCompound nbt) {
+        writePriority(nbt);
     }
 }

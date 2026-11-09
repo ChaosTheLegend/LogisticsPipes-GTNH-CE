@@ -21,6 +21,7 @@ import logisticspipes.items.ItemPipeComponents;
 import logisticspipes.items.ItemUpgrade;
 import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.items.RemoteOrderer;
+import logisticspipes.modules.ModuleMigration;
 import logisticspipes.proxy.interfaces.ICraftingParts;
 
 // @formatter:off
@@ -168,26 +169,6 @@ public class RecipeManager {
                     parts.getChipTear2(),
                     'R',
                     Blocks.redstone_torch);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.LogisticsProviderPipeMk2, 1),
-                    CraftingDependency.Fast_Crafting,
-                    "U",
-                    "B",
-                    'B',
-                    LogisticsPipes.LogisticsProviderPipeMk1,
-                    'U',
-                    parts.getGearTear3());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.LogisticsProviderPipeMk2, 1),
-                    CraftingDependency.Fast_Crafting,
-                    "U",
-                    "B",
-                    'B',
-                    LogisticsPipes.LogisticsProviderPipeMk1,
-                    'U',
-                    parts.getChipTear3());
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsCraftingPipeMk1, 1),
@@ -464,116 +445,6 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR),
-                    CraftingDependency.Active_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR),
-                    'U',
-                    Items.redstone);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR),
-                    'U',
-                    parts.getGearTear2());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR),
-                    'U',
-                    parts.getChipTear2());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR),
-                    'U',
-                    parts.getGearTear2());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    'U',
-                    Items.redstone);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR),
-                    'U',
-                    parts.getChipTear2());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    'U',
-                    parts.getGearTear3());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    'U',
-                    parts.getChipTear3());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    'U',
-                    parts.getGearTear3());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    'U',
-                    parts.getChipTear3());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3),
-                    'U',
-                    Items.redstone);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.POLYMORPHIC_ITEMSINK),
                     CraftingDependency.Modular_Pipes,
                     "CGC",
@@ -626,36 +497,6 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.TERMINUS),
-                    CraftingDependency.Modular_Pipes,
-                    "CGD",
-                    "rBr",
-                    'C',
-                    "dyeBlack",
-                    'D',
-                    "dyePurple",
-                    'G',
-                    parts.getGearTear1(),
-                    'r',
-                    Items.redstone,
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.TERMINUS),
-                    CraftingDependency.Modular_Pipes,
-                    "CGD",
-                    " B ",
-                    'C',
-                    "dyeBlack",
-                    'D',
-                    "dyePurple",
-                    'G',
-                    parts.getChipTear1(),
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER),
                     CraftingDependency.Modular_Pipes,
                     "CGC",
@@ -680,26 +521,6 @@ public class RecipeManager {
                     parts.getChipTear2(),
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER),
-                    'U',
-                    parts.getGearTear3());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER),
-                    'U',
-                    parts.getChipTear3());
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.CRAFTER),
@@ -752,7 +573,7 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.LogisticsParts, 1, 3));
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.MODBASEDITEMSINK),
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.TAG_ITEMSINK),
                     CraftingDependency.Sink_Modules,
                     "U",
                     "B",
@@ -762,42 +583,12 @@ public class RecipeManager {
                     parts.getGearTear2());
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.MODBASEDITEMSINK),
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.TAG_ITEMSINK),
                     CraftingDependency.Sink_Modules,
                     "U",
                     "B",
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ITEMSINK),
-                    'U',
-                    parts.getChipTear2());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.OREDICTITEMSINK),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.MODBASEDITEMSINK),
-                    'U',
-                    Items.book);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.CREATIVETABBASEDITEMSINK),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.OREDICTITEMSINK),
-                    'U',
-                    parts.getGearTear2());
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.CREATIVETABBASEDITEMSINK),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.OREDICTITEMSINK),
                     'U',
                     parts.getChipTear2());
 
@@ -810,25 +601,6 @@ public class RecipeManager {
                     Items.enchanted_book,
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ITEMSINK));
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ENCHANTMENTSINK_MK2),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'U',
-                    parts.getChipTear2(),
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ENCHANTMENTSINK));
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ENCHANTMENTSINK_MK2),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'U',
-                    parts.getGearTear2(),
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ENCHANTMENTSINK));
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsChassisPipeMk1, 1),
@@ -1168,100 +940,6 @@ public class RecipeManager {
                     "slimeball");
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 1),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "srs",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 2),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PsP",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 3),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "PsP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 4),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "sCr",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 5),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCs",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 6),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, 20),
                     CraftingDependency.Upgrades,
                     false,
@@ -1332,102 +1010,6 @@ public class RecipeManager {
                     "gearWood");
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 10),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "srs",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 11),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "srs",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 12),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PsP",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 13),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "PsP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 14),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "sCr",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 15),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCs",
-                    "PrP",
-                    'C',
-                    parts.getChipTear1(),
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, 24),
                     CraftingDependency.Upgrades,
                     false,
@@ -1462,24 +1044,6 @@ public class RecipeManager {
                     Items.paper);
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 4, ItemUpgrade.POWER_TRANSPORTATION),
-                    CraftingDependency.Power_Distribution,
-                    false,
-                    "PRP",
-                    "CGC",
-                    "PLP",
-                    'C',
-                    parts.getChipTear1(),
-                    'R',
-                    Blocks.redstone_block,
-                    'G',
-                    Blocks.glowstone,
-                    'L',
-                    Blocks.lapis_block,
-                    'P',
-                    Items.paper);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CRAFTING_MONITORING),
                     CraftingDependency.Upgrades,
                     false,
@@ -1498,20 +1062,6 @@ public class RecipeManager {
                     "dyeGreen",
                     'b',
                     "dyeYellow");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.OPAQUE_UPGRADE),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "RbR",
-                    "bCb",
-                    "RbR",
-                    'C',
-                    parts.getChipTear1(),
-                    'R',
-                    Items.redstone,
-                    'b',
-                    "dyeWhite");
 
             /*
              * added by Chaos234  - Date: 20150620
@@ -1532,7 +1082,7 @@ public class RecipeManager {
                     'C',
                     parts.getChipTear1(),
                     'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3));
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR));
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CRAFTING_CLEANUP),
@@ -1550,7 +1100,7 @@ public class RecipeManager {
                     'C',
                     parts.getChipTear2(),
                     'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2));
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR));
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CRAFTING_CLEANUP),
@@ -1585,17 +1135,7 @@ public class RecipeManager {
                     'b',
                     Items.bucket);
 
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.LogisticsFluidSupplierPipeMk1, 1),
-                    CraftingDependency.DistanceRequest,
-                    "lPl",
-                    " B ",
-                    'l',
-                    "dyeBlue",
-                    'P',
-                    LogisticsPipes.LogisticsBasicPipe,
-                    'B',
-                    Items.bucket);
+            // the fluid supplier pipe Mk1 is deprecated (see DeprecatedContent): no recipe, use the Mk2
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsFluidSatellitePipe, 1),
@@ -1810,16 +1350,6 @@ public class RecipeManager {
                     Items.redstone);
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.LogisticsProviderPipeMk2, 1),
-                    CraftingDependency.Fast_Crafting,
-                    "U",
-                    "B",
-                    'B',
-                    LogisticsPipes.LogisticsProviderPipeMk1,
-                    'U',
-                    expand);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsCraftingPipeMk1, 1),
                     CraftingDependency.Basic,
                     " r ",
@@ -2031,76 +1561,6 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR),
-                    CraftingDependency.Active_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR),
-                    'U',
-                    expand);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR),
-                    'U',
-                    micserv);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR),
-                    'U',
-                    micserv);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    'U',
-                    expand);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2),
-                    'U',
-                    micserv);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK2),
-                    'U',
-                    micserv);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ADVANCED_EXTRACTOR_MK3),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3),
-                    'U',
-                    expand);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.POLYMORPHIC_ITEMSINK),
                     CraftingDependency.Modular_Pipes,
                     "CGC",
@@ -2132,22 +1592,6 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.TERMINUS),
-                    CraftingDependency.Modular_Pipes,
-                    "CGD",
-                    "rBr",
-                    'C',
-                    "dyeBlack",
-                    'D',
-                    "dyePurple",
-                    'G',
-                    packager,
-                    'r',
-                    Items.redstone,
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER),
                     CraftingDependency.Modular_Pipes,
                     "CGC",
@@ -2160,16 +1604,6 @@ public class RecipeManager {
                     Items.redstone,
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER_MK2),
-                    CraftingDependency.High_Tech_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.PROVIDER),
-                    'U',
-                    expand);
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.CRAFTER),
@@ -2201,32 +1635,12 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.LogisticsParts, 1, 3));
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.MODBASEDITEMSINK),
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.TAG_ITEMSINK),
                     CraftingDependency.Sink_Modules,
                     "U",
                     "B",
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ITEMSINK),
-                    'U',
-                    expand);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.OREDICTITEMSINK),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.MODBASEDITEMSINK),
-                    'U',
-                    Items.book);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.CREATIVETABBASEDITEMSINK),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.OREDICTITEMSINK),
                     'U',
                     expand);
 
@@ -2239,16 +1653,6 @@ public class RecipeManager {
                     Items.enchanted_book,
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ITEMSINK));
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ENCHANTMENTSINK_MK2),
-                    CraftingDependency.Sink_Modules,
-                    "U",
-                    "B",
-                    'U',
-                    expand,
-                    'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ENCHANTMENTSINK));
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsChassisPipeMk1, 1),
@@ -2446,100 +1850,6 @@ public class RecipeManager {
                     "slimeball");
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 1),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "srs",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 2),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PsP",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 3),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "PsP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 4),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "sCr",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 5),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCs",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    "slimeball");
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 6),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, 20),
                     CraftingDependency.Upgrades,
                     false,
@@ -2610,102 +1920,6 @@ public class RecipeManager {
                     "plankWood");
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 10),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "srs",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 11),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "srs",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 12),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PsP",
-                    "rCr",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 13),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCr",
-                    "PsP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 14),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "sCr",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, 15),
-                    CraftingDependency.Upgrades,
-                    false,
-                    "PrP",
-                    "rCs",
-                    "PrP",
-                    'C',
-                    expand,
-                    'r',
-                    Items.redstone,
-                    'P',
-                    Items.paper,
-                    's',
-                    Items.iron_ingot);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, 24),
                     CraftingDependency.Upgrades,
                     false,
@@ -2740,22 +1954,6 @@ public class RecipeManager {
                     Items.paper);
 
             RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 4, ItemUpgrade.POWER_TRANSPORTATION),
-                    CraftingDependency.Power_Distribution,
-                    false,
-                    "PGP",
-                    "RCR",
-                    "PRP",
-                    'C',
-                    expand,
-                    'R',
-                    lense,
-                    'G',
-                    Blocks.glowstone,
-                    'P',
-                    Items.paper);
-
-            RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CRAFTING_MONITORING),
                     CraftingDependency.Upgrades,
                     false,
@@ -2774,18 +1972,6 @@ public class RecipeManager {
                     new ItemStack(LogisticsPipes.LogisticsCraftingPipeMk2, 1, 0),
                     'R',
                     Items.redstone);
-
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.OPAQUE_UPGRADE),
-                    CraftingDependency.Upgrades,
-                    false,
-                    " b ",
-                    "bIb",
-                    " b ",
-                    'b',
-                    "dyeWhite",
-                    'I',
-                    Items.iron_ingot);
 
             /*
              * added by Chaos234  - Date: 20150620
@@ -2806,7 +1992,7 @@ public class RecipeManager {
                     'C',
                     micserv,
                     'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK3));
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR));
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CRAFTING_CLEANUP),
@@ -2824,7 +2010,7 @@ public class RecipeManager {
                     'C',
                     micserv,
                     'B',
-                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR_MK2));
+                    new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR));
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CRAFTING_CLEANUP),
@@ -2857,17 +2043,7 @@ public class RecipeManager {
                     'P',
                     pipe);
 
-            RecipeManager.craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.LogisticsFluidSupplierPipeMk1, 1),
-                    CraftingDependency.DistanceRequest,
-                    "lPl",
-                    " b ",
-                    'l',
-                    "dyeBlue",
-                    'P',
-                    pipe,
-                    'b',
-                    Items.bucket);
+            // the fluid supplier pipe Mk1 is deprecated (see DeprecatedContent): no recipe, use the Mk2
 
             RecipeManager.craftingManager.addRecipe(
                     new ItemStack(LogisticsPipes.LogisticsFluidSatellitePipe, 1),
@@ -2957,6 +2133,43 @@ public class RecipeManager {
         loadPatternCraftingConversionRecipes();
         loadRequestTableRecipes();
         RecipeManager.craftingManager.addRecipe(new FrequencyCardLinkRecipe());
+        RecipeManager.craftingManager.addRecipe(new ModuleMigrationRecipe());
+
+        // the old sided and combined sneaky upgrades craft into the sneaky upgrade, its faces are set in the window
+        for (int old : new int[] { ItemUpgrade.SNEAKY_DOWN, ItemUpgrade.SNEAKY_NORTH, ItemUpgrade.SNEAKY_SOUTH,
+                ItemUpgrade.SNEAKY_EAST, ItemUpgrade.SNEAKY_WEST, ItemUpgrade.SNEAKY_COMBINATION }) {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.SNEAKY),
+                    CraftingDependency.Upgrades,
+                    new ItemStack(LogisticsPipes.UpgradeItem, 1, old));
+        }
+
+        // the priority upgrade
+        ItemStack priorityUpgrade = new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.PRIORITY);
+        if (LogisticsPipes.isGTNH) {
+            GregTechConversionRecipes.addPriorityUpgrade(priorityUpgrade);
+        } else {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    priorityUpgrade,
+                    CraftingDependency.Upgrades,
+                    parts.getChipTear1(),
+                    new ItemStack(Items.comparator, 1),
+                    new ItemStack(Items.paper, 1));
+        }
+
+        // the extractor pipe: a basic pipe with an extractor module built in
+        ItemStack extractorPipe = new ItemStack(LogisticsPipes.LogisticsExtractorPipe, 1);
+        ItemStack extractorModule = new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.EXTRACTOR);
+        if (LogisticsPipes.isGTNH) {
+            GregTechConversionRecipes
+                    .addExtractorPipe(new ItemStack(LogisticsPipes.LogisticsBasicPipe, 1), extractorModule, extractorPipe);
+        } else {
+            RecipeManager.craftingManager.addShapelessRecipe(
+                    extractorPipe,
+                    CraftingDependency.Basic,
+                    new ItemStack(LogisticsPipes.LogisticsBasicPipe, 1),
+                    extractorModule);
+        }
 
         if (LogisticsPipes.isGTNH) {
             loadFluidModuleAssemblerRecipes();
@@ -2971,6 +2184,10 @@ public class RecipeManager {
         for (int moduleId : LogisticsPipes.ModuleItem.getRegisteredModulesIDs()) {
             if (isCrafterModule(moduleId)) {
                 // A lone crafter module converts into a pattern; a reset recipe would match the same grid.
+                continue;
+            }
+            if (ModuleMigration.isLegacy(moduleId)) {
+                // a lone merged module converts into the module that replaces it, see ModuleMigrationRecipe
                 continue;
             }
             RecipeManager.craftingManager.addShapelessResetRecipe(LogisticsPipes.ModuleItem, moduleId);

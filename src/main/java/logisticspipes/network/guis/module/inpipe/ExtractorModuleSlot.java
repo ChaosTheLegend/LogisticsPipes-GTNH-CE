@@ -46,8 +46,7 @@ public class ExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
         if (module == null) {
             return null;
         }
-        module.setSneakyDirection(sneakyOrientation);
-        return new GuiExtractor(player.inventory, module);
+        return new GuiExtractor(player.inventory, module, sneakyOrientation);
     }
 
     @Override

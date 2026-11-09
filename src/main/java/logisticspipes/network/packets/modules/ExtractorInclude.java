@@ -2,24 +2,24 @@ package logisticspipes.network.packets.modules;
 
 import net.minecraft.entity.player.EntityPlayer;
 
-import logisticspipes.modules.ModuleAdvancedExtractor;
+import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.network.abstractpackets.BooleanModuleCoordinatesPacket;
 import logisticspipes.network.abstractpackets.ModernPacket;
 
-public class AdvancedExtractorInclude extends BooleanModuleCoordinatesPacket {
+public class ExtractorInclude extends BooleanModuleCoordinatesPacket {
 
-    public AdvancedExtractorInclude(int id) {
+    public ExtractorInclude(int id) {
         super(id);
     }
 
     @Override
     public ModernPacket template() {
-        return new AdvancedExtractorInclude(getId());
+        return new ExtractorInclude(getId());
     }
 
     @Override
     public void processPacket(EntityPlayer player) {
-        ModuleAdvancedExtractor recieiver = this.getLogisticsModule(player, ModuleAdvancedExtractor.class);
+        ModuleExtractor recieiver = this.getLogisticsModule(player, ModuleExtractor.class);
         if (recieiver == null) {
             return;
         }

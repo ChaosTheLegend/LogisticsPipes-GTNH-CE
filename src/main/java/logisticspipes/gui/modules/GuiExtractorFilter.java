@@ -9,19 +9,19 @@ import net.minecraft.inventory.IInventory;
 
 import org.lwjgl.opengl.GL11;
 
-import logisticspipes.modules.ModuleAdvancedExtractor;
+import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.network.PacketHandler;
-import logisticspipes.network.packets.module.AdvancedExtractorIncludePacket;
-import logisticspipes.network.packets.module.AdvancedExtractorSneakyGuiPacket;
+import logisticspipes.network.packets.module.ExtractorIncludePacket;
+import logisticspipes.network.packets.module.ExtractorSneakyGuiPacket;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.GuiStringHandlerButton;
 import logisticspipes.utils.gui.LogisticsBaseGuiScreen;
 import logisticspipes.utils.string.StringUtils;
 
-public class GuiAdvancedExtractor extends ModuleBaseGui {
+public class GuiExtractorFilter extends ModuleBaseGui {
 
-    private final ModuleAdvancedExtractor _advancedExtractor;
+    private final ModuleExtractor _extractor;
 
     @Override
     public void initGui() {
@@ -35,7 +35,7 @@ public class GuiAdvancedExtractor extends ModuleBaseGui {
                         height / 2 - 34,
                         60,
                         20,
-                        () -> _advancedExtractor.areItemsIncluded() ? "Included" : "Excluded"));
+                        () -> _extractor.areItemsIncluded() ? "Included" : "Excluded"));
 
         buttonList.add(new GuiButton(1, width / 2 - 25, height / 2 - 34, 40, 20, "Sneaky"));
     }
@@ -44,22 +44,21 @@ public class GuiAdvancedExtractor extends ModuleBaseGui {
     protected void actionPerformed(GuiButton guibutton) {
         switch (guibutton.id) {
             case 0:
-                _advancedExtractor.setItemsIncluded(!_advancedExtractor.areItemsIncluded());
+                _extractor.setItemsIncluded(!_extractor.areItemsIncluded());
                 MainProxy.sendPacketToServer(
-                        PacketHandler.getPacket(AdvancedExtractorIncludePacket.class).setModulePos(_advancedExtractor));
+                        PacketHandler.getPacket(ExtractorIncludePacket.class).setModulePos(_extractor));
                 break;
             case 1:
                 MainProxy.sendPacketToServer(
-                        PacketHandler.getPacket(AdvancedExtractorSneakyGuiPacket.class)
-                                .setModulePos(_advancedExtractor));
+                        PacketHandler.getPacket(ExtractorSneakyGuiPacket.class).setModulePos(_extractor));
                 break;
         }
     }
 
-    public GuiAdvancedExtractor(IInventory playerInventory, ModuleAdvancedExtractor advancedExtractor) {
-        super(null, advancedExtractor);
-        _advancedExtractor = advancedExtractor;
-        DummyContainer dummy = new DummyContainer(playerInventory, _advancedExtractor.getFilterInventory());
+    public GuiExtractorFilter(IInventory playerInventory, ModuleExtractor extractor) {
+        super(null, extractor);
+        _extractor = extractor;
+        DummyContainer dummy = new DummyContainer(playerInventory, _extractor.getFilterInventory());
         dummy.addNormalSlotsForPlayerInventory(8, 60);
 
         // Pipe slots
@@ -74,7 +73,7 @@ public class GuiAdvancedExtractor extends ModuleBaseGui {
 
     @Override
     protected void drawGuiContainerForegroundLayer(int par1, int par2) {
-        mc.fontRenderer.drawString(_advancedExtractor.getFilterInventory().getInventoryName(), 8, 6, 0x404040);
+        mc.fontRenderer.drawString(_extractor.getFilterInventory().getInventoryName(), 8, 6, 0x404040);
         mc.fontRenderer
                 .drawString(StringUtils.translate("gui.logisticspipes.inventory.title"), 8, ySize - 92, 0x404040);
     }
@@ -89,6 +88,6 @@ public class GuiAdvancedExtractor extends ModuleBaseGui {
     }
 
     public void setInclude(boolean flag) {
-        _advancedExtractor.setItemsIncluded(flag);
+        _extractor.setItemsIncluded(flag);
     }
 }

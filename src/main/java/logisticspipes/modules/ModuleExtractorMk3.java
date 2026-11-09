@@ -5,33 +5,13 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 
-public class ModuleExtractorMk3 extends ModuleExtractorMk2 {
-
-    public ModuleExtractorMk3() {
-        super();
-    }
-
-    @Override
-    protected int ticksToAction() {
-        return 1;
-    }
-
-    @Override
-    protected int itemsToExtract() {
-        return 64;
-    }
-
-    @Override
-    protected int neededEnergy() {
-        return 10;
-    }
-
-    @Override
-    protected ItemSendMode itemSendMode() {
-        return ItemSendMode.Fast;
-    }
+/**
+ * Deprecated: an extractor with speed upgrades replaces it. Kept for the name and icon of the old item until the
+ * deletion version; a chassis turns it into an extractor when it loads it, see {@code ModuleMigration}.
+ */
+@Deprecated
+public class ModuleExtractorMk3 extends ModuleExtractor {
 
     @Override
     @SideOnly(Side.CLIENT)

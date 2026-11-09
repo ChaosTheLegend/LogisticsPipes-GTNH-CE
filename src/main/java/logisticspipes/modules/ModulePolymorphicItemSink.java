@@ -8,14 +8,18 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleInfoMuiDynamic;
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.modules.abstractmodules.IPrioritizedModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
-public class ModulePolymorphicItemSink extends LogisticsModule {
+public class ModulePolymorphicItemSink extends LogisticsModule implements IMUICompatibleModule, IPrioritizedModule {
 
     public ModulePolymorphicItemSink() {}
 
@@ -31,14 +35,15 @@ public class ModulePolymorphicItemSink extends LogisticsModule {
                 false,
                 3,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override
     public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault,
             boolean includeInTransit) {
-        if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal()
-                && bestCustomPriority >= _sinkReply.customPriority)) {
+        SinkReply reply = prioritized(_sinkReply);
+        if (bestPriority > reply.fixedPriority.ordinal()
+                || (bestPriority == reply.fixedPriority.ordinal() && bestCustomPriority >= reply.customPriority)) {
             return null;
         }
         IInventoryUtil targetInventory = _service.getSneakyInventory(false, slot, positionInt);
@@ -51,16 +56,20 @@ public class ModulePolymorphicItemSink extends LogisticsModule {
         }
 
         if (_service.canUseEnergy(3)) {
-            return _sinkReply;
+            return reply;
         }
         return null;
     }
 
     @Override
-    public void readFromNBT(NBTTagCompound nbttagcompound) {}
+    public void readFromNBT(NBTTagCompound nbttagcompound) {
+        readPriority(nbttagcompound);
+    }
 
     @Override
-    public void writeToNBT(NBTTagCompound nbttagcompound) {}
+    public void writeToNBT(NBTTagCompound nbttagcompound) {
+        writePriority(nbttagcompound);
+    }
 
     @Override
     public LogisticsModule getSubModule(int slot) {
@@ -116,5 +125,22 @@ public class ModulePolymorphicItemSink extends LogisticsModule {
     @SideOnly(Side.CLIENT)
     public IIcon getIconTexture(IIconRegister register) {
         return register.registerIcon("logisticspipes:itemModule/ModulePolymorphicItemSink");
+    }
+
+    // nothing to configure: a window that says what the module does and holds its upgrade slots in hand
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return ModuleInfoMuiDynamic.of(this, prefix);
     }
 }

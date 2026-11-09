@@ -9,6 +9,10 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleApiaristSinkMuiDynamic;
+import logisticspipes.modules.abstractmodules.IPrioritizedModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
@@ -16,7 +20,7 @@ import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.module.inhand.ApiaristSinkModuleInHand;
 import logisticspipes.network.guis.module.inpipe.ApiaristSinkModuleSlot;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.astar.ItemCategory;
@@ -24,7 +28,7 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
-public class ModuleApiaristSink extends LogisticsGuiModule {
+public class ModuleApiaristSink extends LogisticsGuiModule implements IMUICompatibleModule, IPrioritizedModule {
 
     private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.BEE);
 
@@ -206,6 +210,7 @@ public class ModuleApiaristSink extends LogisticsGuiModule {
 
     @Override
     public void readFromNBT(NBTTagCompound nbttagcompound) {
+        readPriority(nbttagcompound);
         NBTTagCompound filters = nbttagcompound.getCompoundTag("filters");
         for (int i = 0; i < filter.length; i++) {
             NBTTagCompound filterNBT = filters.getCompoundTag("" + i);
@@ -215,6 +220,7 @@ public class ModuleApiaristSink extends LogisticsGuiModule {
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
+        writePriority(nbttagcompound);
         NBTTagCompound filters = new NBTTagCompound();
         for (int i = 0; i < filter.length; i++) {
             NBTTagCompound filterNBT = new NBTTagCompound();
@@ -274,14 +280,15 @@ public class ModuleApiaristSink extends LogisticsGuiModule {
                 false,
                 2,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override
     public SinkReply sinksItem(ItemIdentifier itemID, int bestPriority, int bestCustomPriority, boolean allowDefault,
             boolean includeInTransit) {
-        if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal()
-                && bestCustomPriority >= _sinkReply.customPriority)) {
+        SinkReply reply = prioritized(_sinkReply);
+        if (bestPriority > reply.fixedPriority.ordinal()
+                || (bestPriority == reply.fixedPriority.ordinal() && bestCustomPriority >= reply.customPriority)) {
             return null;
         }
         ItemStack item = itemID.makeNormalStack(1);
@@ -289,7 +296,7 @@ public class ModuleApiaristSink extends LogisticsGuiModule {
             if (SimpleServiceLocator.forestryProxy.isAnalysedBee(item)) {
                 if (isFiltered(itemID)) {
                     if (_service.canUseEnergy(2)) {
-                        return _sinkReply;
+                        return reply;
                     }
                 }
             }
@@ -342,5 +349,20 @@ public class ModuleApiaristSink extends LogisticsGuiModule {
     @SideOnly(Side.CLIENT)
     public IIcon getIconTexture(IIconRegister register) {
         return register.registerIcon("logisticspipes:itemModule/ModuleApiaristSink");
+    }
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return new ModuleApiaristSinkMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleApiaristSinkMuiDynamic(this);
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleApiaristSinkMuiDynamic(this, prefix);
     }
 }

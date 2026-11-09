@@ -29,7 +29,10 @@ public class ExtractorModuleDirectionPacket extends DirectionModuleCoordinatesPa
         if (module == null) {
             return;
         }
-        module.setSneakyDirection(getDirection());
+        // a click on the face already first keeps the other faces of the upgrade
+        if (getDirection() != module.getSneakyDirection()) {
+            module.setSneakyDirection(getDirection());
+        }
         MainProxy.sendPacketToPlayer(
                 PacketHandler.getPacket(ExtractorModuleMode.class).setDirection(module.getSneakyDirection())
                         .setPacketPos(this),

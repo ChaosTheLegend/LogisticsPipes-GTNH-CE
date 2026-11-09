@@ -5,28 +5,18 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 
+/**
+ * Deprecated: a provider with speed upgrades replaces it. As an item it turns into a provider with 4 speed upgrades
+ * (see {@link ModuleMigration}); it stays as the built-in module of the deprecated provider pipe Mk2, where its speed
+ * is built in: speed upgrade items there would drop when the pipe is broken and could be had again and again.
+ */
+@Deprecated
 public class ModuleProviderMk2 extends ModuleProvider {
 
     @Override
-    protected int neededEnergy() {
-        return 2;
-    }
-
-    @Override
-    protected ItemSendMode itemSendMode() {
-        return ItemSendMode.Fast;
-    }
-
-    @Override
-    protected int itemsToExtract() {
-        return 128;
-    }
-
-    @Override
-    protected int stacksToExtract() {
-        return 8;
+    public int getSpeed() {
+        return MAX_SPEED;
     }
 
     @Override

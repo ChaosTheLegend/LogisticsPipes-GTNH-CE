@@ -2,34 +2,33 @@ package logisticspipes.network.packets.module;
 
 import net.minecraft.entity.player.EntityPlayer;
 
-import logisticspipes.modules.ModuleAdvancedExtractor;
+import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.network.PacketHandler;
 import logisticspipes.network.abstractpackets.ModernPacket;
 import logisticspipes.network.abstractpackets.ModuleCoordinatesPacket;
-import logisticspipes.network.packets.modules.AdvancedExtractorInclude;
+import logisticspipes.network.packets.modules.ExtractorInclude;
 import logisticspipes.proxy.MainProxy;
 
-public class AdvancedExtractorIncludePacket extends ModuleCoordinatesPacket {
+public class ExtractorIncludePacket extends ModuleCoordinatesPacket {
 
-    public AdvancedExtractorIncludePacket(int id) {
+    public ExtractorIncludePacket(int id) {
         super(id);
     }
 
     @Override
     public ModernPacket template() {
-        return new AdvancedExtractorIncludePacket(getId());
+        return new ExtractorIncludePacket(getId());
     }
 
     @Override
     public void processPacket(EntityPlayer player) {
-        final ModuleAdvancedExtractor module = this.getLogisticsModule(player, ModuleAdvancedExtractor.class);
+        final ModuleExtractor module = this.getLogisticsModule(player, ModuleExtractor.class);
         if (module == null) {
             return;
         }
         module.setItemsIncluded(!module.areItemsIncluded());
         MainProxy.sendPacketToPlayer(
-                PacketHandler.getPacket(AdvancedExtractorInclude.class).setFlag(module.areItemsIncluded())
-                        .setPacketPos(this),
+                PacketHandler.getPacket(ExtractorInclude.class).setFlag(module.areItemsIncluded()).setPacketPos(this),
                 player);
     }
 }

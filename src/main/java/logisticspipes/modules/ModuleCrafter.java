@@ -71,14 +71,22 @@ import logisticspipes.network.packets.cpipe.CraftingPipeOpenConnectedGuiPacket;
 import logisticspipes.network.packets.hud.HUDStartModuleWatchingPacket;
 import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ModuleInventory;
-import logisticspipes.network.packets.pipe.*;
+import logisticspipes.network.packets.pipe.CraftingBlockingModePacket;
+import logisticspipes.network.packets.pipe.CraftingPipePriorityDownPacket;
+import logisticspipes.network.packets.pipe.CraftingPipePriorityUpPacket;
+import logisticspipes.network.packets.pipe.CraftingPipeUpdatePacket;
+import logisticspipes.network.packets.pipe.CraftingPriority;
+import logisticspipes.network.packets.pipe.FluidCraftingAdvancedSatelliteId;
+import logisticspipes.network.packets.pipe.FluidCraftingAmount;
+import logisticspipes.network.packets.pipe.FluidCraftingPipeAdvancedSatelliteNextPacket;
+import logisticspipes.network.packets.pipe.FluidCraftingPipeAdvancedSatellitePrevPacket;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.PipeFluidSatellite;
 import logisticspipes.pipes.PipeItemsCraftingLogistics;
 import logisticspipes.pipes.PipeItemsSatelliteLogistics;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.interfaces.ICraftingRecipeProvider;
@@ -208,7 +216,7 @@ public class ModuleCrafter extends LogisticsGuiModule implements ICraftItems, IH
                 false,
                 1,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override
@@ -261,7 +269,10 @@ public class ModuleCrafter extends LogisticsGuiModule implements ICraftItems, IH
         return count;
     }
 
-    public int getPriority() {
+    /**
+     * @return the priority among crafters of the same item; not the module priority of a Priority Upgrade
+     */
+    public int getCraftingPriority() {
         return priority;
     }
 
@@ -1100,7 +1111,7 @@ public class ModuleCrafter extends LogisticsGuiModule implements ICraftItems, IH
         }
     }
 
-    public void setPriority(int amount) {
+    public void setCraftingPriority(int amount) {
         priority = amount;
     }
 
@@ -1791,7 +1802,7 @@ public class ModuleCrafter extends LogisticsGuiModule implements ICraftItems, IH
         }
     }
 
-    public static class CraftingChassieInformation extends ChassiTargetInformation {
+    public static class CraftingChassieInformation extends ModuleSlotTargetInformation {
 
         @Getter
         private final int craftingSlot;

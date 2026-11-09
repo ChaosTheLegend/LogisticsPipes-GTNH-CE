@@ -22,7 +22,8 @@ public class ExtractorModuleInHand extends ModuleInHandGuiProvider {
         if (!(module instanceof LogisticsSneakyDirectionModule)) {
             return null;
         }
-        return new GuiExtractor(player.inventory, (LogisticsSneakyDirectionModule) module);
+        LogisticsSneakyDirectionModule sneakyModule = (LogisticsSneakyDirectionModule) module;
+        return new GuiExtractor(player.inventory, sneakyModule, sneakyModule.getSneakyDirection());
     }
 
     @Override

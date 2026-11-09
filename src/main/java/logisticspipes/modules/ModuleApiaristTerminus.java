@@ -9,8 +9,11 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleInfoMuiDynamic;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.astar.ItemCategory;
@@ -18,7 +21,7 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
 
-public class ModuleApiaristTerminus extends LogisticsModule {
+public class ModuleApiaristTerminus extends LogisticsModule implements IMUICompatibleModule {
 
     private static final CategoryInterests INTERESTS = CategoryInterests.flag(ItemCategory.BEE);
 
@@ -59,7 +62,7 @@ public class ModuleApiaristTerminus extends LogisticsModule {
                 false,
                 5,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override
@@ -123,5 +126,22 @@ public class ModuleApiaristTerminus extends LogisticsModule {
     @SideOnly(Side.CLIENT)
     public IIcon getIconTexture(IIconRegister register) {
         return register.registerIcon("logisticspipes:itemModule/ModuleApiaristTerminus");
+    }
+
+    // nothing to configure: a window that says what the module does and holds its upgrade slots in hand
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return ModuleInfoMuiDynamic.of(this, prefix);
     }
 }

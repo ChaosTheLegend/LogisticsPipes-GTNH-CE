@@ -2,36 +2,36 @@ package logisticspipes.network.guis.module.inhand;
 
 import net.minecraft.entity.player.EntityPlayer;
 
-import logisticspipes.gui.modules.GuiAdvancedExtractor;
-import logisticspipes.modules.ModuleAdvancedExtractor;
+import logisticspipes.gui.modules.GuiExtractorFilter;
+import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.abstractguis.GuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.DummyModuleContainer;
 
-public class AdvancedExtractorModuleInHand extends ModuleInHandGuiProvider {
+public class ExtractorFilterModuleInHand extends ModuleInHandGuiProvider {
 
-    public AdvancedExtractorModuleInHand(int id) {
+    public ExtractorFilterModuleInHand(int id) {
         super(id);
     }
 
     @Override
     public Object getClientGui(EntityPlayer player) {
         LogisticsModule module = getLogisticsModule(player);
-        if (!(module instanceof ModuleAdvancedExtractor)) {
+        if (!(module instanceof ModuleExtractor)) {
             return null;
         }
-        return new GuiAdvancedExtractor(player.inventory, (ModuleAdvancedExtractor) module);
+        return new GuiExtractorFilter(player.inventory, (ModuleExtractor) module);
     }
 
     @Override
     public DummyContainer getContainer(EntityPlayer player) {
         DummyModuleContainer dummy = new DummyModuleContainer(player, getInvSlot());
-        if (!(dummy.getModule() instanceof ModuleAdvancedExtractor)) {
+        if (!(dummy.getModule() instanceof ModuleExtractor)) {
             return null;
         }
-        dummy.setInventory(((ModuleAdvancedExtractor) dummy.getModule()).getFilterInventory());
+        dummy.setInventory(((ModuleExtractor) dummy.getModule()).getFilterInventory());
         dummy.addNormalSlotsForPlayerInventory(8, 60);
 
         // Pipe slots
@@ -43,6 +43,6 @@ public class AdvancedExtractorModuleInHand extends ModuleInHandGuiProvider {
 
     @Override
     public GuiProvider template() {
-        return new AdvancedExtractorModuleInHand(getId());
+        return new ExtractorFilterModuleInHand(getId());
     }
 }

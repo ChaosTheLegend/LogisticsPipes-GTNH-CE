@@ -4,8 +4,8 @@ import java.io.IOException;
 
 import net.minecraft.entity.player.EntityPlayer;
 
-import logisticspipes.gui.modules.GuiAdvancedExtractor;
-import logisticspipes.modules.ModuleAdvancedExtractor;
+import logisticspipes.gui.modules.GuiExtractorFilter;
+import logisticspipes.modules.ModuleExtractor;
 import logisticspipes.network.LPDataInputStream;
 import logisticspipes.network.LPDataOutputStream;
 import logisticspipes.network.abstractguis.GuiProvider;
@@ -16,31 +16,29 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 
 @Accessors(chain = true)
-public class AdvancedExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
+public class ExtractorFilterModuleSlot extends ModuleCoordinatesGuiProvider {
 
     @Getter
     @Setter
     private boolean areItemsIncluded;
 
-    public AdvancedExtractorModuleSlot(int id) {
+    public ExtractorFilterModuleSlot(int id) {
         super(id);
     }
 
     @Override
     public Object getClientGui(EntityPlayer player) {
-        ModuleAdvancedExtractor module = this
-                .getLogisticsModule(player.getEntityWorld(), ModuleAdvancedExtractor.class);
+        ModuleExtractor module = this.getLogisticsModule(player.getEntityWorld(), ModuleExtractor.class);
         if (module == null) {
             return null;
         }
         module.setItemsIncluded(areItemsIncluded);
-        return new GuiAdvancedExtractor(player.inventory, module);
+        return new GuiExtractorFilter(player.inventory, module);
     }
 
     @Override
     public DummyContainer getContainer(EntityPlayer player) {
-        ModuleAdvancedExtractor module = this
-                .getLogisticsModule(player.getEntityWorld(), ModuleAdvancedExtractor.class);
+        ModuleExtractor module = this.getLogisticsModule(player.getEntityWorld(), ModuleExtractor.class);
         if (module == null) {
             return null;
         }
@@ -55,7 +53,7 @@ public class AdvancedExtractorModuleSlot extends ModuleCoordinatesGuiProvider {
 
     @Override
     public GuiProvider template() {
-        return new AdvancedExtractorModuleSlot(getId());
+        return new ExtractorFilterModuleSlot(getId());
     }
 
     @Override
