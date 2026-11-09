@@ -55,9 +55,9 @@ import logisticspipes.crafting.pattern.ItemPattern;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.crafting.requesttable.mk3.RequestTableMk3Pipe;
 import logisticspipes.interfaces.IBlockShapedPipe;
-import logisticspipes.items.*;
 import logisticspipes.items.ItemDisk;
 import logisticspipes.items.ItemHUDArmor;
+import logisticspipes.items.ItemLegacyWrench;
 import logisticspipes.items.ItemLogisticsPipe;
 import logisticspipes.items.ItemModule;
 import logisticspipes.items.ItemParts;
@@ -91,6 +91,7 @@ import logisticspipes.pipes.PipeItemsBasicLogistics;
 import logisticspipes.pipes.PipeItemsCraftingLogistics;
 import logisticspipes.pipes.PipeItemsCraftingLogisticsMk2;
 import logisticspipes.pipes.PipeItemsCraftingLogisticsMk3;
+import logisticspipes.pipes.PipeItemsExtractorLogistics;
 import logisticspipes.pipes.PipeItemsFirewall;
 import logisticspipes.pipes.PipeItemsFluidSupplier;
 import logisticspipes.pipes.PipeItemsInvSysConnector;
@@ -148,6 +149,7 @@ import logisticspipes.renderer.ItemModuleRenderer;
 import logisticspipes.renderer.LogisticsHUDRenderer;
 import logisticspipes.renderer.LogisticsPipeItemRenderer;
 import logisticspipes.renderer.PatternItemRenderer;
+import logisticspipes.renderer.PipeSideGridClient;
 import logisticspipes.renderer.newpipe.LogisticsNewRenderPipe;
 import logisticspipes.routing.RouterManager;
 import logisticspipes.routing.ServerRouter;
@@ -266,6 +268,8 @@ public class LogisticsPipes {
     public static Item logisticsNewRequestTable;
     public static Item logisticsRequestTableMk3;
     public static Item LogisticsFluidContainerFiller;
+    // created last, after the transport pipe, so the older pipes keep their registration order
+    public static Item LogisticsExtractorPipe;
 
     // Logistics Apiarist's Pipes
     public static Item LogisticsApiaristAnalyzerPipe;
@@ -348,6 +352,8 @@ public class LogisticsPipes {
 
         if (event.getSide().equals(Side.CLIENT)) {
             FMLCommonHandler.instance().bus().register(new RenderTickHandler());
+            // the shift + wrench grid on the face of a logistics pipe
+            MinecraftForge.EVENT_BUS.register(new PipeSideGridClient());
         }
         FMLCommonHandler.instance().bus().register(new QueuedTasks());
         if (event.getSide() == Side.CLIENT) {
@@ -774,6 +780,10 @@ public class LogisticsPipes {
                 side);
 
         LogisticsPipes.BasicTransportPipe = createPipe(PipeItemsBasicTransport.class, "Basic Transport Pipe", side);
+        LogisticsPipes.LogisticsExtractorPipe = createPipe(
+                PipeItemsExtractorLogistics.class,
+                "Extractor Logistics Pipe",
+                side);
     }
 
     protected Item createPipe(Class<? extends CoreUnroutedPipe> clas, String descr, Side side) {

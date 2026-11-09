@@ -54,6 +54,7 @@ public class Textures {
 
     public static TextureType LOGISTICSPIPE_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_PROVIDER_TEXTURE = Textures.empty;
+    public static TextureType LOGISTICSPIPE_EXTRACTOR_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_REQUESTER_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_CRAFTER_TEXTURE = Textures.empty;
     public static TextureType LOGISTICSPIPE_SATELLITE_TEXTURE = Textures.empty;
@@ -125,6 +126,7 @@ public class Textures {
     // Standalone pipes
     public static String LOGISTICSPIPE_TEXTURE_FILE = "pipes/basic";
     public static String LOGISTICSPIPE_PROVIDER_TEXTURE_FILE = "pipes/provider";
+    public static String LOGISTICSPIPE_EXTRACTOR_TEXTURE_FILE = "pipes/extractor";
     public static String LOGISTICSPIPE_PROVIDERMK2_TEXTURE_FILE = "pipes/provider_mk2";
     public static String LOGISTICSPIPE_REQUESTER_TEXTURE_FILE = "pipes/request";
     public static String LOGISTICSPIPE_REQUESTERMK2_TEXTURE_FILE = "pipes/request_mk2";
@@ -207,6 +209,9 @@ public class Textures {
         Textures.LOGISTICSPIPE_PROVIDER_TEXTURE = registerTexture(
                 par1IIconRegister,
                 Textures.LOGISTICSPIPE_PROVIDER_TEXTURE_FILE);
+        Textures.LOGISTICSPIPE_EXTRACTOR_TEXTURE = registerTexture(
+                par1IIconRegister,
+                Textures.LOGISTICSPIPE_EXTRACTOR_TEXTURE_FILE);
         Textures.LOGISTICSPIPE_POWERED_TEXTURE = registerTexture(
                 par1IIconRegister,
                 Textures.LOGISTICSPIPE_POWERED_TEXTURE_FILE,
