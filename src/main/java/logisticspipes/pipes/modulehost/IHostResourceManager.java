@@ -1,4 +1,4 @@
-package logisticspipes.pipes.chassis;
+package logisticspipes.pipes.modulehost;
 
 import java.util.Set;
 
@@ -13,10 +13,11 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
 /**
- * One kind of target a chassis works on, like the inventory it points at for item modules. The chassis asks its
- * managers what concerns all of them, the things only one kind of module needs stay on the manager itself.
+ * One kind of target the modules of a module host pipe work on, like the inventory next to the pipe for item modules.
+ * The host asks its managers what concerns all of them, the things only one kind of module needs stay on the manager
+ * itself.
  */
-public interface IChassisResourceManager {
+public interface IHostResourceManager {
 
     /**
      * @return true if the module belongs to this manager
@@ -24,12 +25,12 @@ public interface IChassisResourceManager {
     boolean ownsModule(LogisticsModule module);
 
     /**
-     * @return true if the chassis may point at that tile for this manager
+     * @return true if the pipe may work on that tile for this manager
      */
     boolean isValidTarget(TileEntity tile, ForgeDirection dir);
 
     /**
-     * @return true if the chassis points at something this manager works on, the modules of the manager only count then
+     * @return true if the pipe has a target this manager works on, the modules of the manager only count then
      */
     boolean isActive();
 
@@ -49,21 +50,21 @@ public interface IChassisResourceManager {
     CategoryInterests getCategoryInterests();
 
     /**
-     * Asked for an item that was sent to the chassis without naming a module, like after a world reload.
+     * Asked for an item that was sent to the pipe without naming a module, like after a world reload.
      *
      * @return true if this manager wants it
      */
     boolean wantsArrival(ItemIdentifierStack stack);
 
     /**
-     * Takes an item that reached the end of the chassis and is for this manager.
+     * Takes an item that reached the end of the pipe and is for this manager.
      *
-     * @return true if the item is handled, false lets it go into the inventory the chassis points at
+     * @return true if the item is handled, false lets it go into the inventory next to the pipe
      */
     boolean takeArrival(LPTravelingItemServer arrivingItem);
 
     /**
-     * Called on the server every tick the chassis is enabled.
+     * Called on the server every tick the pipe is enabled.
      */
     default void tick() {}
 
@@ -73,7 +74,7 @@ public interface IChassisResourceManager {
     default void onModulesChanged() {}
 
     /**
-     * Called on the server before the chassis is removed.
+     * Called on the server before the pipe is removed.
      */
     default void onRemoved() {}
 

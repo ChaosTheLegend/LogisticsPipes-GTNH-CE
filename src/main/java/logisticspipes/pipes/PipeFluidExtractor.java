@@ -1,83 +1,40 @@
 package logisticspipes.pipes;
 
-import java.util.List;
-
 import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraftforge.common.util.ForgeDirection;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.IFluidHandler;
 
-import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.api.IMUICompatiblePipeV2;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
+import logisticspipes.items.ItemModule;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
-import logisticspipes.transport.PipeFluidTransportLogistics;
-import logisticspipes.utils.AdjacentTile;
 
-public class PipeFluidExtractor extends PipeFluidInsertion {
-
-    private int[] liquidToExtract = new int[6];
-
-    private static final int flowRate = 500;
-    private static final int energyPerFlow = 5;
+/**
+ * Drains the tanks on every side and sends the fluid to the sinks in the network. The draining is done by its built-in
+ * fluid extractor module, the same one that goes into a chassis; fluid other pipes push into it is routed as by the
+ * insertion pipe.
+ * <p>
+ * Pipes saved before the module did the draining have "liquidToExtract" (a counter for the side tanks); it is ignored.
+ * Fluid still in the side tanks is sent on as before.
+ */
+public class PipeFluidExtractor extends PipeFluidInsertion implements IMUICompatiblePipeV2 {
 
     public PipeFluidExtractor(Item item) {
         super(item);
-    }
-
-    @Override
-    public void enabledUpdateEntity() {
-        super.enabledUpdateEntity();
-        if (!isNthTick(10)) {
-            return;
-        }
-        List<AdjacentTile> connected = getConnectedEntities();
-        for (AdjacentTile tile : connected) {
-            if (tile.tile instanceof IFluidHandler
-                    && SimpleServiceLocator.pipeInformationManager.isNotAPipe(tile.tile)) {
-                extractFrom((IFluidHandler) tile.tile, tile.orientation);
-            }
-        }
-    }
-
-    private void extractFrom(IFluidHandler container, ForgeDirection side) {
-        int i = side.ordinal();
-        FluidStack contained = ((PipeFluidTransportLogistics) transport).getTankInfo(side)[0].fluid;
-        int amountMissing = ((PipeFluidTransportLogistics) transport).getSideCapacity()
-                - (contained != null ? contained.amount : 0);
-        if (liquidToExtract[i] < Math.min(PipeFluidExtractor.flowRate, amountMissing)) {
-            if (this.useEnergy(PipeFluidExtractor.energyPerFlow)) {
-                liquidToExtract[i] += Math.min(PipeFluidExtractor.flowRate, amountMissing);
-            }
-        }
-        FluidStack extracted = container
-                .drain(side.getOpposite(), Math.min(liquidToExtract[i], PipeFluidExtractor.flowRate), false);
-
-        int inserted = 0;
-        if (extracted != null) {
-            inserted = ((PipeFluidTransportLogistics) transport).fill(side, extracted, true);
-            container.drain(side.getOpposite(), inserted, true);
-        }
-        liquidToExtract[i] -= inserted;
-    }
-
-    @Override
-    public void writeToNBT(NBTTagCompound nbttagcompound) {
-        super.writeToNBT(nbttagcompound);
-        nbttagcompound.setIntArray("liquidToExtract", liquidToExtract);
-    }
-
-    @Override
-    public void readFromNBT(NBTTagCompound nbttagcompound) {
-        super.readFromNBT(nbttagcompound);
-        liquidToExtract = nbttagcompound.getIntArray("liquidToExtract");
-        if (liquidToExtract.length < 6) {
-            liquidToExtract = new int[6];
-        }
+        hostModule(ItemModule.FLUID_EXTRACTOR);
     }
 
     @Override
     public TextureType getCenterTexture() {
         return Textures.LOGISTICSPIPE_LIQUID_EXTRACTOR;
+    }
+
+    /**
+     * The window of the built-in module, with its upgrades and the settings (sides, priority).
+     */
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromModule(this, (IMUICompatibleModule) getLogisticsModule());
     }
 }

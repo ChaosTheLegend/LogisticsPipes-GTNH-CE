@@ -1,215 +1,63 @@
 package logisticspipes.pipes;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeSet;
 
 import net.minecraft.item.Item;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidTankInfo;
-import net.minecraftforge.fluids.IFluidHandler;
 
-import logisticspipes.config.Configs;
-import logisticspipes.interfaces.ISpecialTankAccessHandler;
-import logisticspipes.interfaces.ISpecialTankHandler;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.api.IMUICompatiblePipeV2;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.interfaces.routing.IProvideFluids;
 import logisticspipes.interfaces.routing.IRequestFluid;
-import logisticspipes.logisticspipes.IRoutedItem;
-import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
+import logisticspipes.items.ItemModule;
 import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
 import logisticspipes.request.RequestTreeNode;
-import logisticspipes.request.resources.FluidResource;
 import logisticspipes.routing.FluidLogisticsPromise;
 import logisticspipes.routing.order.IOrderInfoProvider;
 import logisticspipes.routing.order.IOrderInfoProvider.ResourceType;
-import logisticspipes.routing.order.LogisticsFluidOrder;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.utils.FluidIdentifier;
-import logisticspipes.utils.item.ItemIdentifier;
-import logisticspipes.utils.item.ItemIdentifierStack;
-import logisticspipes.utils.tuples.Pair;
+import logisticspipes.utils.IHavePriority;
 
-public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids {
+/**
+ * Offers the fluid in the tanks on every side to requests from the network. Its built-in fluid provider module, the
+ * same one that goes into a chassis, makes the promises and sends the fluid; the pipe hands the requests to its module
+ * host. A tank with a special handler, like an ME interface, offers what the handler reports.
+ */
+public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids, IHavePriority, IMUICompatiblePipeV2 {
 
     public PipeFluidProvider(Item item) {
         super(item);
+        hostModule(ItemModule.FLUID_PROVIDER);
     }
 
-    @Override
-    public void enabledUpdateEntity() {
-        super.enabledUpdateEntity();
-        if (!getFluidOrderManager().hasOrders(ResourceType.PROVIDER) || !isNthTick(6)) {
-            return;
-        }
+    /*** IProvideFluids, answered by the module ***/
 
-        LogisticsFluidOrder order = getFluidOrderManager().peekAtTopRequest(ResourceType.PROVIDER);
-        int amountToSend, attemptedAmount;
-        amountToSend = attemptedAmount = Math
-                .min(order.getAmount(), Configs.MAX_LOGISTICS_FLUID_TRANSPORT_INNER_CAPACITY / 2);
-        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(false)) {
-            if (amountToSend <= 0) {
-                break;
-            }
-            boolean fallback = true;
-            if (SimpleServiceLocator.specialTankHandler.hasHandlerFor(pair.getValue1())) {
-                ISpecialTankHandler handler = SimpleServiceLocator.specialTankHandler
-                        .getTankHandlerFor(pair.getValue1());
-                if (handler instanceof ISpecialTankAccessHandler) {
-                    fallback = false;
-                    FluidStack drained = ((ISpecialTankAccessHandler) handler)
-                            .drainFrom(pair.getValue1(), order.getFluid(), amountToSend, false);
-                    if (drained != null && drained.amount > 0
-                            && order.getFluid().equals(FluidIdentifier.get(drained))) {
-                        drained = ((ISpecialTankAccessHandler) handler)
-                                .drainFrom(pair.getValue1(), order.getFluid(), amountToSend, true);
-                        int amount = drained.amount;
-                        amountToSend -= amount;
-                        ItemIdentifierStack stack = SimpleServiceLocator.logisticsFluidManager
-                                .getFluidContainer(drained);
-                        IRoutedItem item = SimpleServiceLocator.routedItemHelper.createNewTravelItem(stack);
-                        item.setDestination(order.getRouter().getSimpleID());
-                        item.setTransportMode(TransportMode.Active);
-                        item.setAdditionalTargetInformation(order.getInformation());
-                        this.queueRoutedItem(item, pair.getValue2());
-                        getFluidOrderManager().sendSuccessfull(amount, false, item);
-                        if (amountToSend <= 0) {
-                            break;
-                        }
-                    }
-                }
-            }
-            if (fallback) {
-                FluidTankInfo[] tanks = ((IFluidHandler) pair.getValue1()).getTankInfo(pair.getValue2().getOpposite());
-                if (tanks != null) {
-                    for (FluidTankInfo tank : tanks) {
-                        if (tank == null) {
-                            continue;
-                        }
-                        FluidStack liquid;
-                        if ((liquid = tank.fluid) != null && liquid.getFluidID() != 0) {
-                            if (order.getFluid().equals(FluidIdentifier.get(liquid))) {
-                                int amount = Math.min(liquid.amount, amountToSend);
-                                FluidStack drained = ((IFluidHandler) pair.getValue1())
-                                        .drain(pair.getValue2().getOpposite(), amount, false);
-                                if (drained != null && drained.amount > 0
-                                        && order.getFluid().equals(FluidIdentifier.get(drained))) {
-                                    drained = ((IFluidHandler) pair.getValue1())
-                                            .drain(pair.getValue2().getOpposite(), amount, true);
-                                    while (drained.amount < amountToSend) {
-                                        FluidStack addition = ((IFluidHandler) pair.getValue1()).drain(
-                                                pair.getValue2().getOpposite(),
-                                                amountToSend - drained.amount,
-                                                false);
-                                        if (addition != null && addition.amount > 0
-                                                && order.getFluid().equals(FluidIdentifier.get(addition))) {
-                                            addition = ((IFluidHandler) pair.getValue1()).drain(
-                                                    pair.getValue2().getOpposite(),
-                                                    amountToSend - drained.amount,
-                                                    true);
-                                            drained.amount += addition.amount;
-                                        } else {
-                                            break;
-                                        }
-                                    }
-                                    amount = drained.amount;
-                                    amountToSend -= amount;
-                                    ItemIdentifierStack stack = SimpleServiceLocator.logisticsFluidManager
-                                            .getFluidContainer(drained);
-                                    IRoutedItem item = SimpleServiceLocator.routedItemHelper.createNewTravelItem(stack);
-                                    item.setDestination(order.getRouter().getSimpleID());
-                                    item.setTransportMode(TransportMode.Active);
-                                    item.setAdditionalTargetInformation(order.getInformation());
-                                    this.queueRoutedItem(item, pair.getValue2());
-                                    getFluidOrderManager().sendSuccessfull(amount, false, item);
-                                    if (amountToSend <= 0) {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (amountToSend >= attemptedAmount) {
-            getFluidOrderManager().sendFailed();
-        }
+    @Override
+    public void canProvide(RequestTreeNode tree, RequestTree root, List<IFilter> filter) {
+        // the host also refuses behind a firewall that blocks providers
+        moduleHost.getFluidManager().canProvide(tree, root, filter);
     }
 
     @Override
     public Map<FluidIdentifier, Integer> getAvailableFluids() {
-        Map<FluidIdentifier, Integer> map = new HashMap<>();
-        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(false)) {
-            boolean fallback = true;
-            if (SimpleServiceLocator.specialTankHandler.hasHandlerFor(pair.getValue1())) {
-                ISpecialTankHandler handler = SimpleServiceLocator.specialTankHandler
-                        .getTankHandlerFor(pair.getValue1());
-                if (handler instanceof ISpecialTankAccessHandler) {
-                    fallback = false;
-                    Map<FluidIdentifier, Long> tmp = ((ISpecialTankAccessHandler) handler)
-                            .getAvailableLiquid(pair.getValue1());
-                    for (Entry<FluidIdentifier, Long> entry : tmp.entrySet()) {
-                        if (map.containsKey(entry.getKey())) {
-                            long addition = ((long) map.get(entry.getKey())) + entry.getValue();
-                            map.put(entry.getKey(), addition > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) addition);
-                        } else {
-                            map.put(
-                                    entry.getKey(),
-                                    entry.getValue() > Integer.MAX_VALUE ? Integer.MAX_VALUE
-                                            : (int) (long) entry.getValue());
-                        }
-                    }
-                }
-            }
-            if (fallback) {
-                FluidTankInfo[] tanks = ((IFluidHandler) pair.getValue1()).getTankInfo(pair.getValue2().getOpposite());
-                if (tanks != null) {
-                    for (FluidTankInfo tank : tanks) {
-                        if (tank == null) {
-                            continue;
-                        }
-                        FluidStack liquid;
-                        if ((liquid = tank.fluid) != null && liquid.getFluidID() != 0) {
-                            FluidIdentifier ident = FluidIdentifier.get(liquid);
-                            if (((IFluidHandler) pair.getValue1())
-                                    .canDrain(pair.getValue2().getOpposite(), liquid.getFluid())) {
-                                if (((IFluidHandler) pair.getValue1()).drain(pair.getValue2().getOpposite(), 1, false)
-                                        != null) {
-                                    if (map.containsKey(ident)) {
-                                        long addition = ((long) map.get(ident)) + tank.fluid.amount;
-                                        map.put(
-                                                ident,
-                                                addition > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) addition);
-                                    } else {
-                                        map.put(ident, tank.fluid.amount);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Map<FluidIdentifier, Integer> result = new HashMap<>();
-        // Reduce what has been reserved, add.
-        for (Entry<FluidIdentifier, Integer> fluid : map.entrySet()) {
-            int remaining = fluid.getValue() - getFluidOrderManager().totalFluidsCountInOrders(fluid.getKey());
-            if (remaining < 1) {
-                continue;
-            }
-            result.put(fluid.getKey(), remaining);
-        }
-        return result;
+        return moduleHost.getFluidManager().getAvailableFluids();
+    }
+
+    @Override
+    public IOrderInfoProvider fullFill(FluidLogisticsPromise promise, IRequestFluid destination, ResourceType type,
+            IAdditionalTargetInformation info) {
+        // promises are made by the module and come back to it, this is only the fallback
+        return moduleHost.getFluidManager().fullFill(promise, destination, type, info);
     }
 
     @Override
@@ -223,80 +71,6 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
     }
 
     @Override
-    public void canProvide(RequestTreeNode tree, RequestTree root, List<IFilter> filter) {
-        if (tree.isDone()) {
-            return;
-        }
-        if (!(tree.getRequestType() instanceof FluidResource)) {
-            return;
-        }
-        // FIXME this is a bandaid fix to fluid provider pipe being able to provide fluid across firewall bug
-        // a more long term solution would be to actually allow fluid to cross firewall boundary and have
-        // proper filtering, but for now this will make do
-        if (filter.stream().anyMatch(IFilter::blockProvider)) {
-            return;
-        }
-        FluidIdentifier fluid = ((FluidResource) tree.getRequestType()).getFluid();
-        int containedAmount = 0;
-        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(false)) {
-            boolean fallback = true;
-            if (SimpleServiceLocator.specialTankHandler.hasHandlerFor(pair.getValue1())) {
-                ISpecialTankHandler handler = SimpleServiceLocator.specialTankHandler
-                        .getTankHandlerFor(pair.getValue1());
-                if (handler instanceof ISpecialTankAccessHandler) {
-                    fallback = false;
-                    Map<FluidIdentifier, Long> map = ((ISpecialTankAccessHandler) handler)
-                            .getAvailableLiquid(pair.getValue1());
-                    if (map.containsKey(fluid)) {
-                        long addition = (containedAmount) + map.get(fluid);
-                        containedAmount = addition > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) addition;
-                    }
-                }
-            }
-            if (fallback) {
-                FluidTankInfo[] tanks = ((IFluidHandler) pair.getValue1()).getTankInfo(pair.getValue2().getOpposite());
-                if (tanks != null) {
-                    for (FluidTankInfo tank : tanks) {
-                        if (tank == null) {
-                            continue;
-                        }
-                        FluidStack liquid;
-                        if ((liquid = tank.fluid) != null && liquid.getFluidID() != 0) {
-                            if (fluid.equals(FluidIdentifier.get(liquid))) {
-                                if (((IFluidHandler) pair.getValue1())
-                                        .canDrain(pair.getValue2().getOpposite(), liquid.getFluid())) {
-                                    if (((IFluidHandler) pair.getValue1())
-                                            .drain(pair.getValue2().getOpposite(), 1, false) != null) {
-                                        long addition = ((long) containedAmount) + liquid.amount;
-                                        containedAmount = addition > Integer.MAX_VALUE ? Integer.MAX_VALUE
-                                                : (int) addition;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        int promiseAmount = Math.min(
-                tree.getMissingAmount(),
-                containedAmount - root.getAllPromissesFor(this, fluid.getItemIdentifier()));
-
-        FluidLogisticsPromise promise = new FluidLogisticsPromise(fluid, promiseAmount, this, ResourceType.PROVIDER);
-
-        if (promise.getAmount() > 0) {
-            tree.addPromise(promise);
-        }
-    }
-
-    @Override
-    public IOrderInfoProvider fullFill(FluidLogisticsPromise promise, IRequestFluid destination, ResourceType type,
-            IAdditionalTargetInformation info) {
-        return getFluidOrderManager().addOrder(promise, destination, type, info);
-    }
-
-    @Override
     public boolean canInsertToTanks() {
         return true;
     }
@@ -307,50 +81,23 @@ public class PipeFluidProvider extends FluidRoutedPipe implements IProvideFluids
     }
 
     @Override
-    // work in progress, currently not active code.
-    public Set<ItemIdentifier> getSpecificInterests() {
-        Set<ItemIdentifier> l1 = new TreeSet<>();
-        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(false)) {
-            boolean fallback = true;
-            if (SimpleServiceLocator.specialTankHandler.hasHandlerFor(pair.getValue1())) {
-                ISpecialTankHandler handler = SimpleServiceLocator.specialTankHandler
-                        .getTankHandlerFor(pair.getValue1());
-                if (handler instanceof ISpecialTankAccessHandler) {
-                    fallback = false;
-                    Map<FluidIdentifier, Long> map = ((ISpecialTankAccessHandler) handler)
-                            .getAvailableLiquid(pair.getValue1());
-                    for (FluidIdentifier ident : map.keySet()) {
-                        l1.add(ident.getItemIdentifier());
-                    }
-                }
-            }
-            if (fallback) {
-                FluidTankInfo[] tanks = ((IFluidHandler) pair.getValue1()).getTankInfo(pair.getValue2().getOpposite());
-                if (tanks != null) {
-                    for (FluidTankInfo tank : tanks) {
-                        if (tank == null) {
-                            continue;
-                        }
-                        FluidStack liquid;
-                        if ((liquid = tank.fluid) != null && liquid.getFluidID() != 0) {
-                            if (((IFluidHandler) pair.getValue1())
-                                    .canDrain(pair.getValue2().getOpposite(), liquid.getFluid())) {
-                                if (((IFluidHandler) pair.getValue1()).drain(pair.getValue2().getOpposite(), 1, false)
-                                        != null) {
-                                    FluidIdentifier ident = FluidIdentifier.get(liquid);
-                                    l1.add(ident.getItemIdentifier());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return l1;
-    }
-
-    @Override
     public boolean canReceiveFluid() {
         return false;
+    }
+
+    /**
+     * The priority of the built-in fluid provider: which provider a request asks first.
+     */
+    @Override
+    public int getPriority() {
+        return getLogisticsModule() == null ? 0 : getLogisticsModule().getPriority();
+    }
+
+    /**
+     * The window of the built-in module, with its upgrades and the settings (sides, priority).
+     */
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromModule(this, (IMUICompatibleModule) getLogisticsModule());
     }
 }

@@ -3,8 +3,11 @@ package logisticspipes.modules.abstractmodules;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.World;
 
@@ -14,6 +17,7 @@ import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IQueueCCEvent;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.interfaces.routing.ISaveState;
+import logisticspipes.pipes.upgrades.ModuleUpgradeManager;
 import logisticspipes.proxy.computers.interfaces.CCCommand;
 import logisticspipes.proxy.computers.interfaces.CCType;
 import logisticspipes.proxy.computers.interfaces.ILPCCTypeHolder;
@@ -51,6 +55,110 @@ public abstract class LogisticsModule implements ISaveState, ILPCCTypeHolder {
         return _service;
     }
 
+    // made on first use: most modules never get an upgrade
+    private ModuleUpgradeManager moduleUpgrades;
+
+    /**
+     * Player-set priority of a module that takes or provides things ({@link IPrioritizedModule}): between modules of
+     * the same kind the higher one wins, before distance.
+     */
+    public static final int MIN_PRIORITY = -10;
+    public static final int MAX_PRIORITY = 10;
+    // room between two priorities for a module's own custom priorities (the enchantment sink uses 0 and 1)
+    private static final int PRIORITY_STEP = 4;
+    private static final String PRIORITY_KEY = "priority";
+
+    private int priority = 0;
+    // reply -> the same reply with the priority added, built once per reply
+    private final Map<SinkReply, SinkReply> prioritizedReplies = new ConcurrentHashMap<>();
+
+    /**
+     * @return the priority that works: the one set while a priority upgrade is installed, else 0
+     */
+    public int getPriority() {
+        return hasPriorityUpgrade() ? priority : 0;
+    }
+
+    /**
+     * @return the priority set in the settings window, also while it doesn't work (no priority upgrade)
+     */
+    public int getSetPriority() {
+        return priority;
+    }
+
+    /**
+     * @return true if the upgrades the module uses hold a priority upgrade
+     */
+    public boolean hasPriorityUpgrade() {
+        if (_service != null && slot != null) {
+            return _service.getUpgradeManager(slot, positionInt).hasPriorityUpgrade();
+        }
+        return moduleUpgrades != null && moduleUpgrades.hasPriorityUpgrade();
+    }
+
+    public void setPriority(int priority) {
+        int clamped = Math.max(MIN_PRIORITY, Math.min(MAX_PRIORITY, priority));
+        if (clamped != this.priority) {
+            this.priority = clamped;
+            prioritizedReplies.clear();
+        }
+    }
+
+    /**
+     * @return the reply with the module's priority added to its custom priority; the reply itself at priority 0
+     */
+    protected SinkReply prioritized(SinkReply reply) {
+        // the cached replies carry the set priority; without the upgrade it is 0
+        if (reply == null || getPriority() == 0) {
+            return reply;
+        }
+        return prioritizedReplies
+                .computeIfAbsent(reply, r -> r.withCustomPriority(r.customPriority + PRIORITY_STEP * priority));
+    }
+
+    protected void readPriority(NBTTagCompound nbt) {
+        priority = 0;
+        setPriority(nbt.getInteger(PRIORITY_KEY));
+    }
+
+    protected void writePriority(NBTTagCompound nbt) {
+        if (priority != 0) {
+            nbt.setInteger(PRIORITY_KEY, priority);
+        }
+    }
+
+    /**
+     * @return the upgrades of this module. They belong to the module: they stay with it when it is taken out of its
+     *         pipe and are saved with its settings.
+     */
+    public ModuleUpgradeManager getModuleUpgrades() {
+        if (moduleUpgrades == null) {
+            moduleUpgrades = new ModuleUpgradeManager();
+        }
+        return moduleUpgrades;
+    }
+
+    /**
+     * @return the speed upgrades that count for this module, up to {@link ModuleUpgradeManager#MAX_SPEED_UPGRADES}
+     */
+    public int getSpeedLevel() {
+        return Math.min(ModuleUpgradeManager.MAX_SPEED_UPGRADES, getModuleUpgrades().getSpeedUpgradeCount());
+    }
+
+    /**
+     * @return true if the module holds an upgrade
+     */
+    public boolean hasModuleUpgrades() {
+        return moduleUpgrades != null && !moduleUpgrades.isEmpty();
+    }
+
+    /**
+     * @return true if the module's upgrades have something to save: an upgrade or the sneaky faces set in the window
+     */
+    public boolean hasModuleUpgradeData() {
+        return hasModuleUpgrades() || (moduleUpgrades != null && moduleUpgrades.getSneakyFaces().length > 0);
+    }
+
     @Getter
     protected ModulePositionType slot;
 
@@ -63,6 +171,8 @@ public abstract class LogisticsModule implements ISaveState, ILPCCTypeHolder {
     public void registerPosition(ModulePositionType slot, int positionInt) {
         this.slot = slot;
         this.positionInt = positionInt;
+        // modules build new replies here, the old ones would stay cached forever
+        prioritizedReplies.clear();
     }
 
     public enum ModulePositionType {

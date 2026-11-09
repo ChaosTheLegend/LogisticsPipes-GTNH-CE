@@ -2,19 +2,15 @@ package logisticspipes.network.guis.pipe;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
 
-import logisticspipes.LogisticsPipes;
 import logisticspipes.gui.GuiChassiPipe;
-import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.network.abstractguis.BooleanModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.GuiProvider;
+import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
-import logisticspipes.pipes.upgrades.ModuleUpgradeManager;
 import logisticspipes.utils.gui.DummyContainer;
 
-public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
+public class ChassiGuiProvider extends ModuleCoordinatesGuiProvider {
 
     public ChassiGuiProvider(int id) {
         super(id);
@@ -26,7 +22,7 @@ public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
         if (pipe == null || !(pipe.pipe instanceof PipeLogisticsChassi)) {
             return null;
         }
-        return new GuiChassiPipe(player, (PipeLogisticsChassi) pipe.pipe, isFlag());
+        return new GuiChassiPipe(player, (PipeLogisticsChassi) pipe.pipe);
     }
 
     @Override
@@ -61,40 +57,8 @@ public class ChassiGuiProvider extends BooleanModuleCoordinatesGuiProvider {
             dummy.addModuleSlot(6, _moduleInventory, 19, 129, _chassiPipe);
             dummy.addModuleSlot(7, _moduleInventory, 19, 149, _chassiPipe);
         }
-
-        if (_chassiPipe.getUpgradeManager().hasUpgradeModuleUpgrade()) {
-            for (int i = 0; i < _chassiPipe.getChassiSize(); i++) {
-                final int fI = i;
-                ModuleUpgradeManager upgradeManager = _chassiPipe.getModuleUpgradeManager(i);
-                dummy.addRestrictedSlot(
-                        0,
-                        upgradeManager.getInv(),
-                        145,
-                        9 + i * 20,
-                        itemStack -> ChassiGuiProvider.checkStack(itemStack, _chassiPipe, fI));
-                dummy.addRestrictedSlot(
-                        1,
-                        upgradeManager.getInv(),
-                        165,
-                        9 + i * 20,
-                        itemStack -> ChassiGuiProvider.checkStack(itemStack, _chassiPipe, fI));
-            }
-        }
+        // module upgrades are in the chassis MUI only
         return dummy;
-    }
-
-    public static boolean checkStack(ItemStack stack, PipeLogisticsChassi chassiPipe, int moduleSlot) {
-        if (stack == null) {
-            return false;
-        }
-        if (!stack.getItem().equals(LogisticsPipes.UpgradeItem)) {
-            return false;
-        }
-        LogisticsModule module = chassiPipe.getModules().getModule(moduleSlot);
-        if (module == null) {
-            return false;
-        }
-        return LogisticsPipes.UpgradeItem.getUpgradeForItem(stack, null).isAllowedForModule(module);
     }
 
     @Override

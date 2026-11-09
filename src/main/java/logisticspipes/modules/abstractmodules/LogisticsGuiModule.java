@@ -9,6 +9,13 @@ public abstract class LogisticsGuiModule extends LogisticsModule {
 
     protected abstract ModuleInHandGuiProvider getInHandGuiProvider();
 
+    /**
+     * @return true if the module has an old (non-ModularUI) GUI to open in its pipe
+     */
+    public boolean hasLegacyPipeGui() {
+        return getPipeGuiProvider() != null;
+    }
+
     public final ModuleCoordinatesGuiProvider getPipeGuiProviderForModule() {
         return getPipeGuiProvider().setSlot(slot).setPositionInt(positionInt);
     }

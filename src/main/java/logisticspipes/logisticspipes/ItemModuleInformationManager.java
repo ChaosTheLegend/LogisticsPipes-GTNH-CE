@@ -13,9 +13,15 @@ import net.minecraft.nbt.NBTTagString;
 
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
+import logisticspipes.pipes.upgrades.ModuleUpgradeManager;
 import logisticspipes.proxy.MainProxy;
 
 public class ItemModuleInformationManager {
+
+    /**
+     * Prefix of the module's own upgrades inside its saved settings, in a module item and in a module host slot.
+     */
+    public static final String MODULE_UPGRADES_PREFIX = "module";
 
     private static final List<String> Filter = new ArrayList<>();
 
@@ -31,7 +37,15 @@ public class ItemModuleInformationManager {
         }
         NBTTagCompound nbt = new NBTTagCompound();
         module.writeToNBT(nbt);
+        if (module.hasModuleUpgradeData()) {
+            module.getModuleUpgrades().writeToNBT(nbt, MODULE_UPGRADES_PREFIX);
+        }
         if (nbt.equals(new NBTTagCompound())) {
+            // nothing to save: what the item still carries is stale, e.g. upgrades the module no longer holds
+            if (!MainProxy.isClient() && itemStack.hasTagCompound()) {
+                itemStack.getTagCompound().removeTag("moduleInformation");
+                itemStack.getTagCompound().removeTag("informationList");
+            }
             return;
         }
         if (MainProxy.isClient()) {
@@ -75,6 +89,9 @@ public class ItemModuleInformationManager {
             if (nbt.hasKey("moduleInformation")) {
                 NBTTagCompound moduleInformation = nbt.getCompoundTag("moduleInformation");
                 module.readFromNBT(moduleInformation);
+                if (ModuleUpgradeManager.hasUpgradesInNBT(moduleInformation, MODULE_UPGRADES_PREFIX)) {
+                    module.getModuleUpgrades().readFromNBT(moduleInformation, MODULE_UPGRADES_PREFIX);
+                }
             }
         }
     }

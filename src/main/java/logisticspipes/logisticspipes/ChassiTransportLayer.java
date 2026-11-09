@@ -5,7 +5,7 @@ import net.minecraftforge.common.util.ForgeDirection;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.PipeLogisticsChassi;
-import logisticspipes.pipes.chassis.ChassisFluidManager;
+import logisticspipes.pipes.modulehost.FluidHostResourceManager;
 import logisticspipes.utils.SinkReply;
 
 public class ChassiTransportLayer extends TransportLayer {
@@ -29,7 +29,7 @@ public class ChassiTransportLayer extends TransportLayer {
         // fluid is not checked against the item sinks: what the tank can't take is sent on when it arrives
         IAdditionalTargetInformation info = item.getInfo() == null ? null : item.getInfo().targetInfo;
         if (item.getItemIdentifierStack() != null
-                && _chassiPipe.getManagerFor(item.getItemIdentifierStack(), info) instanceof ChassisFluidManager) {
+                && _chassiPipe.getManagerFor(item.getItemIdentifierStack(), info) instanceof FluidHostResourceManager) {
             return true;
         }
         LogisticsModule module = _chassiPipe.getLogisticsModule();

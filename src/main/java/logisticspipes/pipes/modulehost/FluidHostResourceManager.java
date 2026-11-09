@@ -1,14 +1,14 @@
-package logisticspipes.pipes.chassis;
+package logisticspipes.pipes.modulehost;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -32,8 +32,6 @@ import logisticspipes.modules.ModuleFluidTankSupplier;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
-import logisticspipes.pipes.PipeLogisticsChassi;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.fluid.PendingFluids;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
@@ -52,24 +50,26 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
 /**
- * The tank a chassis points at and the fluid modules that work on it. Fluid arrives and leaves as fluid container items
- * over the normal item transport, and the modules fill and drain the tank directly, so the chassis has no tanks of its
- * own. Without a fluid module this manager takes nothing and offers nothing.
+ * The tank a module host pipe works on and the fluid modules that work on it. Fluid arrives and leaves as fluid
+ * container items over the normal item transport, and the modules fill and drain the tank directly, so the pipe has no
+ * tanks of its own. Without a fluid module this manager takes nothing and offers nothing.
  */
-public class ChassisFluidManager implements IChassisResourceManager {
+public class FluidHostResourceManager implements IHostResourceManager {
 
     private static final int TICKS_PER_PENDING_RETRY = 20;
     private static final String PENDING_KEY = "pendingFluids";
 
-    private final PipeLogisticsChassi pipe;
+    private final IModuleHostPipe pipe;
+    private final ModuleHost host;
 
     // fluid that arrived but didn't fit into the tank, waiting for the tank or another sink in the network
     private final PendingFluids pendingFluids = new PendingFluids();
 
     private boolean hasModules;
 
-    public ChassisFluidManager(PipeLogisticsChassi pipe) {
+    public FluidHostResourceManager(IModuleHostPipe pipe, ModuleHost host) {
         this.pipe = pipe;
+        this.host = host;
     }
 
     /**
@@ -89,15 +89,15 @@ public class ChassisFluidManager implements IChassisResourceManager {
         boolean had = hasModules;
         hasModules = !getModules(LogisticsFluidModule.class).isEmpty();
         // the chassis looks like a fluid pipe while it has a fluid module
-        if (had != hasModules && pipe.container != null) {
+        if (had != hasModules && pipe.getContainer() != null) {
             pipe.refreshRender(false);
         }
     }
 
     private <T> List<T> getModules(Class<T> type) {
         List<T> list = new ArrayList<>();
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
-            LogisticsModule module = pipe.getModules().getSubModule(i);
+        for (int i = 0; i < host.getSlotCount(); i++) {
+            LogisticsModule module = host.getModule(i);
             if (type.isInstance(module)) {
                 list.add(type.cast(module));
             }
@@ -128,31 +128,43 @@ public class ChassisFluidManager implements IChassisResourceManager {
 
     @Override
     public boolean isActive() {
-        return hasModules && getTargetTile() != null;
+        return hasModules && hasTarget();
     }
 
     /**
-     * @return the tile the chassis points at if it holds fluid, else null
+     * @return true if one of the pipe's target sides has a tank
      */
-    public TileEntity getTargetTile() {
-        ForgeDirection pointed = pipe.getPointedOrientation();
-        if (pointed == null || pointed == ForgeDirection.UNKNOWN || pipe.getContainer() == null) {
-            return null;
+    public boolean hasTarget() {
+        if (pipe.getContainer() == null) {
+            return false;
         }
-        TileEntity tile = pipe.getContainer().getTile(pointed);
-        return isFluidTarget(tile) ? tile : null;
+        for (ForgeDirection dir : pipe.getTargetDirections()) {
+            if (isValidTarget(pipe.getContainer().getTile(dir), dir)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
-     * @return the side of the target tile the module in that slot fills and drains
+     * @return the tanks the module in that slot works on: the tank on each target side of the pipe, filled and drained
+     *         from the side facing the pipe, or from the sneaky side of the module's upgrade
      */
-    public ForgeDirection getTargetSide(int moduleSlot) {
+    public List<FluidTarget> getTargets(int moduleSlot) {
+        List<FluidTarget> targets = new ArrayList<>();
+        if (pipe.getContainer() == null) {
+            return targets;
+        }
         ISlotUpgradeManager manager = pipe.getUpgradeManager(ModulePositionType.SLOT, moduleSlot);
-        if (manager.hasSneakyUpgrade() && manager.getSneakyOrientation() != null) {
-            return manager.getSneakyOrientation();
+        // fluid modules use the first sneaky face only; item modules use all of them
+        ForgeDirection sneaky = manager.hasSneakyUpgrade() ? manager.getSneakyOrientation() : null;
+        for (ForgeDirection dir : pipe.getTargetDirections()) {
+            TileEntity tile = pipe.getContainer().getTile(dir);
+            if (isValidTarget(tile, dir)) {
+                targets.add(new FluidTarget(tile, sneaky != null ? sneaky : dir.getOpposite()));
+            }
         }
-        ForgeDirection pointed = pipe.getPointedOrientation();
-        return pointed == null ? ForgeDirection.UNKNOWN : pointed.getOpposite();
+        return targets;
     }
 
     @Override
@@ -165,13 +177,14 @@ public class ChassisFluidManager implements IChassisResourceManager {
     /*** modules ***/
 
     /**
-     * @return one provider module per side of the tank, so two modules on the same tank don't offer its content twice
+     * @return one provider module per set of tanks and sides, so two modules on the same tank don't offer its content
+     *         twice
      */
     private List<ModuleFluidProvider> getProviders() {
         List<ModuleFluidProvider> list = new ArrayList<>();
-        Set<ForgeDirection> sides = new TreeSet<>();
+        Set<List<FluidTarget>> seen = new HashSet<>();
         for (ModuleFluidProvider provider : getModules(ModuleFluidProvider.class)) {
-            if (sides.add(provider.getTankSide())) {
+            if (seen.add(getTargets(provider.getPositionInt()))) {
                 list.add(provider);
             }
         }
@@ -182,8 +195,8 @@ public class ChassisFluidManager implements IChassisResourceManager {
      * @return the module that fluid arriving here is for
      */
     private LogisticsFluidModule getModuleFor(IAdditionalTargetInformation info, FluidStack liquid) {
-        if (info instanceof ChassiTargetInformation target
-                && pipe.getModules().getSubModule(target.getModuleSlot()) instanceof LogisticsFluidModule module) {
+        if (info instanceof ModuleSlotTargetInformation target
+                && host.getModule(target.getModuleSlot()) instanceof LogisticsFluidModule module) {
             return module;
         }
         List<ModuleFluidSink> sinks = getModules(ModuleFluidSink.class);
@@ -321,8 +334,8 @@ public class ChassisFluidManager implements IChassisResourceManager {
     }
 
     private ModuleFluidContainerSink getContainerSinkFor(IAdditionalTargetInformation info, FluidStack fluid) {
-        if (info instanceof ChassiTargetInformation target
-                && pipe.getModules().getSubModule(target.getModuleSlot()) instanceof ModuleFluidContainerSink module) {
+        if (info instanceof ModuleSlotTargetInformation target
+                && host.getModule(target.getModuleSlot()) instanceof ModuleFluidContainerSink module) {
             return module;
         }
         for (ModuleFluidContainerSink sink : getModules(ModuleFluidContainerSink.class)) {
@@ -341,7 +354,7 @@ public class ChassisFluidManager implements IChassisResourceManager {
             ItemStack stack = prototype.copy();
             stack.stackSize = Math.min(amount, Math.max(1, stack.getMaxStackSize()));
             amount -= stack.stackSize;
-            pipe.transport.sendItem(stack);
+            pipe.sendItem(stack);
         }
     }
 
@@ -396,7 +409,11 @@ public class ChassisFluidManager implements IChassisResourceManager {
             return 0;
         }
         int amount = getSinkAmount(stack, true);
-        return amount > 0 ? amount : getSinkAmount(stack, false);
+        if (amount <= 0) {
+            amount = getSinkAmount(stack, false);
+        }
+        // what waits at the pipe for room has its place in the tank already
+        return (int) Math.max(0, amount - pendingFluids.getAmount(FluidIdentifier.get(stack)));
     }
 
     public FixedPriority getFluidSinkPriority(FluidStack stack) {
@@ -409,6 +426,24 @@ public class ChassisFluidManager implements IChassisResourceManager {
             }
         }
         return FixedPriority.DefaultRoute;
+    }
+
+    /**
+     * @return the highest priority of the fluid sinks that take the fluid the way {@link #getFluidSinkPriority} says:
+     *         by their filter, else as a default route
+     */
+    public int getFluidSinkCustomPriority(FluidStack stack) {
+        if (!hasModules) {
+            return 0;
+        }
+        boolean filtered = getFluidSinkPriority(stack) != FixedPriority.DefaultRoute;
+        int best = Integer.MIN_VALUE;
+        for (ModuleFluidSink sink : getModules(ModuleFluidSink.class)) {
+            if (filtered ? sink.getFilter().contains(stack) : sink.isDefaultRoute()) {
+                best = Math.max(best, sink.getPriority());
+            }
+        }
+        return best == Integer.MIN_VALUE ? 0 : best;
     }
 
     /*** IProvideFluids ***/
@@ -430,8 +465,8 @@ public class ChassisFluidManager implements IChassisResourceManager {
     public int getReservedFluid(FluidIdentifier fluid) {
         // asked once for each fluid of the tank, so no list of the modules is made
         long reserved = 0;
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
-            if (pipe.getModules().getSubModule(i) instanceof IFluidReserver module) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
+            if (host.getModule(i) instanceof IFluidReserver module) {
                 reserved += module.getReservedAmount(fluid);
             }
         }

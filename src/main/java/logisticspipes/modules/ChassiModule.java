@@ -13,7 +13,6 @@ import logisticspipes.interfaces.IModuleInventory;
 import logisticspipes.interfaces.IModuleInventoryOverride;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
-import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
@@ -21,8 +20,8 @@ import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.pipe.ChassiGuiProvider;
 import logisticspipes.pipes.PipeLogisticsChassi;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
-import logisticspipes.proxy.MainProxy;
+import logisticspipes.pipes.modulehost.ModuleHost;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.computers.objects.CCSinkResponder;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -30,47 +29,34 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 
 public class ChassiModule extends LogisticsGuiModule {
 
-    private final LogisticsModule[] _modules;
     private final PipeLogisticsChassi _parentPipe;
+    private final ModuleHost host;
 
-    public ChassiModule(int moduleCount, PipeLogisticsChassi parentPipe) {
-        _modules = new LogisticsModule[moduleCount];
+    public ChassiModule(PipeLogisticsChassi parentPipe, ModuleHost host) {
         _parentPipe = parentPipe;
+        this.host = host;
         _service = parentPipe;
         registerPosition(ModulePositionType.IN_PIPE, 0);
     }
 
-    public void installModule(int slot, LogisticsModule module) {
-        if (_modules[slot] != module) {
-            notifyRemoved(_modules[slot]);
-        }
-        _modules[slot] = module;
-    }
-
     public void removeModule(int slot) {
-        notifyRemoved(_modules[slot]);
-        _modules[slot] = null;
-    }
-
-    private void notifyRemoved(LogisticsModule module) {
-        if (module instanceof LogisticsFluidModule fluidModule && MainProxy.isServer(_parentPipe.getWorld())) {
-            fluidModule.onRemoved();
-        }
+        host.removeModule(slot);
     }
 
     public LogisticsModule getModule(int slot) {
-        return _modules[slot];
+        return host.getModule(slot);
     }
 
     public boolean hasModule(int slot) {
-        return (_modules[slot] != null);
+        return host.hasModule(slot);
     }
 
     @Override
     public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault,
             boolean includeInTransit) {
         SinkReply bestresult = null;
-        for (LogisticsModule module : _modules) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
+            LogisticsModule module = host.getModule(i);
             if (module != null) {
                 SinkReply result = module
                         .sinksItem(item, bestPriority, bestCustomPriority, allowDefault, includeInTransit);
@@ -86,8 +72,8 @@ public class ChassiModule extends LogisticsGuiModule {
             return null;
         }
         // Always deny items when we can't put the item anywhere
-        int moduleSlot = ((ChassiTargetInformation) bestresult.addInfo).getModuleSlot();
-        if (_modules[moduleSlot] instanceof IInventorylessSink) {
+        int moduleSlot = ((ModuleSlotTargetInformation) bestresult.addInfo).getModuleSlot();
+        if (host.getModule(moduleSlot) instanceof IInventorylessSink) {
             // the module takes the item itself and answered for its room already
             return bestresult;
         }
@@ -128,7 +114,8 @@ public class ChassiModule extends LogisticsGuiModule {
 
     @Override
     public void insertionFailed(ItemIdentifier item) {
-        for (LogisticsModule module : _modules) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
+            LogisticsModule module = host.getModule(i);
             if (module != null) {
                 module.insertionFailed(item);
             }
@@ -137,43 +124,19 @@ public class ChassiModule extends LogisticsGuiModule {
 
     @Override
     public LogisticsModule getSubModule(int slot) {
-        if (slot < 0 || slot >= _modules.length) {
-            return null;
-        }
-        return _modules[slot];
+        return host.getModule(slot);
     }
 
+    // the module host saves and loads the modules of the slots (same "slot<i>" keys as before)
     @Override
-    public void readFromNBT(NBTTagCompound nbttagcompound) {
-        for (int i = 0; i < _modules.length; i++) {
-            if (_modules[i] != null) {
-                NBTTagCompound slot = nbttagcompound.getCompoundTag("slot" + i);
-                if (slot != null) {
-                    _modules[i].readFromNBT(slot);
-                }
-            }
-        }
-    }
+    public void readFromNBT(NBTTagCompound nbttagcompound) {}
 
     @Override
-    public void writeToNBT(NBTTagCompound nbttagcompound) {
-        for (int i = 0; i < _modules.length; i++) {
-            if (_modules[i] != null) {
-                NBTTagCompound slot = new NBTTagCompound();
-                _modules[i].writeToNBT(slot);
-                nbttagcompound.setTag("slot" + i, slot);
-            }
-        }
-    }
+    public void writeToNBT(NBTTagCompound nbttagcompound) {}
 
     @Override
     public void tick() {
-        for (LogisticsModule module : _modules) {
-            if (module == null) {
-                continue;
-            }
-            module.tick();
-        }
+        host.tickModules();
     }
 
     @Override
@@ -203,7 +166,8 @@ public class ChassiModule extends LogisticsGuiModule {
 
     @Override
     public boolean recievePassive() {
-        for (LogisticsModule module : _modules) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
+            LogisticsModule module = host.getModule(i);
             if (module != null && module.recievePassive()) {
                 return true;
             }
@@ -214,7 +178,8 @@ public class ChassiModule extends LogisticsGuiModule {
     @Override
     public List<CCSinkResponder> queueCCSinkEvent(ItemIdentifierStack item) {
         List<CCSinkResponder> list = new ArrayList<>();
-        for (LogisticsModule module : _modules) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
+            LogisticsModule module = host.getModule(i);
             if (module != null) {
                 list.addAll(module.queueCCSinkEvent(item));
             }
@@ -230,8 +195,7 @@ public class ChassiModule extends LogisticsGuiModule {
 
     @Override
     protected ModuleCoordinatesGuiProvider getPipeGuiProvider() {
-        return NewGuiHandler.getGui(ChassiGuiProvider.class)
-                .setFlag(_parentPipe.getUpgradeManager().hasUpgradeModuleUpgrade());
+        return NewGuiHandler.getGui(ChassiGuiProvider.class);
     }
 
     @Override

@@ -1,4 +1,4 @@
-package logisticspipes.pipes.chassis;
+package logisticspipes.pipes.modulehost;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -18,7 +18,6 @@ import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipefxhandlers.Particles;
-import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.ICraftingTemplate;
@@ -38,21 +37,23 @@ import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
 /**
- * The inventory a chassis points at and the item modules that work on it: providing, crafting and the interests in
- * items.
+ * The inventory a module host pipe works on and the item modules that work on it: providing, crafting and the interests
+ * in items.
  */
-public class ChassisItemManager implements IChassisResourceManager {
+public class ItemHostResourceManager implements IHostResourceManager {
 
-    private final PipeLogisticsChassi pipe;
+    private final IModuleHostPipe pipe;
+    private final ModuleHost host;
 
     private final LinkedList<LogisticsOrder> extras = new LinkedList<>();
 
-    public ChassisItemManager(PipeLogisticsChassi pipe) {
+    public ItemHostResourceManager(IModuleHostPipe pipe, ModuleHost host) {
         this.pipe = pipe;
+        this.host = host;
     }
 
     private LogisticsModule getModule(int slot) {
-        return pipe.getModules().getSubModule(slot);
+        return host.getModule(slot);
     }
 
     @Override
@@ -65,7 +66,7 @@ public class ChassisItemManager implements IChassisResourceManager {
         if (SimpleServiceLocator.pipeInformationManager.isItemPipe(tile)) {
             return false;
         }
-        return MainProxy.checkPipesConnections(pipe.container, tile, dir);
+        return MainProxy.checkPipesConnections(pipe.getContainer(), tile, dir);
     }
 
     @Override
@@ -75,7 +76,7 @@ public class ChassisItemManager implements IChassisResourceManager {
 
     @Override
     public void onRemoved() {
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ILegacyActiveModule module) {
                 module.onBlockRemoval();
             }
@@ -86,7 +87,7 @@ public class ChassisItemManager implements IChassisResourceManager {
 
     @Override
     public void addSpecificInterests(Set<ItemIdentifier> interests) {
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             LogisticsModule module = getModule(i);
             if (module != null && ownsModule(module) && module.interestedInAttachedInventory()) {
                 IInventoryUtil inv = pipe.getSneakyInventory(false, module.getSlot(), module.getPositionInt());
@@ -109,7 +110,7 @@ public class ChassisItemManager implements IChassisResourceManager {
                 break; // no need to check other modules for interest in the inventory, when we know that 1 already is.
             }
         }
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             LogisticsModule module = getModule(i);
             if (module != null && ownsModule(module)) {
                 Collection<ItemIdentifier> current = module.getSpecificInterests();
@@ -122,7 +123,7 @@ public class ChassisItemManager implements IChassisResourceManager {
 
     @Override
     public boolean hasGenericInterests() {
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             LogisticsModule module = getModule(i);
             if (module != null && ownsModule(module) && module.hasGenericInterests()) {
                 return true;
@@ -134,7 +135,7 @@ public class ChassisItemManager implements IChassisResourceManager {
     @Override
     public CategoryInterests getCategoryInterests() {
         CategoryInterests interests = CategoryInterests.EMPTY;
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             LogisticsModule module = getModule(i);
             if (module != null && ownsModule(module)) {
                 interests = interests.merge(module.getCategoryInterests());
@@ -147,7 +148,7 @@ public class ChassisItemManager implements IChassisResourceManager {
 
     @Override
     public boolean wantsArrival(ItemIdentifierStack stack) {
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             LogisticsModule module = getModule(i);
             if (module != null && ownsModule(module)) {
                 SinkReply reply = module.sinksItem(stack.getItem(), -1, 0, true, false);
@@ -176,7 +177,7 @@ public class ChassisItemManager implements IChassisResourceManager {
                 return;
             }
         }
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ILegacyActiveModule module) {
                 module.canProvide(tree, root, filters);
             }
@@ -188,7 +189,7 @@ public class ChassisItemManager implements IChassisResourceManager {
         if (!pipe.isEnabled()) {
             return null;
         }
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ILegacyActiveModule module) {
                 LogisticsOrder result = module.fullFill(promise, destination, info);
                 if (result != null) {
@@ -204,7 +205,7 @@ public class ChassisItemManager implements IChassisResourceManager {
         if (!pipe.isEnabled()) {
             return;
         }
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ILegacyActiveModule module) {
                 module.getAllItems(list, filter);
             }
@@ -222,19 +223,17 @@ public class ChassisItemManager implements IChassisResourceManager {
     }
 
     public ICraftingTemplate addCrafting(IResource toCraft) {
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ICraftItems crafter && crafter.canCraft(toCraft)) {
                 return crafter.addCrafting(toCraft);
             }
         }
         return null;
-
-        // trixy code goes here to ensure the right crafter answers the right request
     }
 
     public List<ItemIdentifierStack> getConfiguredCraftResults() {
         List<ItemIdentifierStack> craftables = null;
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ICraftItems crafter) {
                 if (craftables == null) {
                     craftables = new LinkedList<>();
@@ -246,7 +245,7 @@ public class ChassisItemManager implements IChassisResourceManager {
     }
 
     public boolean canCraft(IResource toCraft) {
-        for (int i = 0; i < pipe.getChassiSize(); i++) {
+        for (int i = 0; i < host.getSlotCount(); i++) {
             if (getModule(i) instanceof ICraftItems crafter && crafter.canCraft(toCraft)) {
                 return true;
             }

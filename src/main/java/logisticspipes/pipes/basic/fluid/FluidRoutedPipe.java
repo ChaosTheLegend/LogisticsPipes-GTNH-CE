@@ -1,8 +1,11 @@
 package logisticspipes.pipes.basic.fluid;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NBTTagCompound;
@@ -14,13 +17,16 @@ import net.minecraftforge.fluids.IFluidHandler;
 
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IFluidContainerReceiver;
+import logisticspipes.interfaces.IFluidModuleHost;
 import logisticspipes.interfaces.routing.IRequireReliableFluidTransport;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
+import logisticspipes.pipes.modulehost.FluidTarget;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.order.LogisticsFluidOrderManager;
 import logisticspipes.routing.order.LogisticsOrderManager;
 import logisticspipes.textures.Textures;
@@ -32,9 +38,15 @@ import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.FluidSendUtil;
 import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.WorldUtil;
+import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.tuples.Pair;
 
-public abstract class FluidRoutedPipe extends CoreRoutedPipe implements IFluidContainerReceiver {
+/**
+ * Base of the fluid pipes. A fluid pipe that is one module (see {@code CoreRoutedPipe#hostModule(int)}) runs on a
+ * module host: its built-in fluid module does the work, on the tanks on every side of the pipe, and arriving fluid goes
+ * to the module.
+ */
+public abstract class FluidRoutedPipe extends CoreRoutedPipe implements IFluidContainerReceiver, IFluidModuleHost {
 
     private static final int TICKS_PER_PENDING_RETRY = 5;
 
@@ -102,7 +114,41 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe implements IFluidCo
 
     @Override
     public LogisticsModule getLogisticsModule() {
-        return null;
+        return hostedModule();
+    }
+
+    /*** interests of the built-in module ***/
+
+    @Override
+    public Set<ItemIdentifier> getSpecificInterests() {
+        if (moduleHost == null) {
+            return super.getSpecificInterests();
+        }
+        Set<ItemIdentifier> interests = new TreeSet<>();
+        moduleHost.addSpecificInterests(interests);
+        return interests;
+    }
+
+    @Override
+    public boolean hasGenericInterests() {
+        return moduleHost == null ? super.hasGenericInterests() : moduleHost.hasGenericInterests();
+    }
+
+    @Override
+    public CategoryInterests getCategoryInterests() {
+        return moduleHost == null ? super.getCategoryInterests() : moduleHost.getCategoryInterests();
+    }
+
+    /*** IFluidModuleHost ***/
+
+    @Override
+    public List<FluidTarget> getFluidTargets(int moduleSlot) {
+        return moduleHost == null ? Collections.emptyList() : moduleHost.getFluidManager().getTargets(moduleSlot);
+    }
+
+    @Override
+    public int getReservedFluid(FluidIdentifier fluid) {
+        return moduleHost == null ? 0 : moduleHost.getFluidManager().getReservedFluid(fluid);
     }
 
     /***
@@ -291,6 +337,10 @@ public abstract class FluidRoutedPipe extends CoreRoutedPipe implements IFluidCo
 
     @Override
     public boolean endReached(LPTravelingItemServer arrivingItem, TileEntity tile) {
+        if (canInsertToTanks() && moduleHost != null) {
+            // the built-in module takes it, what doesn't fit waits at the pipe or goes to another sink
+            return moduleHost.takeArrival(arrivingItem);
+        }
         if (canInsertToTanks()) {
             getCacheHolder().trigger(CacheTypes.Inventory);
             if (arrivingItem.getItemIdentifierStack() == null

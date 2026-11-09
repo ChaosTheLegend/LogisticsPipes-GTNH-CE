@@ -7,7 +7,6 @@ package logisticspipes.pipes;
 import java.util.List;
 
 import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
 
 import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
@@ -15,9 +14,9 @@ import logisticspipes.gui.modularUI.PipeGuiFactory;
 import logisticspipes.interfaces.routing.IAdditionalTargetInformation;
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.interfaces.routing.IRequireReliableTransport;
+import logisticspipes.items.ItemModule;
 import logisticspipes.modules.ModuleActiveSupplier;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.debug.StatusEntry;
 import logisticspipes.textures.Textures;
@@ -27,13 +26,13 @@ import logisticspipes.utils.item.ItemIdentifierStack;
 public class PipeItemsSupplierLogistics extends CoreRoutedPipe
         implements IRequestItems, IRequireReliableTransport, IMUICompatiblePipeV2 {
 
-    private final ModuleActiveSupplier module;
-
     public PipeItemsSupplierLogistics(Item item) {
         super(item);
-        module = new ModuleActiveSupplier();
-        module.registerHandler(this, this);
-        module.registerPosition(ModulePositionType.IN_PIPE, 0);
+        hostModule(ItemModule.ACTIVE_SUPPLIER);
+    }
+
+    private ModuleActiveSupplier module() {
+        return (ModuleActiveSupplier) hostedModule();
     }
 
     @Override
@@ -43,12 +42,12 @@ public class PipeItemsSupplierLogistics extends CoreRoutedPipe
 
     /* TRIGGER INTERFACE */
     public boolean isRequestFailed() {
-        return module.isRequestFailed();
+        return module().isRequestFailed();
     }
 
     @Override
     public LogisticsModule getLogisticsModule() {
-        return module;
+        return hostedModule();
     }
 
     @Override
@@ -57,35 +56,23 @@ public class PipeItemsSupplierLogistics extends CoreRoutedPipe
     }
 
     @Override
-    public void readFromNBT(NBTTagCompound nbttagcompound) {
-        super.readFromNBT(nbttagcompound);
-        module.readFromNBT(nbttagcompound);
-    }
-
-    @Override
-    public void writeToNBT(NBTTagCompound nbttagcompound) {
-        super.writeToNBT(nbttagcompound);
-        module.writeToNBT(nbttagcompound);
-    }
-
-    @Override
     public void itemLost(ItemIdentifierStack item, IAdditionalTargetInformation info) {
-        module.itemLost(item, info);
+        module().itemLost(item, info);
     }
 
     @Override
     public void itemArrived(ItemIdentifierStack item, IAdditionalTargetInformation info) {
-        module.itemArrived(item, info);
+        module().itemArrived(item, info);
     }
 
     @Override
     public void addStatusInformation(List<StatusEntry> status) {
         super.addStatusInformation(status);
-        module.addStatusInformation(status);
+        module().addStatusInformation(status);
     }
 
     @Override
     public LogisticsModularUI getPipeGui() {
-        return PipeGuiFactory.fromModule(this, module);
+        return PipeGuiFactory.fromModule(this, module());
     }
 }

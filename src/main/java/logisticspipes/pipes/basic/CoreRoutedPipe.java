@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,9 @@ import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipefxhandlers.PipeFXRenderHandler;
 import logisticspipes.pipes.basic.debug.DebugLogController;
 import logisticspipes.pipes.basic.debug.StatusEntry;
+import logisticspipes.pipes.modulehost.IModuleHostPipe;
+import logisticspipes.pipes.modulehost.ItemTarget;
+import logisticspipes.pipes.modulehost.ModuleHost;
 import logisticspipes.pipes.signs.IPipeSign;
 import logisticspipes.pipes.upgrades.UpgradeManager;
 import logisticspipes.proxy.MainProxy;
@@ -136,7 +140,11 @@ import lombok.Getter;
 @CCType(name = "LogisticsPipes:Normal")
 public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         implements IClientState, IRequestItems, IAdjacentWorldAccess, ITrackStatistics, IWorldProvider,
-        IWatchingHandler, IPipeServiceProvider, IQueueCCEvent, ILPPositionProvider {
+        IWatchingHandler, IPipeServiceProvider, IQueueCCEvent, ILPPositionProvider, IModuleHostPipe {
+
+    // the modules of the pipe: the built-in module of a pipe that is one module (see hostModule) or the slots of a
+    // chassis; null for the other pipes
+    protected ModuleHost moduleHost;
 
     public enum ItemSendMode {
         Normal,
@@ -237,7 +245,72 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
 
     @Override
     public ISlotUpgradeManager getUpgradeManager(ModulePositionType slot, int positionInt) {
+        if (hasModuleHost() && positionInt == 0
+                && (slot == ModulePositionType.IN_PIPE || slot == ModulePositionType.SLOT)) {
+            // the module's own upgrades; the ones installed on the pipe still count (see ModuleUpgradeManager)
+            return moduleHost.getUpgradeManager(0);
+        }
         return upgradeManager;
+    }
+
+    /*** a pipe that is one module ***/
+
+    /**
+     * Makes this pipe the host of that one module: the module is made now, owns its upgrades and never leaves the pipe.
+     * Called by the constructor of the pipe class.
+     */
+    protected final void hostModule(int moduleId) {
+        moduleHost = ModuleHost.forSingleModule(this, new ItemStack(LogisticsPipes.ModuleItem, 1, moduleId));
+    }
+
+    /**
+     * @return true if the pipe is one built-in module on a module host
+     */
+    public final boolean hasModuleHost() {
+        return moduleHost != null && moduleHost.isSingleModule();
+    }
+
+    /**
+     * @return the built-in module, null for a pipe without one (also while the parent constructors run)
+     */
+    protected final LogisticsModule hostedModule() {
+        return hasModuleHost() ? moduleHost.getModule(0) : null;
+    }
+
+    /*** IModuleHostPipe ***/
+
+    /**
+     * Every side the pipe connects to; the chassis gives only the side it points at.
+     */
+    @Override
+    public List<ForgeDirection> getTargetDirections() {
+        if (container == null) {
+            return Collections.emptyList();
+        }
+        List<ForgeDirection> sides = new ArrayList<>(6);
+        for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
+            TileEntity tile = container.getTile(dir);
+            if (tile != null && MainProxy.checkPipesConnections(container, tile, dir)) {
+                sides.add(dir);
+            }
+        }
+        return sides;
+    }
+
+    @Override
+    public void sendItem(ItemStack stack) {
+        transport.sendItem(stack);
+    }
+
+    @Override
+    public void onHostModulesChanged(boolean moduleRemoved) {}
+
+    @Override
+    public void setTile(TileEntity tile) {
+        super.setTile(tile);
+        if (moduleHost != null) {
+            moduleHost.registerPositions();
+        }
     }
 
     @Override
@@ -428,7 +501,6 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
      * Only Called Server Side Only Called when the pipe is enabled
      */
     public void enabledUpdateEntity() {
-        powerHandler.update();
         for (int i = 0; i < 6; i++) {
             if (signItem[i] != null) {
                 signItem[i].updateServerSide();
@@ -538,13 +610,20 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
             return;
         }
         enabledUpdateEntity();
+        if (moduleHost != null) {
+            moduleHost.tickManagers();
+        }
         if (getLogisticsModule() == null) {
             return;
         }
         getLogisticsModule().tick();
     }
 
-    protected void onAllowedRemoval() {}
+    protected void onAllowedRemoval() {
+        if (moduleHost != null && MainProxy.isServer(getWorld())) {
+            moduleHost.dropModules();
+        }
+    }
 
     // From BaseRoutingLogic
     public void throttledUpdateEntity() {}
@@ -735,26 +814,7 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         } else if ((router != null) && getRouter().isRoutedExit(connection)) {
             return getRoutedTexture(connection);
         } else {
-            TextureType texture = getNonRoutedTexture(connection);
-            if (this.getUpgradeManager().hasRFPowerSupplierUpgrade()
-                    || this.getUpgradeManager().getIC2PowerLevel() > 0) {
-                if (texture.fileName.equals(Textures.LOGISTICSPIPE_NOTROUTED_TEXTURE.fileName)) {
-                    texture = Textures.LOGISTICSPIPE_NOTROUTED_POWERED_TEXTURE;
-                } else if (texture.fileName.equals(Textures.LOGISTICSPIPE_LIQUID_TEXTURE.fileName)) {
-                    texture = Textures.LOGISTICSPIPE_LIQUID_POWERED_TEXTURE;
-                } else if (texture.fileName.equals(Textures.LOGISTICSPIPE_POWERED_TEXTURE.fileName)) {
-                    texture = Textures.LOGISTICSPIPE_POWERED_POWERED_TEXTURE;
-                } else if (texture.fileName.equals(Textures.LOGISTICSPIPE_CHASSI_NOTROUTED_TEXTURE.fileName)) {
-                    texture = Textures.LOGISTICSPIPE_NOTROUTED_POWERED_TEXTURE;
-                } else if (texture.fileName.equals(Textures.LOGISTICSPIPE_CHASSI_DIRECTION_TEXTURE.fileName)) {
-                    texture = Textures.LOGISTICSPIPE_DIRECTION_POWERED_TEXTURE;
-                } else {
-                    System.out.println("Unknown texture to power, :" + texture.fileName);
-                    System.out.println(this.getClass());
-                    System.out.println(connection);
-                }
-            }
-            return texture;
+            return getNonRoutedTexture(connection);
         }
     }
 
@@ -836,6 +896,7 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
             }
         }
         nbttagcompound.setString("routerId", routerId);
+        nbttagcompound.setInteger("disconnectedSides", disconnectedMask());
         nbttagcompound.setLong("stat_lifetime_sent", stat_lifetime_sent);
         nbttagcompound.setLong("stat_lifetime_recieved", stat_lifetime_recieved);
         nbttagcompound.setLong("stat_lifetime_relayed", stat_lifetime_relayed);
@@ -883,6 +944,9 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
                 nbttagcompound.setBoolean("PipeSign_" + i, false);
             }
         }
+        if (moduleHost != null) {
+            moduleHost.writeToNBT(nbttagcompound);
+        }
     }
 
     @Override
@@ -896,6 +960,14 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         stat_lifetime_sent = nbttagcompound.getLong("stat_lifetime_sent");
         stat_lifetime_recieved = nbttagcompound.getLong("stat_lifetime_recieved");
         stat_lifetime_relayed = nbttagcompound.getLong("stat_lifetime_relayed");
+        // before the upgrades: loading them migrates old connection upgrades into these sides
+        disconnectedSides.clear();
+        int disconnected = nbttagcompound.getInteger("disconnectedSides");
+        for (ForgeDirection side : ForgeDirection.VALID_DIRECTIONS) {
+            if ((disconnected & (1 << side.ordinal())) != 0) {
+                disconnectedSides.add(side);
+            }
+        }
         if (getLogisticsModule() != null) {
             getLogisticsModule().readFromNBT(nbttagcompound);
         }
@@ -924,6 +996,9 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
                     throw new RuntimeException(e);
                 }
             }
+        }
+        if (moduleHost != null) {
+            moduleHost.readFromNBT(nbttagcompound);
         }
     }
 
@@ -1054,9 +1129,8 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
                 }
             } else if (MainProxy.isServer(entityplayer.worldObj)) {
                 if (settings == null || settings.openGui) {
-                    if (getLogisticsModule() != null && getLogisticsModule() instanceof LogisticsGuiModule) {
-                        ((LogisticsGuiModule) getLogisticsModule()).getPipeGuiProviderForModule().setTilePos(container)
-                                .open(entityplayer);
+                    if (getLogisticsModule() instanceof LogisticsGuiModule guiModule && guiModule.hasLegacyPipeGui()) {
+                        guiModule.getPipeGuiProviderForModule().setTilePos(container).open(entityplayer);
                     } else {
                         onWrenchClicked(entityplayer);
                     }
@@ -1188,9 +1262,75 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         return (super.canPipeConnect(tile, dir) || logisitcsIsPipeConnected(tile, dir)) && !disconnectPipe(tile, dir);
     }
 
+    // sides the player disconnected with shift + wrench (the old connection upgrades are migrated into this)
+    private final EnumSet<ForgeDirection> disconnectedSides = EnumSet.noneOf(ForgeDirection.class);
+
+    /**
+     * @return true if the player disconnected that side
+     */
+    public boolean isSideDisconnected(ForgeDirection side) {
+        return disconnectedSides.contains(side);
+    }
+
+    /**
+     * Connects or disconnects the side, without updating the connections: for loading. See
+     * {@link #toggleSideDisconnected}.
+     */
+    public void setSideDisconnected(ForgeDirection side, boolean disconnected) {
+        if (side == null || side == ForgeDirection.UNKNOWN) {
+            return;
+        }
+        if (disconnected) {
+            disconnectedSides.add(side);
+        } else {
+            disconnectedSides.remove(side);
+        }
+    }
+
+    /**
+     * Connects a disconnected side or disconnects a connected one, and updates the connections and the routing.
+     *
+     * @return true if the side is disconnected now
+     */
+    public boolean toggleSideDisconnected(ForgeDirection side) {
+        boolean disconnect = !isSideDisconnected(side);
+        setSideDisconnected(side, disconnect);
+        connectionUpdate();
+        if (container != null) {
+            container.markDirty();
+            // the client draws the side grid and the settings window from it
+            container.sendUpdateToClient();
+        }
+        return disconnect;
+    }
+
+    /**
+     * @return true if the pipe works on one adjacent side the player picks (a chassis, a pattern crafting pipe); the
+     *         screwdriver and the settings window pick it
+     */
+    public boolean hasWorkingSide() {
+        return false;
+    }
+
+    /**
+     * @return the side the pipe works on, {@link ForgeDirection#UNKNOWN} for none
+     */
+    public ForgeDirection getWorkingSide() {
+        return ForgeDirection.UNKNOWN;
+    }
+
+    /**
+     * Makes the pipe work on that side, if there is something there it can work on. Runs on the server.
+     *
+     * @return true if the side is the working side now
+     */
+    public boolean setWorkingSide(ForgeDirection side) {
+        return false;
+    }
+
     @Override
     public final boolean isSideBlocked(ForgeDirection side, boolean ignoreSystemDisconnection) {
-        if (getUpgradeManager().isSideDisconnected(side)) {
+        if (disconnectedSides.contains(side)) {
             return true;
         }
         if (container != null && side != ForgeDirection.UNKNOWN && container.tilePart.hasBlockingPluggable(side)) {
@@ -1594,9 +1734,7 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
     @CCCommand(description = "Returns the access to the pipe of the givven router UUID")
     @CCDirectCall
     public Object getPipeForUUID(String sUuid) throws PermissionException {
-        if (!getUpgradeManager().hasCCRemoteControlUpgrade()) {
-            throw new PermissionException();
-        }
+        // no upgrade needed any more (the CC remote control upgrade is deprecated); only pipes of this network
         UUID uuid;
         try {
             uuid = UUID.fromString(sUuid);
@@ -1662,43 +1800,91 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         if (inv == null) {
             return null;
         }
+        return adaptInventory(inv, getPointedOrientation().getOpposite(), mode, forExtraction);
+    }
+
+    /**
+     * @return that inventory seen from that side of it, hiding what the extraction mode leaves in it
+     */
+    private static IInventoryUtil adaptInventory(IInventory inv, ForgeDirection side, ExtractionMode mode,
+            boolean forExtraction) {
         if (inv instanceof net.minecraft.inventory.ISidedInventory) {
             inv = new SidedInventoryMinecraftAdapter(
                     (net.minecraft.inventory.ISidedInventory) inv,
-                    getPointedOrientation().getOpposite(),
+                    side,
                     forExtraction);
         }
         switch (mode) {
             case LeaveFirst:
-                return SimpleServiceLocator.inventoryUtilFactory
-                        .getHidingInventoryUtil(inv, getPointedOrientation().getOpposite(), false, false, 1, 0);
+                return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(inv, side, false, false, 1, 0);
             case LeaveLast:
-                return SimpleServiceLocator.inventoryUtilFactory
-                        .getHidingInventoryUtil(inv, getPointedOrientation().getOpposite(), false, false, 0, 1);
+                return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(inv, side, false, false, 0, 1);
             case LeaveFirstAndLast:
-                return SimpleServiceLocator.inventoryUtilFactory
-                        .getHidingInventoryUtil(inv, getPointedOrientation().getOpposite(), false, false, 1, 1);
+                return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(inv, side, false, false, 1, 1);
             case Leave1PerStack:
-                return SimpleServiceLocator.inventoryUtilFactory
-                        .getHidingInventoryUtil(inv, getPointedOrientation().getOpposite(), true, false, 0, 0);
+                return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(inv, side, true, false, 0, 0);
             case Leave1PerType:
-                return SimpleServiceLocator.inventoryUtilFactory
-                        .getHidingInventoryUtil(inv, getPointedOrientation().getOpposite(), false, true, 0, 0);
+                return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(inv, side, false, true, 0, 0);
             default:
                 break;
         }
-        return SimpleServiceLocator.inventoryUtilFactory
-                .getHidingInventoryUtil(inv, getPointedOrientation().getOpposite(), false, false, 0, 0);
+        return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(inv, side, false, false, 0, 0);
+    }
+
+    @Override
+    public List<ItemTarget> getItemTargets(ExtractionMode mode, boolean forExtraction) {
+        return getItemTargets(mode, forExtraction, ForgeDirection.UNKNOWN);
+    }
+
+    @Override
+    public List<ItemTarget> getItemTargets(ExtractionMode mode, boolean forExtraction, ForgeDirection face) {
+        List<ItemTarget> targets = new ArrayList<>();
+        if (container == null) {
+            return targets;
+        }
+        for (ForgeDirection dir : getTargetDirections()) {
+            TileEntity tile = container.getTile(dir);
+            if (!(tile instanceof IInventory) || SimpleServiceLocator.pipeInformationManager.isItemPipe(tile)) {
+                continue;
+            }
+            IInventory inv = InventoryHelper.getInventory((IInventory) tile);
+            if (inv != null) {
+                ForgeDirection accessed = face == ForgeDirection.UNKNOWN ? dir.getOpposite() : face;
+                targets.add(new ItemTarget(adaptInventory(inv, accessed, mode, forExtraction), dir));
+            }
+        }
+        return targets;
     }
 
     @Override
     public IInventoryUtil getSneakyInventory(boolean forExtraction, ModulePositionType slot, int positionInt) {
         ISlotUpgradeManager manager = getUpgradeManager(slot, positionInt);
+        ForgeDirection[] faces = manager.getSneakyOrientations();
+        if (faces.length > 1) {
+            return getSneakyInventory(faces, forExtraction);
+        }
         ForgeDirection insertion = getPointedOrientation().getOpposite();
         if (manager.hasSneakyUpgrade()) {
             insertion = manager.getSneakyOrientation();
         }
         return getSneakyInventory(insertion, forExtraction);
+    }
+
+    /**
+     * @return the pointed inventory seen through several faces of a sneaky upgrade, the slots of each in order
+     */
+    public IInventoryUtil getSneakyInventory(ForgeDirection[] faces, boolean forExtraction) {
+        IInventory inv = getRealInventory();
+        if (inv == null) {
+            return null;
+        }
+        if (inv instanceof net.minecraft.inventory.ISidedInventory) {
+            inv = new SidedInventoryMinecraftAdapter(
+                    (net.minecraft.inventory.ISidedInventory) inv,
+                    faces,
+                    forExtraction);
+        }
+        return SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(inv, faces[0]);
     }
 
     @Override
@@ -1785,6 +1971,17 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         itemToSend.setTransportMode(TransportMode.Active);
         itemToSend.setAdditionalTargetInformation(info);
         queueRoutedItem(itemToSend, getPointedOrientation(), mode);
+        return itemToSend;
+    }
+
+    @Override
+    public IRoutedItem sendStack(ItemStack stack, int destination, ItemSendMode mode, IAdditionalTargetInformation info,
+            ForgeDirection from) {
+        IRoutedItem itemToSend = SimpleServiceLocator.routedItemHelper.createNewTravelItem(stack);
+        itemToSend.setDestination(destination);
+        itemToSend.setTransportMode(TransportMode.Active);
+        itemToSend.setAdditionalTargetInformation(info);
+        queueRoutedItem(itemToSend, from, mode);
         return itemToSend;
     }
 
@@ -1921,11 +2118,30 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
     @Override
     public void writeData(LPDataOutputStream data) throws IOException {
         data.writeBoolean(isOpaque());
+        data.writeByte(disconnectedMask());
     }
 
     @Override
     public void readData(LPDataInputStream data) throws IOException {
         isOpaqueClientSide = data.readBoolean();
+        int disconnected = data.readByte();
+        disconnectedSides.clear();
+        for (ForgeDirection side : ForgeDirection.VALID_DIRECTIONS) {
+            if ((disconnected & (1 << side.ordinal())) != 0) {
+                disconnectedSides.add(side);
+            }
+        }
+    }
+
+    /**
+     * @return the disconnected sides as bits by {@link ForgeDirection} ordinal
+     */
+    public int disconnectedMask() {
+        int mask = 0;
+        for (ForgeDirection side : disconnectedSides) {
+            mask |= 1 << side.ordinal();
+        }
+        return mask;
     }
 
     @Override
@@ -1933,7 +2149,7 @@ public abstract class CoreRoutedPipe extends CoreUnroutedPipe
         if (MainProxy.isClient(getWorld())) {
             return Configs.OPAQUE || isOpaqueClientSide;
         } else {
-            return Configs.OPAQUE || this.getUpgradeManager().isOpaque();
+            return Configs.OPAQUE;
         }
     }
 
