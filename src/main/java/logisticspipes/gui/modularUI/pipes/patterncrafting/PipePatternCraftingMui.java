@@ -27,7 +27,6 @@ import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
-import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ScrollingTextWidget;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
@@ -39,6 +38,7 @@ import logisticspipes.crafting.pattern.AbstractPattern;
 import logisticspipes.crafting.pattern.PatternSource;
 import logisticspipes.crafting.patternStack.PatternStackHelper;
 import logisticspipes.gui.modularUI.LogisticsPipeMUI;
+import logisticspipes.gui.modularUI.PipeSettingsPanel;
 import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 
 /**
@@ -58,6 +58,14 @@ public class PipePatternCraftingMui extends LogisticsPipeMUI {
     private static final int EDITOR_X = 7;
     private static final int EDITOR_Y = 38;
     private static final int STATUS_Y = 121;
+    // the blocking mode button at the top right, the settings gear left of it, centred on it
+    private static final int MODE_WIDTH = 62;
+    private static final int MODE_HEIGHT = 12;
+    private static final int MODE_X = WIDTH - 7 - MODE_WIDTH;
+    private static final int MODE_Y = 4;
+    private static final int GEAR_SIZE = 16;
+    private static final int GEAR_X = MODE_X - 4 - GEAR_SIZE;
+    private static final int GEAR_Y = MODE_Y + (MODE_HEIGHT - GEAR_SIZE) / 2;
 
     private static final String PATTERN_SLOT_GROUP = "pattern_crafting_patterns";
 
@@ -116,6 +124,10 @@ public class PipePatternCraftingMui extends LogisticsPipeMUI {
 
         panel.child(IKey.lang(LANG + "title").asWidget().pos(8, 6).color(TEXT_COLOR));
         panel.child(buildBlockingModeButton());
+        // the settings of the pipe: its sides, the working side is the crafting target
+        panel.child(
+                PipeSettingsPanel.button(panel, syncManager, "pattern_settings", patternPipe, null)
+                        .pos(GEAR_X, GEAR_Y));
         addPatternSlots(panel);
         PatternEditor editor = new PatternEditor(state, actions, EDITOR_X, EDITOR_Y).inputProgress(this::bufferedText)
                 .outputProgress(this::requestedText);
@@ -130,7 +142,7 @@ public class PipePatternCraftingMui extends LogisticsPipeMUI {
     // region header and pattern slots
 
     private IWidget buildBlockingModeButton() {
-        return new ButtonWidget<>().pos(WIDTH - 7 - 62, 4).size(62, 12)
+        return new ButtonWidget<>().pos(MODE_X, MODE_Y).size(MODE_WIDTH, MODE_HEIGHT)
                 .overlay(IKey.lang(() -> LANG + "mode." + modeKey()).scale(0.8f)).onMousePressed(mouseButton -> {
                     if (mouseButton != 0) return false;
                     actions.cycleBlockingMode();
@@ -180,8 +192,13 @@ public class PipePatternCraftingMui extends LogisticsPipeMUI {
                 GuiDraw.drawRect(x + 3, y + 3, width - 6, height - 6, 0x40000000);
             }
         };
-        return new Widget<>().pos(editor.x(TARGET_X), editor.y(TARGET_Y)).size(16, 16).overlay(targetIcon)
-                .setEnabledIf(w -> state.hasPattern()).tooltipAutoUpdate(true).tooltipBuilder(tooltip -> {
+        // a click picks the next adjacent inventory as the target
+        return new ButtonWidget<>().pos(editor.x(TARGET_X), editor.y(TARGET_Y)).size(16, 16).background(IDrawable.EMPTY)
+                .overlay(targetIcon).onMousePressed(mouseButton -> {
+                    if (mouseButton != 0) return false;
+                    actions.nextTarget();
+                    return true;
+                }).setEnabledIf(w -> state.hasPattern()).tooltipAutoUpdate(true).tooltipBuilder(tooltip -> {
                     ItemStack target = actions.getTargetStack();
                     if (target == null) {
                         tooltip.addLine(IKey.lang(LANG + "target.none"));

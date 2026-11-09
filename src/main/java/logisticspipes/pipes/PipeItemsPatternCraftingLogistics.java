@@ -198,19 +198,20 @@ public class PipeItemsPatternCraftingLogistics extends FluidRoutedPipe
             }
             return true;
         }
-        if (!entityplayer.isSneaking() || !SimpleServiceLocator.toolWrenchHandler.isWrenchEquipped(entityplayer)
-                || !SimpleServiceLocator.toolWrenchHandler.canWrench(entityplayer, getX(), getY(), getZ())) {
-            return false;
+        // shift + wrench connects and disconnects sides now (PipeSideGrid); the target is picked with a screwdriver
+        // (the same grid) or in the window
+        return false;
+    }
+
+    /**
+     * Picks the next adjacent inventory as the target, for the button in the window. Runs on the server.
+     */
+    public void cycleConnectedInventory(EntityPlayer player) {
+        targetSelector.cycleConnectedInventory(player);
+        if (container != null) {
+            container.markDirty();
+            container.sendUpdateToClient();
         }
-        if (MainProxy.isServer(entityplayer.worldObj)) {
-            if (settings == null || settings.openGui) {
-                targetSelector.cycleConnectedInventory(entityplayer);
-            } else {
-                entityplayer.addChatComponentMessage(new ChatComponentTranslation("lp.chat.permissiondenied"));
-            }
-        }
-        SimpleServiceLocator.toolWrenchHandler.wrenchUsed(entityplayer, getX(), getY(), getZ());
-        return true;
     }
 
     public AdjacentTile getConnectedInventoryTile() {
@@ -817,4 +818,25 @@ public class PipeItemsPatternCraftingLogistics extends FluidRoutedPipe
         openGui(entityplayer, this);
     }
 
+    // the working side is the crafting target
+
+    @Override
+    public boolean hasWorkingSide() {
+        return true;
+    }
+
+    @Override
+    public ForgeDirection getWorkingSide() {
+        return targetSelector.getConnectedInventoryDirection();
+    }
+
+    @Override
+    public boolean setWorkingSide(ForgeDirection side) {
+        boolean selected = targetSelector.selectConnectedInventory(side);
+        if (selected && container != null) {
+            container.markDirty();
+            container.sendUpdateToClient();
+        }
+        return selected;
+    }
 }
