@@ -58,25 +58,58 @@ upgrades.
 
 **2a. Cleanup**
 - [ ] Deprecate unused/useless upgrades (removal warning; installed ones are migrated or keep working):
-  - [ ] 🟡 Sneaky upgrade, replaced by the sneaky-faces setting in the pipe GUI below; the faces are stored in the
-    pipe per connection. Migrate installed ones to that setting
-  - [ ] 🟡 Extractor sneaky directions: drop the direction setting from the extractor modules
-    (`LogisticsSneakyDirectionModule`) and migrate modules that have one to the plain extractor, moving the direction
-    into the sneaky-faces setting (per module on a chassis). See "Compatibility with old bases" in
-    rework-design-decisions.md
-  - [ ] 🟡 Combined sneaky upgrade: becomes the set of faces it held, tried in the fixed order (custom order is lost,
-    listed in [behaviour-changes.md](behaviour-changes.md))
-  - [ ] 🟡 Side-block (disconnection) upgrades, replaced by the shift+wrench overlay below. Migrate installed ones to
+  - [x] 🟡 Sneaky upgrades (done 2026-11-09): one Sneaky Upgrade (the item damage of the old up one) replaces the six
+    sided ones; installed ones convert on load (the first in slot order decides), loose ones craft alone into it, LP
+    has no recipes for the old ones
+  - [x] 🟡 Extractor sneaky directions (done 2026-11-09): the extractor and provider modules lost their own side
+    setting (`LogisticsSneakyDirectionModule`); a module saved with a side gets a Sneaky Upgrade with that face, and
+    if its 4 slots are full (old Extractor Mk3 / Provider Mk2) one speed upgrade is replaced by it. See
+    "Compatibility with old bases" in rework-design-decisions.md
+  - [x] 🟡 Combined sneaky upgrade (done 2026-11-09): converts into the Sneaky Upgrade with the faces of the sneaky
+    upgrades in its slots, in order; those items drop when the upgrade window closes or the pipe breaks
+  - [x] 🟡 Side-block (disconnection) upgrades, replaced by the shift+wrench overlay below. Migrate installed ones to
     the per-side setting
   - [ ] 🟢 Advanced satellite upgrade; its behaviour becomes the default
   - [ ] 🟢 Opaque upgrade; a client config option turns off item rendering instead
-- [ ] 🟡 Shift+wrench grid overlay: right click connects/disconnects that side
-- [ ] 🟡 Sneaky-faces section in the pipe GUI (per module in chassis module GUIs): add/remove the faces of the
-  connected inventory the pipe interacts with. Default: only the touching face. Several faces are tried in
-  `ForgeDirection` order (down, up, north, south, west, east)
-- [ ] 🟢 Deprecate the "upgrade module upgrade" and make chassis upgradable by default. Settle per-module vs. shared chassis
-  upgrades first
-- [ ] 🟢 4 upgrade slots per module/pipe, insertable through the side upgrade GUI without a pipe controller
+- [x] 🟡 Shift+wrench grid overlay: right click connects/disconnects that side (done 2026-11-06; chassis facing and
+  the pattern crafting target moved to the screwdriver and the settings window). Both respect the security station
+- [x] 🟡 Sneaky faces in the settings window (done 2026-11-09): with a Sneaky Upgrade installed, the gear window shows
+  a cross of the faces of the inventory next to the pipe; a click adds/removes a face, the number is its order.
+  Default: the touching face. Insertion uses the first face that takes the items, extraction the first that gives
+  items, providers and fluid modules the first face. In pipe slots and module slots, chassis, built-in modules and
+  in hand. The window is rebuilt live when the Sneaky or Priority Upgrade is put in or taken out
+- [ ] 🔴 Module host component (decided 2026-10-29, see "Module host and upgrades" in rework-design-decisions.md):
+  holds modules and their per-module upgrades, dispatches arrivals by module slot, owns their NBT. Do this first in 2a,
+  the upgrade items below build on it
+  Step-by-step plan: [module-host-plan.md](module-host-plan.md)
+  - [x] 🟢 (2026-10-29) Rename and move the chassis managers out of the chassis (`ItemHostResourceManager`, `FluidHostResourceManager`,
+    `IHostResourceManager`, `ModuleSlotTargetInformation`), no behaviour change
+  - [x] 🟠 (2026-10-29, not tested in game) Extract the host from `PipeLogisticsChassi`, chassis keeps its behaviour
+    and NBT
+  - [x] 🟡 (2026-10-29, fluids only, not tested in game) Targets as a list (pipe decides: chassis one pointed
+    target, single pipes every adjacent one). Items move per pipe with the item single-module pipes
+  - [x] 🟡 Upgrades per module through the host; legacy slot for chassis pipe upgrades
+    - [x] (2026-10-29, not tested in game) 4a logic: upgrades belong to the module and move with it, old slot
+      upgrades migrate, upgrade module upgrade deprecated. Pipe-level upgrades stay on the pipe for now
+    - [x] (2026-10-29, GUI not tested in game) 4b GUI: 4 upgrade slots per module in the chassis MUI and for a
+      module in hand (held slot locked, upgrades written onto the item at once)
+  - [x] 🟡 Fluid pipes on the fluid modules: extractor → basic → supplier Mk2 → provider
+    - [x] (2026-10-29) fluid extractor pipe
+    - [x] (2026-10-29, not tested in game) basic, supplier Mk2, provider
+    - [x] (2026-10-29) fluid supplier Mk1 deprecated in favour of the Mk2: no recipe, removal warning in the
+      tooltip (`DeprecatedContent`), placed ones keep working
+  - [ ] 🟡 Item single-module pipes: sink, apiarist sink, supplier, provider (remove the logic duplicated with
+    `ModuleProvider`), pattern crafting. Not the deprecated crafting pipes
+    - [x] (2026-10-29) sink, apiarist sink, supplier
+    - [x] (2026-10-29, not tested in game) provider Mk1/Mk2: modules work on a list of inventories
+      (`getItemTargets`), the pipe's own provider logic is gone
+    - [ ] pattern crafting: postponed (little gain, big pipe)
+  - [ ] 🟡 Internal module for request pipe / request table (crafting monitor) — moved to 2b (crafting monitor as a
+    module upgrade): a new feature, not a refactor
+  - [x] 🟡 (2026-10-29) Audit the `instanceof PipeLogisticsChassi` checks: all chassis-only, no change needed
+- [x] 🟢 Deprecate the "upgrade module upgrade": upgrades are per module (done with the module host, 4a)
+- [x] 🟢 4 upgrade slots per module, in the module's own window (chassis, single-module pipe, module in hand), no pipe
+  controller needed (done with the module host, 4b)
 
 **2b. New upgrade set**
 - [ ] 🟠 Buffer upgrade (also the prestock)
@@ -88,20 +121,34 @@ upgrades.
 - [ ] Damage upgrade: filter by damage values (includes 🟡 fuzzy damage split)
 - [ ] Placement rules upgrade: choose which slot to extract from / insert into
 - [ ] 🟡 Speed upgrade rework: extraction speed / stack size and pattern crafting table speed, not travel speed
+  - [x] Module side done (2026-11-05/06): one Speed Upgrade, one per module slot, up to 4 per module (extractor, fluid
+    extractor, provider, fluid provider, QuickSort). Tiered speed upgrades were tried and dropped (2026-11-07)
+  - [ ] Pattern crafting table speed
+  - [ ] Travel speed: pipe speed upgrades still set it until the transport controllers exist
+- [x] 🟢 Priority Upgrade (done 2026-11-09): unlocks the priority in the settings window for item sinks, provider,
+  fluid sinks and the fluid provider (module slots only); without it the priority is 0, the value stays in the
+  module. GTNH: assembler, LV circuit + comparator + paper + circuit 18
 - [ ] 🟡 Logical extractor upgrade
 - [ ] CC control upgrade: ComputerCraft / OpenComputers integration
 - [ ] 🟡 NBT / OreDict / damage support for the supplier pipe (reuse the filter upgrades above)
 
 **2c. Modules & routing priority**
-- [ ] 🟡 Rethink modules: deprecate duplicate modules, replace them with upgrades (do this first, it decides the scope
-  of the rest). Placed duplicates keep working, or are converted to the base module plus the matching upgrades
-- [ ] 🟢 Convert item sink modules between types in the crafting table / assembler / chisel; the ones that don't fit the
-  upgrades (aspect sink, bee sink, polymorphic) in the chisel
-- [ ] 🟡 ItemSink priority
-- [ ] 🟡 Priority for providers and basic pipes
-- [ ] 🟡 Satellite and fluid satellite modules
-- [ ] 🟡 Extractor pipe
-- [ ] 🔴 Fluid modules in the chassis (unblocks module-based fluid crafting from 1c)
+- [x] 🟡 Rethink modules: deprecate duplicate modules, replace them with upgrades (do this first, it decides the scope
+  of the rest). Placed duplicates keep working, or are converted to the base module plus the matching upgrades. Done
+  2026-11-06, see [module-rework.md](module-rework.md)
+- [ ] 🟢 Convert item sink modules between types in the crafting table / assembler; the ones that don't fit the
+  upgrades (aspect sink, bee sink, polymorphic) keep their own recipes, no chisel (decided 2026-10-29)
+- [x] 🟡 ItemSink priority
+- [x] 🟡 Priority for providers and basic pipes (done 2026-11-06, also fluid sinks/providers and the other item sinks)
+  - Both as a setting in the settings window, unlocked by the Priority Upgrade in the module's slots (decided
+    2026-11-09; without it the priority is 0): a number (-10..+10) that becomes the reply's custom priority. Sinks:
+    decides between modules of the same type, before distance. Providers: which one is asked first. Basic pipes
+    through their built-in item sink
+- [ ] ~~🟡 Satellite and fluid satellite modules~~ — dropped (decided 2026-11-07): satellites stay pipes
+- [x] 🟡 Extractor pipe (done 2026-11-07: built-in extractor module, every adjacent inventory like the fluid extractor;
+  GTNH: assembler recipe basic pipe + extractor module + circuit 18)
+- [x] 🔴 Fluid modules in the chassis: they run there through `FluidHostResourceManager` (the chassis is an
+  `IFluidModuleHost`). Module-based fluid crafting is still open in 1c
 
 **Done when:** the upgrade list is final, every upgrade/module has a single clear purpose, and no connection behaviour
 needs an upgrade item.
@@ -236,8 +283,8 @@ without a wrench or button spam.
   ([migration-status.md](../.claude/modularUI-docs/migration-status.md)). Deprecated modules keep their legacy GUI
   instead (the exception to the MUI rule) until they are deleted. Checklist of what is left (pipes, modules, blocks,
   items) is in migration-status.md
-  - [ ] 🟢 Quick wins: `PipeItemsBasicLogistics` (its item sink module already has an MUI) and
-    `ModuleTypeFilterItemSink` (same GUI as the migrated string-based sinks)
+  - [x] 🟢 Quick wins: `PipeItemsBasicLogistics` opens its item sink module's window (2026-11-09);
+    `ModuleTypeFilterItemSink` is deprecated, it turns into the tag sink (2026-11-06)
   - [ ] 🟢 Delete the dead legacy GUI paths listed there (`GuiUpgradeManager`, `GuiProviderPipe`, `GuiCardManager`,
     `ModuleCraftingMuiDynamic`)
 - [ ] 🟠 Compatibility with old bases: a world from the last released version loads and keeps working after the
