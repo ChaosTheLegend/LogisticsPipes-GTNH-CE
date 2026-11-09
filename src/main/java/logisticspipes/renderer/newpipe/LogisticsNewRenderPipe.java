@@ -777,26 +777,14 @@ public class LogisticsNewRenderPipe {
                                 texture = new I3DOperation[] { LogisticsNewRenderPipe.statusTexture };
                             }
                         } else {
-                            if (renderState.textureMatrix.isHasPowerUpgrade()) {
-                                if (renderState.textureMatrix.getPointedOrientation() == dir) {
-                                    texture = new I3DOperation[] { new LPUVTransformationList(
-                                            new LPUVTranslation(2.5F / 10, 0),
-                                            LogisticsNewRenderPipe.statusTexture) };
-                                } else {
-                                    texture = new I3DOperation[] { new LPUVTransformationList(
-                                            new LPUVTranslation(-2.5F / 10, 37F / 100),
-                                            LogisticsNewRenderPipe.statusTexture) };
-                                }
+                            if (renderState.textureMatrix.getPointedOrientation() == dir) {
+                                texture = new I3DOperation[] { new LPUVTransformationList(
+                                        new LPUVTranslation(2.5F / 10, 37F / 100),
+                                        LogisticsNewRenderPipe.statusTexture) };
                             } else {
-                                if (renderState.textureMatrix.getPointedOrientation() == dir) {
-                                    texture = new I3DOperation[] { new LPUVTransformationList(
-                                            new LPUVTranslation(2.5F / 10, 37F / 100),
-                                            LogisticsNewRenderPipe.statusTexture) };
-                                } else {
-                                    texture = new I3DOperation[] { new LPUVTransformationList(
-                                            new LPUVTranslation(0, 37F / 100),
-                                            LogisticsNewRenderPipe.statusTexture) };
-                                }
+                                texture = new I3DOperation[] { new LPUVTransformationList(
+                                        new LPUVTranslation(0, 37F / 100),
+                                        LogisticsNewRenderPipe.statusTexture) };
                             }
                         }
                     }

@@ -1,6 +1,5 @@
 package logisticspipes.proxy.ic2;
 
-import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -15,12 +14,10 @@ import ic2.api.item.IC2Items;
 import ic2.api.item.IElectricItem;
 import ic2.api.recipe.Recipes;
 import logisticspipes.LogisticsPipes;
-import logisticspipes.blocks.LogisticsSolidBlock;
 import logisticspipes.config.Configs;
 import logisticspipes.interfaces.IModuleInventory;
 import logisticspipes.items.ItemModule;
 import logisticspipes.items.ItemPipeComponents;
-import logisticspipes.items.ItemUpgrade;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.interfaces.ICraftingParts;
 import logisticspipes.proxy.interfaces.IIC2Proxy;
@@ -261,107 +258,12 @@ public class IC2Proxy implements IIC2Proxy {
                     Items.redstone,
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_LV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_TRANSPORTATION),
-                    'S',
-                    IC2Items.getItem("energyStorageUpgrade"),
-                    'O',
-                    IC2Items.getItem("overclockerUpgrade"),
-                    'T',
-                    IC2Items.getItem("transformerUpgrade"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_MV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_LV_SUPPLIER),
-                    'S',
-                    IC2Items.getItem("energyStorageUpgrade"),
-                    'O',
-                    IC2Items.getItem("overclockerUpgrade"),
-                    'T',
-                    IC2Items.getItem("transformerUpgrade"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_HV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_MV_SUPPLIER),
-                    'S',
-                    IC2Items.getItem("energyStorageUpgrade"),
-                    'O',
-                    IC2Items.getItem("overclockerUpgrade"),
-                    'T',
-                    IC2Items.getItem("transformerUpgrade"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_EV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_HV_SUPPLIER),
-                    'S',
-                    IC2Items.getItem("energyStorageUpgrade"),
-                    'O',
-                    IC2Items.getItem("overclockerUpgrade"),
-                    'T',
-                    IC2Items.getItem("transformerUpgrade"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(
-                            LogisticsPipes.LogisticsSolidBlock,
-                            1,
-                            LogisticsSolidBlock.LOGISTICS_IC2_POWERPROVIDER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    Blocks.redstone_block,
-                    'S',
-                    IC2Items.getItem("energyStorageUpgrade"),
-                    'O',
-                    IC2Items.getItem("overclockerUpgrade"),
-                    'T',
-                    IC2Items.getItem("transformerUpgrade"),
-                    'P',
-                    Items.paper);
         }
         if (Configs.ENABLE_BETA_RECIPES) {
             ItemStack packager = new ItemStack(
                     LogisticsPipes.LogisticsPipeComponents,
                     1,
                     ItemPipeComponents.ITEM_MICROPACKAGER);
-            ItemStack expand = new ItemStack(
-                    LogisticsPipes.LogisticsPipeComponents,
-                    1,
-                    ItemPipeComponents.ITEM_LOGICEXPANDER);
-            ItemStack lense = new ItemStack(
-                    LogisticsPipes.LogisticsPipeComponents,
-                    1,
-                    ItemPipeComponents.ITEM_FOCUSLENSE);
-            ItemStack accept = new ItemStack(
-                    LogisticsPipes.LogisticsPipeComponents,
-                    1,
-                    ItemPipeComponents.ITEM_POWERACCEPT);
 
             Recipes.advRecipes.addRecipe(
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.ELECTRICBUFFER),
@@ -392,89 +294,6 @@ public class IC2Proxy implements IIC2Proxy {
                     Items.redstone,
                     'B',
                     new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.BLANK));
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_LV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    expand,
-                    'S',
-                    accept,
-                    'O',
-                    IC2Items.getItem("coil"),
-                    'T',
-                    IC2Items.getItem("reBattery"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_MV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    expand,
-                    'S',
-                    accept,
-                    'O',
-                    IC2Items.getItem("coil"),
-                    'T',
-                    IC2Items.getItem("advBattery"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_HV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    expand,
-                    'S',
-                    accept,
-                    'O',
-                    IC2Items.getItem("coil"),
-                    'T',
-                    IC2Items.getItem("energyCrystal"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_IC2_EV_SUPPLIER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    expand,
-                    'S',
-                    accept,
-                    'O',
-                    IC2Items.getItem("coil"),
-                    'T',
-                    IC2Items.getItem("lapotronCrystal"),
-                    'P',
-                    Items.paper);
-
-            Recipes.advRecipes.addRecipe(
-                    new ItemStack(
-                            LogisticsPipes.LogisticsSolidBlock,
-                            1,
-                            LogisticsSolidBlock.LOGISTICS_IC2_POWERPROVIDER),
-                    "PSP",
-                    "OBO",
-                    "PTP",
-                    'B',
-                    Blocks.glowstone,
-                    'S',
-                    lense,
-                    'O',
-                    IC2Items.getItem("coil"),
-                    'T',
-                    IC2Items.getItem("transformerUpgrade"),
-                    'P',
-                    Items.iron_ingot);
         }
     }
 

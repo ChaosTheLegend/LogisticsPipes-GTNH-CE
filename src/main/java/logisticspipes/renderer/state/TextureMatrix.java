@@ -27,9 +27,6 @@ public class TextureMatrix {
     private boolean[] isSubPowerInDir = new boolean[6];
 
     @Getter
-    private boolean hasPowerUpgrade;
-
-    @Getter
     private boolean hasPower;
 
     @Getter
@@ -74,12 +71,6 @@ public class TextureMatrix {
                 }
                 isSubPowerInDir[i] = cPipe.getRouter().isSubPoweredExit(ForgeDirection.getOrientation(i));
             }
-            if (hasPowerUpgrade != (cPipe.getUpgradeManager().hasRFPowerSupplierUpgrade()
-                    || cPipe.getUpgradeManager().getIC2PowerLevel() > 0)) {
-                dirty = true;
-            }
-            hasPowerUpgrade = cPipe.getUpgradeManager().hasRFPowerSupplierUpgrade()
-                    || cPipe.getUpgradeManager().getIC2PowerLevel() > 0;
             if (hasPower != (cPipe._textureBufferPowered || Configs.LOGISTICS_POWER_USAGE_DISABLED)) {
                 dirty = true;
             }
@@ -127,7 +118,6 @@ public class TextureMatrix {
         data.writeBoolean(isRouted);
         data.writeBooleanArray(isRoutedInDir);
         data.writeBooleanArray(isSubPowerInDir);
-        data.writeBoolean(hasPowerUpgrade);
         data.writeBoolean(hasPower);
         data.writeBoolean(isFluid);
         data.writeForgeDirection(pointedOrientation);
@@ -145,7 +135,6 @@ public class TextureMatrix {
         isRouted = data.readBoolean();
         isRoutedInDir = data.readBooleanArray();
         isSubPowerInDir = data.readBooleanArray();
-        hasPowerUpgrade = data.readBoolean();
         hasPower = data.readBoolean();
         isFluid = data.readBoolean();
         pointedOrientation = data.readForgeDirection();

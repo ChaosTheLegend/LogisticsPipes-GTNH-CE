@@ -5,6 +5,7 @@ import java.util.List;
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
@@ -12,6 +13,7 @@ import net.minecraft.item.ItemStack;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.LogisticsSolidBlock;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.utils.DeprecatedContent;
 import logisticspipes.utils.string.StringUtils;
 
 public class LogisticsSolidBlockItem extends ItemBlock {
@@ -80,6 +82,12 @@ public class LogisticsSolidBlockItem extends ItemBlock {
         if (SimpleServiceLocator.IC2Proxy.hasIC2()) {
             par3List.add(new ItemStack(this, 1, LogisticsSolidBlock.LOGISTICS_IC2_POWERPROVIDER));
         }
+    }
+
+    @Override
+    public void addInformation(ItemStack stack, EntityPlayer player, List<String> tooltip, boolean advanced) {
+        super.addInformation(stack, player, tooltip, advanced);
+        DeprecatedContent.addWarning(stack, tooltip);
     }
 
     @Override

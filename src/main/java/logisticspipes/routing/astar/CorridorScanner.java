@@ -182,9 +182,7 @@ public final class CorridorScanner {
                 size += dis;
             }
 
-            if (!rp.getUpgradeManager().hasPowerPassUpgrade()) {
-                connectionFlags.remove(PipeRoutingConnectionType.canPowerSubSystemFrom);
-            }
+            connectionFlags.remove(PipeRoutingConnectionType.canPowerSubSystemFrom);
 
             ExitRoute route = new ExitRoute(
                     null,
@@ -308,9 +306,7 @@ public final class CorridorScanner {
                     listTileEntity(tile);
                     continue;
                 }
-                if (!startPipe.getRoutingPipe().getUpgradeManager().hasPowerPassUpgrade()) {
-                    nextConnectionFlags.remove(PipeRoutingConnectionType.canPowerSubSystemFrom);
-                }
+                nextConnectionFlags.remove(PipeRoutingConnectionType.canPowerSubSystemFrom);
             }
 
             if ((tile instanceof IInventory || BufferLinkManager.isLinkBuffer(tile)) && startPipe.isRoutingPipe()
