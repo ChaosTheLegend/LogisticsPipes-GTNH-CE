@@ -18,6 +18,8 @@ import net.minecraft.util.IIcon;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.gui.hud.modules.HUDCCBasedQuickSort;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleCCBasedQuickSortMuiDynamic;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
@@ -119,7 +121,7 @@ public class ModuleCCBasedQuickSort extends ModuleQuickSort
         if (stalled) {
             currentTick = stalledDelay;
         } else {
-            currentTick = normalDelay;
+            currentTick = normalDelay();
         }
 
         // Extract Item
@@ -356,5 +358,22 @@ public class ModuleCCBasedQuickSort extends ModuleQuickSort
     @Override
     protected ModuleInHandGuiProvider getInHandGuiProvider() {
         return NewGuiHandler.getGui(CCBasedQuickSortInHand.class);
+    }
+
+    // its own window: unlike the quick sort it has a timeout to set
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return new ModuleCCBasedQuickSortMuiDynamic(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return new ModuleCCBasedQuickSortMuiDynamic(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return new ModuleCCBasedQuickSortMuiDynamic(this, prefix);
     }
 }

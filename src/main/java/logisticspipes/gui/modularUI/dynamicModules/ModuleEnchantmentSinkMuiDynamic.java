@@ -3,7 +3,6 @@ package logisticspipes.gui.modularUI.dynamicModules;
 import com.cleanroommc.modularui.api.GuiAxis;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
-import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.value.sync.PhantomItemSlotSH;
 import com.cleanroommc.modularui.widget.ParentWidget;
@@ -13,25 +12,27 @@ import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.cleanroommc.modularui.widgets.slot.PhantomItemSlot;
 
+import logisticspipes.gui.modularUI.CurrentModuleRef;
 import logisticspipes.gui.modularUI.GenericModuleMUI;
-import logisticspipes.modules.ModuleTerminus;
+import logisticspipes.modules.ModuleEnchantmentSink;
 
-public class ModuleTerminusMuiDynamic extends GenericModuleMUI<ModuleTerminus> {
+/**
+ * The enchantment sink window: the filter, empty for every enchanted item. The slots ask a {@link CurrentModuleRef} for
+ * the module, so a rebuilt chassis page works on the module in the slot now.
+ */
+public class ModuleEnchantmentSinkMuiDynamic extends GenericModuleMUI<ModuleEnchantmentSink> {
 
-    private final IItemHandlerModifiable filterInventory;
-
-    public ModuleTerminusMuiDynamic(ModuleTerminus module) {
+    public ModuleEnchantmentSinkMuiDynamic(ModuleEnchantmentSink module) {
         this(module, "");
     }
 
-    public ModuleTerminusMuiDynamic(ModuleTerminus module, String prefix) {
+    public ModuleEnchantmentSinkMuiDynamic(ModuleEnchantmentSink module, String prefix) {
         super(module, prefix);
-        filterInventory = new InvWrapper(module.getFilterInventory());
     }
 
     @Override
     public String getId() {
-        return "module_terminus";
+        return "module_enchantment_sink";
     }
 
     @Override
@@ -41,7 +42,9 @@ public class ModuleTerminusMuiDynamic extends GenericModuleMUI<ModuleTerminus> {
 
         widget.child(
                 new Flow(GuiAxis.Y).coverChildren().left(9).top(4).childPadding(4)
-                        .crossAxisAlignment(Alignment.CrossAxis.START).child(new TextWidget<>("Terminated items"))
+                        .crossAxisAlignment(Alignment.CrossAxis.START)
+                        .child(new TextWidget<>("Enchanted items to take"))
+                        .child(new TextWidget<>("Empty: any enchanted item").scale(0.8f))
                         .child(buildFilterSlots(syncManager)));
 
         return widget;
@@ -54,6 +57,8 @@ public class ModuleTerminusMuiDynamic extends GenericModuleMUI<ModuleTerminus> {
 
     private Flow buildFilterSlots(PanelSyncManager syncManager) {
         String id = getFullId();
+        CurrentModuleRef<ModuleEnchantmentSink> ref = CurrentModuleRef.of(syncManager, id, module);
+        IItemHandlerModifiable filterInventory = ref.inventory(ModuleEnchantmentSink::getFilterInventory);
         Flow row = Flow.row().coverChildren();
         for (int i = 0; i < 9; i++) {
             int slotIndex = i;
@@ -80,6 +85,6 @@ public class ModuleTerminusMuiDynamic extends GenericModuleMUI<ModuleTerminus> {
 
     @Override
     public int getHeight() {
-        return 130;
+        return 150;
     }
 }

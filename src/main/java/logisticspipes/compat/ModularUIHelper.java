@@ -8,7 +8,7 @@ import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.factory.GuiFactories;
 
 import logisticspipes.LogisticsPipes;
-import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
+import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 
 public class ModularUIHelper {
@@ -26,7 +26,7 @@ public class ModularUIHelper {
         GuiFactories.tileEntity().open(player, pipe.getX(), pipe.getY(), pipe.getZ());
     }
 
-    public static void openModuleUI(EntityPlayer player, LogisticsGuiModule module, World world) {
+    public static void openModuleUI(EntityPlayer player, LogisticsModule module, World world) {
         if (world == null || world.isRemote) return;
 
         GuiFactories.playerInventory().openFromMainHand(player);

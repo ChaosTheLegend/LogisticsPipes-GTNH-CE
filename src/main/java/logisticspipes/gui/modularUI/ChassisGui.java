@@ -22,6 +22,7 @@ import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.DynamicSyncHandler;
+import com.cleanroommc.modularui.value.sync.IntSyncValue;
 import com.cleanroommc.modularui.value.sync.ItemSlotSH;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.value.sync.SyncHandler;
@@ -44,11 +45,15 @@ import logisticspipes.logisticspipes.ItemModuleInformationManager;
 import logisticspipes.modules.ModuleCrafter;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipes.PipeLogisticsChassi;
+import logisticspipes.pipes.upgrades.ModuleUpgradeManager;
 
 public class ChassisGui extends LogisticsModularUI {
 
+    // the module panel under the tabs, and a tab
+    private static final int PANEL_WIDTH = 224;
+    private static final int TAB_SIZE = 28;
+
     private final PipeLogisticsChassi pipe;
-    private final IItemHandlerModifiable upgradeHandler;
     private final IItemHandlerModifiable moduleInventory;
     private final PagedWidget.Controller controller;
 
@@ -70,7 +75,6 @@ public class ChassisGui extends LogisticsModularUI {
         this.pipe = pipe;
         moduleSyncHandlers = new ArrayList<>(pipe.getChassiSize());
         pendingFlushModule = new LogisticsModule[pipe.getChassiSize()];
-        upgradeHandler = pipe.getUpgradeManager().getUpgradeInventory();
         moduleInventory = new InvWrapper(pipe.getModuleInventory());
         controller = new PagedWidget.Controller();
     }
@@ -112,7 +116,15 @@ public class ChassisGui extends LogisticsModularUI {
             lastKnownModuleFingerprint[i] = moduleFingerprint(i);
         }
         int[] settleTicksRemaining = { 60 };
+        if (!guiSyncManager.isClient()) {
+            // the first sync of the columns can come before the client made its modules (right after the world
+            // loads), it then lands nowhere: send them again once the client has them
+            resendColumnsIn[0] = OPEN_RESEND_DELAY_TICKS;
+        }
         guiSyncManager.onCommonTick(() -> {
+            if (resendColumnsIn[0] > 0 && --resendColumnsIn[0] == 0 && !guiSyncManager.isClient()) {
+                resendUpgradeColumns(guiSyncManager);
+            }
             if (settleTicksRemaining[0] <= 0) return;
             settleTicksRemaining[0]--;
             pipe.InventoryChanged(pipe.getModuleInventory());
@@ -149,12 +161,15 @@ public class ChassisGui extends LogisticsModularUI {
         guiSyncManager.registerSlotGroup("module_inventory", pipe.getChassiSize());
 
         int lastSlot = pipe.getChassiSize() - 1;
+        // the right edge tab only when the tabs reach the right side of the panel (8 slots), else it draws a corner
+        // into the panel's top border
+        boolean tabsFillRow = pipe.getChassiSize() * TAB_SIZE >= PANEL_WIDTH;
         for (int i = 0; i < pipe.getChassiSize(); i++) {
             final int slot = i;
             var buttonContainer = new ParentWidget<>().size(28, 28);
             buttonContainer.child(
                     new PageButton(i, controller).size(28, 28)
-                            .tab(GuiTextures.TAB_TOP, i == lastSlot || i == 0 ? i == 0 ? -1 : 1 : 0).pos(0, 0));
+                            .tab(GuiTextures.TAB_TOP, i == 0 ? -1 : i == lastSlot && tabsFillRow ? 1 : 0).pos(0, 0));
             buttonContainer.child(new ItemSlot().slot(new ModularSlot(moduleInventory, i) {
 
                 @Override
@@ -171,7 +186,10 @@ public class ChassisGui extends LogisticsModularUI {
                     pendingFlushModule[slot] = null;
                     super.onPickupFromSlot(player, stack);
                 }
-            }.slotGroup("module_inventory").filter(this::isModuleItem)
+            }.slotGroup("module_inventory")
+                    // only into an empty slot: swapping in place keeps the old module when the new one is of the same
+                    // kind, and the item that leaves isn't saved first
+                    .filter(stack -> isModuleItem(stack) && pipe.getModuleInventory().getStackInSlot(slot) == null)
                     .changeListener(((newItem, onlyAmountChanged, client, init) -> {
                         // "init" is replayed once by the framework every time the GUI is (re)opened, to hand the
                         // widget its current value - it does NOT mean the slot actually changed (see
@@ -188,19 +206,60 @@ public class ChassisGui extends LogisticsModularUI {
                         if (client && !onlyAmountChanged) {
                             moduleSyncHandlers.get(slot).notifyUpdate(packet -> {});
                         }
+                        if (!client && !onlyAmountChanged) {
+                            // not now: the client learns about the new module with this tick's slot updates
+                            resendColumnsIn[0] = RESEND_DELAY_TICKS;
+                        }
                     }))).background(UITexture.fullImage(ModuleSlotTexture1)).pos(5, 5));
             row.child(buttonContainer);
         }
         panel.child(row);
 
-        var upgrades = PipeGuiFactory.getUpgradeGui(upgradeHandler, guiSyncManager);
-
-        // .right(int) resolves this axis from a left+right anchor pair, which stretches the widget's width to fill
-        // the gap instead of keeping the fixed width set in PipeGuiFactory - pin a fixed left instead so width/height
-        // stay exactly as configured, while still landing the right edge 4px from the panel's right edge.
-        upgrades.top(30).left(getWidth() - PipeGuiFactory.UPGRADE_GUI_WIDTH - 4);
-
-        panel.child(upgrades);
+        // the upgrades of the module on the open tab, at the right of the panel. One column per module slot, only
+        // the open tab's one is shown: every column must exist on both sides (real container slots, the same on client
+        // and server). Each column asks for the module of its slot every time, an empty slot takes nothing.
+        // The client tells the server the open tab, so only its column takes a shift-clicked upgrade.
+        int[] openTab = { 0 };
+        IntSyncValue openTabSync = new IntSyncValue(() -> openTab[0], tab -> openTab[0] = tab).allowC2S();
+        guiSyncManager.syncValue("open_tab", openTabSync);
+        // the settings of the chassis: its sides (connect, the side it works on) and the priority of the module on the
+        // open tab. Under the columns, placed with the first one
+        var settings = PipeSettingsPanel.button(
+                panel,
+                guiSyncManager,
+                "chassis_settings",
+                pipe,
+                () -> pipe.getModules().getSubModule(openTab[0]));
+        int sideLeft = getWidth() - ModuleUpgradeSlots.FRAME_WIDTH - ModuleUpgradeSlots.GAP;
+        // the server saves the pipe when an upgrade went in or out
+        Runnable markDirty = () -> {
+            if (pipe.container != null) {
+                pipe.container.markDirty();
+            }
+        };
+        for (int i = 0; i < pipe.getChassiSize(); i++) {
+            final int slot = i;
+            ModuleUpgradeSlots.addSide(
+                    panel,
+                    sideLeft,
+                    30,
+                    ModuleUpgradeSlots.column(
+                            guiSyncManager,
+                            "module_upgrades_" + slot,
+                            () -> pipe.getModules().getSubModule(slot),
+                            markDirty,
+                            () -> openTab[0] == slot),
+                    slot == 0 ? settings : null).setEnabledIf(w -> {
+                        if (!controller.isInitialised()) {
+                            return false;
+                        }
+                        int active = controller.getActivePageIndex();
+                        if (active != openTab[0]) {
+                            openTabSync.setIntValue(active, true, true);
+                        }
+                        return active == slot;
+                    });
+        }
 
         guiSyncManager.addCloseListener(player -> {
             IInventory inv = pipe.getModuleInventory();
@@ -220,6 +279,27 @@ public class ChassisGui extends LogisticsModularUI {
 
         return panel;
     }
+
+    /**
+     * Sends every upgrade column to the client again. A column shows the upgrades of whatever module is in its slot;
+     * when the module changes, the server's column already holds the new module's upgrades but the client got no update
+     * for them (its module there is new and empty), so a moved module showed no upgrades until the GUI was reopened.
+     */
+    private void resendUpgradeColumns(PanelSyncManager syncManager) {
+        for (int i = 0; i < pipe.getChassiSize(); i++) {
+            for (int index = 0; index < ModuleUpgradeManager.SLOTS; index++) {
+                if (syncManager.findSyncHandlerNullable("module_upgrades_" + i, index) instanceof ItemSlotSH handler) {
+                    handler.forceSyncItem();
+                }
+            }
+        }
+    }
+
+    // ticks after a module change before the upgrade columns are sent again
+    private static final int RESEND_DELAY_TICKS = 2;
+    // ticks after the GUI opens before the upgrade columns are sent again
+    private static final int OPEN_RESEND_DELAY_TICKS = 5;
+    private final int[] resendColumnsIn = { 0 };
 
     private String moduleFingerprint(int slot) {
         LogisticsModule module = pipe.getModules().getSubModule(slot);
@@ -334,7 +414,7 @@ public class ChassisGui extends LogisticsModularUI {
 
         var mainPanel = new Flow(GuiAxis.Y);
 
-        mainPanel.width(224).height(180).left(2).top(28).background(ModularUIHelper.BACKGROUND_TEXTURE);
+        mainPanel.width(PANEL_WIDTH).height(180).left(2).top(28).background(ModularUIHelper.BACKGROUND_TEXTURE);
 
         var pages = new PagedWidget<>().controller(controller).fullWidth().height(100);
 
