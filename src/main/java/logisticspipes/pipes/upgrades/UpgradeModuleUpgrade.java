@@ -1,7 +1,6 @@
 package logisticspipes.pipes.upgrades;
 
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 
 public class UpgradeModuleUpgrade implements IPipeUpgrade {
@@ -11,9 +10,13 @@ public class UpgradeModuleUpgrade implements IPipeUpgrade {
         return false;
     }
 
+    /**
+     * Deprecated: every module has its own upgrade slots now. Installed ones are deleted when the pipe loads, new ones
+     * can't be installed.
+     */
     @Override
     public boolean isAllowedForPipe(CoreRoutedPipe pipe) {
-        return pipe instanceof PipeLogisticsChassi;
+        return false;
     }
 
     @Override
@@ -23,7 +26,7 @@ public class UpgradeModuleUpgrade implements IPipeUpgrade {
 
     @Override
     public String[] getAllowedPipes() {
-        return new String[] { "chassi" };
+        return new String[] {};
     }
 
     @Override

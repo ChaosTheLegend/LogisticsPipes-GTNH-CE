@@ -6,26 +6,12 @@ import net.minecraft.util.IIcon;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleAdvancedExtractorMK2 extends ModuleAdvancedExtractor {
-
-    public ModuleAdvancedExtractorMK2() {
-        super();
-    }
-
-    @Override
-    protected int ticksToAction() {
-        return 20;
-    }
-
-    @Override
-    protected int itemsToExtract() {
-        return 32;
-    }
-
-    @Override
-    protected int neededEnergy() {
-        return 8;
-    }
+/**
+ * Deprecated: an extractor with speed upgrades replaces it. Kept for the name and icon of the old item until the
+ * deletion version; a chassis turns it into an extractor when it loads it, see {@code ModuleMigration}.
+ */
+@Deprecated
+public class ModuleAdvancedExtractorMK2 extends ModuleExtractor {
 
     @Override
     @SideOnly(Side.CLIENT)

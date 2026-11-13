@@ -247,7 +247,7 @@ public class PipeItemsCraftingLogistics extends CoreRoutedPipe implements ICraft
 
     @Override
     public int getPriority() {
-        return craftingModule.getPriority();
+        return craftingModule.getCraftingPriority();
     }
 
     @Override

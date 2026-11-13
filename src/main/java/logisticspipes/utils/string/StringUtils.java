@@ -19,6 +19,7 @@ import com.google.common.collect.UnmodifiableListIterator;
 import logisticspipes.pipes.PipeFluidSupplierMk2;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
+import logisticspipes.utils.DeprecatedContent;
 
 public final class StringUtils {
 
@@ -85,6 +86,8 @@ public final class StringUtils {
     }
 
     public static void addShiftAddition(ItemStack stack, List<String> list) {
+        // shown without shift: a player must see it before building with the item
+        DeprecatedContent.addWarning(stack, list);
         if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) {
             String baseKey = MessageFormat.format("{0}.tip", stack.getItem().getUnlocalizedName(stack));
             String key = baseKey + 1;

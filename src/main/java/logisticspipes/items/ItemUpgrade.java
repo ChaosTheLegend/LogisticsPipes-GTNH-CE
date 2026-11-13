@@ -36,6 +36,8 @@ import logisticspipes.pipes.upgrades.LogicControllerUpgrade;
 import logisticspipes.pipes.upgrades.OpaqueUpgrade;
 import logisticspipes.pipes.upgrades.PatternUpgrade;
 import logisticspipes.pipes.upgrades.PowerTransportationUpgrade;
+import logisticspipes.pipes.upgrades.PriorityUpgrade;
+import logisticspipes.pipes.upgrades.SneakyUpgrade;
 import logisticspipes.pipes.upgrades.SpeedUpgrade;
 import logisticspipes.pipes.upgrades.UpgradeModuleUpgrade;
 import logisticspipes.pipes.upgrades.connection.ConnectionUpgradeDOWN;
@@ -53,14 +55,16 @@ import logisticspipes.pipes.upgrades.sneaky.SneakyUpgradeDOWN;
 import logisticspipes.pipes.upgrades.sneaky.SneakyUpgradeEAST;
 import logisticspipes.pipes.upgrades.sneaky.SneakyUpgradeNORTH;
 import logisticspipes.pipes.upgrades.sneaky.SneakyUpgradeSOUTH;
-import logisticspipes.pipes.upgrades.sneaky.SneakyUpgradeUP;
 import logisticspipes.pipes.upgrades.sneaky.SneakyUpgradeWEST;
 import logisticspipes.utils.string.StringUtils;
 
 public class ItemUpgrade extends LogisticsItem {
 
     // Sneaky Upgrades
-    public static final int SNEAKY_UP = 0;
+    // the sneaky upgrade, its faces are set in the settings window; it has the item damage the up one had
+    public static final int SNEAKY = 0;
+    // the old sided and combined ones, deprecated: installed ones turn into the sneaky upgrade (see SneakyFaces)
+    public static final int SNEAKY_UP = SNEAKY;
     public static final int SNEAKY_DOWN = 1;
     public static final int SNEAKY_NORTH = 2;
     public static final int SNEAKY_SOUTH = 3;
@@ -106,6 +110,8 @@ public class ItemUpgrade extends LogisticsItem {
     public static final int REQUEST_TABLE_ITEM_STACK = 46;
     public static final int REQUEST_TABLE_FLUID_INVENTORY = 47;
     public static final int REQUEST_TABLE_FLUID_CAPACITY = 48;
+    // unlocks the priority of a sink or provider in the settings window
+    public static final int PRIORITY = 49;
 
     // Values
     public static final int MAX_LIQUID_CRAFTER = 3;
@@ -157,7 +163,7 @@ public class ItemUpgrade extends LogisticsItem {
     }
 
     public void loadUpgrades() {
-        registerUpgrade(ItemUpgrade.SNEAKY_UP, SneakyUpgradeUP.class, 0);
+        registerUpgrade(ItemUpgrade.SNEAKY, SneakyUpgrade.class, 6);
         registerUpgrade(ItemUpgrade.SNEAKY_DOWN, SneakyUpgradeDOWN.class, 1);
         registerUpgrade(ItemUpgrade.SNEAKY_NORTH, SneakyUpgradeNORTH.class, 2);
         registerUpgrade(ItemUpgrade.SNEAKY_SOUTH, SneakyUpgradeSOUTH.class, 3);
@@ -187,6 +193,7 @@ public class ItemUpgrade extends LogisticsItem {
         registerUpgrade(ItemUpgrade.CRAFTING_MONITORING, CraftingMonitoringUpgrade.class, 27);
         registerUpgrade(ItemUpgrade.OPAQUE_UPGRADE, OpaqueUpgrade.class, 28);
         registerUpgrade(ItemUpgrade.CRAFTING_CLEANUP, CraftingCleanupUpgrade.class, 29);
+        registerUpgrade(ItemUpgrade.PRIORITY, PriorityUpgrade.class, 32);
         registerUpgrade(ItemUpgrade.INSTANT_SATELLITE, InstantSatelliteUpgrade.class, 14);
         if (LPConstants.DEBUG) {
             registerUpgrade(ItemUpgrade.LOGIC_CONTROLLER_UPGRADE, LogicControllerUpgrade.class, 30);
@@ -279,7 +286,7 @@ public class ItemUpgrade extends LogisticsItem {
 
     @Override
     public void registerIcons(IIconRegister par1IIconRegister) {
-        icons = new IIcon[32];
+        icons = new IIcon[33];
         icons[0] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/SneakyUP");
         icons[1] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/SneakyDOWN");
         icons[2] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/SneakyNORTH");
@@ -315,6 +322,7 @@ public class ItemUpgrade extends LogisticsItem {
         icons[29] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/CraftingCleanup");
         icons[30] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/LogicController");
         icons[31] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/UpgradeModule");
+        icons[32] = par1IIconRegister.registerIcon("logisticspipes:itemUpgrade/Priority");
     }
 
     @Override

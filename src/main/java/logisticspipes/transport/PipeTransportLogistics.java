@@ -57,10 +57,10 @@ import logisticspipes.network.packets.pipe.PipePositionPacket;
 import logisticspipes.pipes.PipeItemsFluidSupplier;
 import logisticspipes.pipes.PipeItemsPatternCraftingLogistics;
 import logisticspipes.pipes.PipeLogisticsChassi;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.proxy.buildcraft.LPRoutedBCTravelingItem;
@@ -952,7 +952,7 @@ public class PipeTransportLogistics {
      *         {@link logisticspipes.interfaces.IModuleInventoryOverride}), else null
      */
     private IModuleInventory getTargetModuleInventory(LPTravelingItemServer arrivingItem) {
-        if (!(arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation target)
+        if (!(arrivingItem.getInfo().targetInfo instanceof ModuleSlotTargetInformation target)
                 || !(getRoutedPipe().getLogisticsModule() instanceof ChassiModule chassis)) {
             return null;
         }
@@ -993,7 +993,7 @@ public class PipeTransportLogistics {
         // supplier
         if (MainProxy.isServer(getWorld()) && isRouted
                 && arrivingItem.getInfo() != null
-                && arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation target
+                && arrivingItem.getInfo().targetInfo instanceof ModuleSlotTargetInformation target
                 && getRoutedPipe().getRouter().getSimpleID() == arrivingItem.getDestination()
                 && getRoutedPipe().getLogisticsModule() instanceof ChassiModule chassis
                 && chassis.getModule(target.getModuleSlot()) instanceof IChassiItemReceiver receiver
@@ -1039,8 +1039,8 @@ public class PipeTransportLogistics {
                 {
                     ModulePositionType slot = null;
                     int positionInt = -1;
-                    if (arrivingItem.getInfo().targetInfo instanceof ChassiTargetInformation) {
-                        positionInt = ((ChassiTargetInformation) arrivingItem.getInfo().targetInfo).getModuleSlot();
+                    if (arrivingItem.getInfo().targetInfo instanceof ModuleSlotTargetInformation) {
+                        positionInt = ((ModuleSlotTargetInformation) arrivingItem.getInfo().targetInfo).getModuleSlot();
                         slot = ModulePositionType.SLOT;
                     } else if (LPConstants.DEBUG && container.pipe instanceof PipeLogisticsChassi) {
                         System.out.println(arrivingItem);
@@ -1085,15 +1085,14 @@ public class PipeTransportLogistics {
                 }
                 // a module with its own view of the inventory (electric manager on GT battery slots) inserts there
                 IModuleInventory moduleInventory = getTargetModuleInventory(arrivingItem);
-                // sneaky insertion
-                if (moduleInventory != null || !getRoutedPipe().getUpgradeManager().hasCombinedSneakyUpgrade()
-                        || slotManager.hasOwnSneakyUpgrade()) {
-                    ForgeDirection insertion = arrivingItem.output.getOpposite();
-                    if (slotManager.hasSneakyUpgrade()) {
-                        insertion = slotManager.getSneakyOrientation();
-                    }
-                    ITransactor transactor = moduleInventory != null ? moduleInventory
-                            : InventoryHelper.getTransactorFor(tile, dir.getOpposite());
+                // sneaky insertion: through the faces of the sneaky upgrade in order, else the face facing the pipe
+                ForgeDirection[] faces = slotManager.getSneakyOrientations();
+                if (moduleInventory != null || faces.length == 0) {
+                    faces = new ForgeDirection[] { arrivingItem.output.getOpposite() };
+                }
+                ITransactor transactor = moduleInventory != null ? moduleInventory
+                        : InventoryHelper.getTransactorFor(tile, dir.getOpposite());
+                for (ForgeDirection insertion : faces) {
                     ItemStack added = transactor
                             .add(arrivingItem.getItemIdentifierStack().makeNormalStack(), insertion, true);
 
@@ -1119,36 +1118,6 @@ public class PipeTransportLogistics {
 
                         // back to normal code, break if we've inserted everything, all items disposed of.
                         return; // every item has been inserted.
-                    }
-                } else {
-                    ForgeDirection[] dirs = getRoutedPipe().getUpgradeManager().getCombinedSneakyOrientation();
-                    for (ForgeDirection insertion : dirs) {
-                        if (insertion == null) {
-                            continue;
-                        }
-                        ItemStack added = InventoryHelper.getTransactorFor(tile, dir.getOpposite())
-                                .add(arrivingItem.getItemIdentifierStack().makeNormalStack(), insertion, true);
-
-                        arrivingItem.getItemIdentifierStack().lowerStackSize(added.stackSize);
-                        if (added.stackSize > 0 && arrivingItem instanceof IRoutedItem) {
-                            ((IRoutedItem) arrivingItem).setBufferCounter(0);
-                        }
-                        ItemRoutingInformation info;
-
-                        if (arrivingItem.getItemIdentifierStack().getStackSize() > 0) {
-                            // we have some leftovers, we are splitting the stack, we need to clone the info
-                            info = arrivingItem.getInfo().clone();
-                            // For InvSysCon
-                            info.getItem().setStackSize(added.stackSize);
-                            insertedItemStack(info, tile);
-                        } else {
-                            info = arrivingItem.getInfo();
-                            info.getItem().setStackSize(added.stackSize);
-                            // For InvSysCon
-                            insertedItemStack(info, tile);
-                            // back to normal code, break if we've inserted everything, all items disposed of.
-                            return; // every item has been inserted.
-                        }
                     }
                 }
 
@@ -1193,13 +1162,7 @@ public class PipeTransportLogistics {
                 }
             }
             if (SimpleServiceLocator.betterStorageProxy.isBetterStorageCrate(tile)
-                    || SimpleServiceLocator.factorizationProxy.isBarral(tile)
-                    // || (Configs.TE_PIPE_SUPPORT && SimpleServiceLocator.thermalExpansionProxy.isItemConduit(tile) &&
-                    // SimpleServiceLocator.thermalExpansionProxy.isSideFree(tile, side.getOpposite().ordinal()))
-                    || (getPipe().getUpgradeManager().hasRFPowerSupplierUpgrade()
-                            && SimpleServiceLocator.cofhPowerProxy.isEnergyReceiver(tile))
-                    || (getPipe().getUpgradeManager().getIC2PowerLevel() > 0
-                            && SimpleServiceLocator.IC2Proxy.isEnergySink(tile))) {
+                    || SimpleServiceLocator.factorizationProxy.isBarral(tile)) {
                 return true;
             }
             if (tile instanceof ISidedInventory) {

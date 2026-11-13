@@ -3,6 +3,7 @@ package logisticspipes.items;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
@@ -19,15 +20,22 @@ import net.minecraft.world.World;
 import org.lwjgl.input.Keyboard;
 
 import com.cleanroommc.modularui.api.IGuiHolder;
+import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.factory.PlayerInventoryGuiData;
+import com.cleanroommc.modularui.factory.inventory.InventoryTypes;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+import com.cleanroommc.modularui.widgets.layout.Column;
+import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.compat.ModularUIHelper;
+import logisticspipes.gui.modularUI.ModuleUpgradeSlots;
+import logisticspipes.gui.modularUI.PipeSettingsPanel;
 import logisticspipes.interfaces.IPipeServiceProvider;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.ItemModuleInformationManager;
@@ -59,22 +67,24 @@ import logisticspipes.modules.ModuleFluidProvider;
 import logisticspipes.modules.ModuleFluidSink;
 import logisticspipes.modules.ModuleFluidTankSupplier;
 import logisticspipes.modules.ModuleItemSink;
-import logisticspipes.modules.ModuleModBasedItemSink;
 import logisticspipes.modules.ModuleOreDictItemSink;
 import logisticspipes.modules.ModulePassiveSupplier;
 import logisticspipes.modules.ModulePolymorphicItemSink;
 import logisticspipes.modules.ModuleProvider;
 import logisticspipes.modules.ModuleProviderMk2;
 import logisticspipes.modules.ModuleQuickSort;
+import logisticspipes.modules.ModuleTagItemSink;
 import logisticspipes.modules.ModuleTerminus;
 import logisticspipes.modules.ModuleThaumicAspectSink;
 import logisticspipes.modules.ModuleTypeFilterItemSink;
+import logisticspipes.modules.abstractmodules.IPrioritizedModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreUnroutedPipe;
 import logisticspipes.pipes.basic.LogisticsBlockGenericPipe;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
+import logisticspipes.pipes.upgrades.SneakyUpgrade;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.DummyWorldProvider;
 import logisticspipes.utils.item.ItemIdentifierInventory;
@@ -97,6 +107,8 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
     public static final int APIARISTREFILLER = 10;
     public static final int APIARISTTERMINUS = 11;
     public static final int MODBASEDITEMSINK = 12;
+    // the tag sink took over the mod based sink's id: old mod based sinks are tag sinks in the mod mode
+    public static final int TAG_ITEMSINK = MODBASEDITEMSINK;
     public static final int OREDICTITEMSINK = 13;
     public static final int CC_BASED_QUICKSORT = 14;
     public static final int CC_BASED_ITEMSINK = 15;
@@ -162,13 +174,70 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
 
         var gui = compatibleModule.getHandGui();
 
-        // Save item nbt on close
-        guiSyncManager.addCloseListener(e -> {
-            var heldItem = guiData.getPlayer().getHeldItem();
-            ItemModuleInformationManager.saveInfotmation(heldItem, module);
-        });
+        // the module item must stay where it is while its GUI is open: its settings and upgrades are saved onto it
+        if (guiData.getInventoryType() == InventoryTypes.PLAYER) {
+            int heldSlot = guiData.getSlotIndex();
+            guiSyncManager.bindPlayerInventory(
+                    guiData.getPlayer(),
+                    (inventory, index) -> index == heldSlot
+                            ? new ModularSlot(inventory, index).accessibility(false, false)
+                            : new ModularSlot(inventory, index));
+        }
 
-        return gui.getPanel(guiData, guiSyncManager);
+        // the module item: the one in the locked held slot (an inventory sync can replace the stack object there),
+        // else the item the GUI was opened with
+        Supplier<ItemStack> target = () -> {
+            if (guiData.getInventoryType() == InventoryTypes.PLAYER) {
+                ItemStack held = guiData.getPlayer().inventory.getStackInSlot(guiData.getSlotIndex());
+                if (held != null && held.getItem() == this && held.getItemDamage() == item.getItemDamage()) {
+                    return held;
+                }
+            }
+            return item;
+        };
+        Runnable save = () -> ItemModuleInformationManager.saveInfotmation(target.get(), module);
+        guiSyncManager.addCloseListener(e -> save.run());
+        if (!guiSyncManager.isClient()) {
+            // settings are saved as soon as they change, not only when the GUI closes
+            String[] saved = { settingsOf(module) };
+            guiSyncManager.onCommonTick(() -> {
+                String now = settingsOf(module);
+                if (!now.equals(saved[0])) {
+                    saved[0] = now;
+                    save.run();
+                }
+            });
+        }
+
+        int width = gui.getWidth();
+        int height = gui.getHeight();
+        ModularPanel panel = ModularPanel.defaultPanel(gui.getId(), width + ModuleUpgradeSlots.SIDE_WIDTH, height)
+                .background(IDrawable.EMPTY);
+        panel.child(
+                gui.addWidgets(new Column().width(width).height(height), guiSyncManager, true)
+                        .background(ModularUIHelper.BACKGROUND_TEXTURE));
+        // upgrades are written onto the item at once, so taking one out can't leave it in the item as well. Only for a
+        // single module: the saved data goes onto the whole stack, every module in it would get the upgrade.
+        // The priority and the sneaky faces of a module that has them, in the settings window (no sides: the module is
+        // in no pipe)
+        ModuleUpgradeSlots.addSide(
+                panel,
+                width + ModuleUpgradeSlots.GAP,
+                4,
+                item.stackSize == 1 ? ModuleUpgradeSlots.column(guiSyncManager, "module_upgrades", () -> module, save)
+                        : null,
+                module instanceof IPrioritizedModule || new SneakyUpgrade().isAllowedForModule(module)
+                        ? PipeSettingsPanel.button(panel, guiSyncManager, "module_settings", null, () -> module)
+                        : null);
+        return panel;
+    }
+
+    private static String settingsOf(LogisticsModule module) {
+        NBTTagCompound tag = new NBTTagCompound();
+        module.writeToNBT(tag);
+        // the upgrades too: the sneaky faces are set in the settings window
+        module.getModuleUpgrades().writeToNBT(tag, "upgrades");
+        return tag.toString();
     }
 
     private class Module {
@@ -248,7 +317,7 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
         registerModule(ItemModule.BEESINK, ModuleApiaristSink.class);
         registerModule(ItemModule.APIARISTREFILLER, ModuleApiaristRefiller.class);
         registerModule(ItemModule.APIARISTTERMINUS, ModuleApiaristTerminus.class);
-        registerModule(ItemModule.MODBASEDITEMSINK, ModuleModBasedItemSink.class);
+        registerModule(ItemModule.TAG_ITEMSINK, ModuleTagItemSink.class);
         registerModule(ItemModule.OREDICTITEMSINK, ModuleOreDictItemSink.class);
         registerModule(ItemModule.THAUMICASPECTSINK, ModuleThaumicAspectSink.class);
         registerModule(ItemModule.ENCHANTMENTSINK, ModuleEnchantmentSink.class);
@@ -315,18 +384,17 @@ public class ItemModule extends LogisticsItem implements IGuiHolder<PlayerInvent
 
     private void openConfigGui(ItemStack par1ItemStack, EntityPlayer par2EntityPlayer, World par3World) {
         LogisticsModule module = getModuleForItem(par1ItemStack, null, null, null);
-        if (module == null || !module.hasGui()) {
+        if (module == null || par1ItemStack == null || par1ItemStack.stackSize <= 0) {
             return;
         }
 
-        if (par1ItemStack == null || par1ItemStack.stackSize <= 0) {
-            return;
-        }
-
+        // every module with a MUI window opens it, also one without settings: the window holds its upgrade slots
         if (module instanceof IMUICompatibleModule) {
-            if (!(module instanceof LogisticsGuiModule)) return;
+            ((IMUICompatibleModule) module).openGui(par2EntityPlayer, module, par3World);
+            return;
+        }
 
-            ((IMUICompatibleModule) module).openGui(par2EntityPlayer, (LogisticsGuiModule) module, par3World);
+        if (!module.hasGui()) {
             return;
         }
 

@@ -10,6 +10,9 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleInfoMuiDynamic;
 import logisticspipes.interfaces.IQueueCCEvent;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -22,7 +25,7 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.item.ItemIdentifierStack;
 
-public class ModuleCCBasedItemSink extends LogisticsModule {
+public class ModuleCCBasedItemSink extends LogisticsModule implements IMUICompatibleModule {
 
     private IQueueCCEvent eventQueuer;
 
@@ -148,5 +151,22 @@ public class ModuleCCBasedItemSink extends LogisticsModule {
         }
 
         return id + 1;
+    }
+
+    // nothing to configure: a window that says what the module does and holds its upgrade slots in hand
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return ModuleInfoMuiDynamic.of(this, prefix);
     }
 }

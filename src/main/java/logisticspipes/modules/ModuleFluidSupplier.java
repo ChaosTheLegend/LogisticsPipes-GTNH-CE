@@ -18,7 +18,7 @@ import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.module.inpipe.FluidSupplierSlot;
 import logisticspipes.pipefxhandlers.Particles;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import logisticspipes.utils.item.ItemIdentifier;
@@ -44,7 +44,7 @@ public class ModuleFluidSupplier extends LogisticsGuiModule implements IClientIn
                 false,
                 0,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override

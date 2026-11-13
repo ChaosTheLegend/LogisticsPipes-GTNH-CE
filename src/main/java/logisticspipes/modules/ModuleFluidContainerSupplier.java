@@ -40,7 +40,7 @@ import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.pipefxhandlers.Particles;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
@@ -190,7 +190,7 @@ public class ModuleFluidContainerSupplier extends LogisticsGuiModule
             lastRequestFailed = false;
             return;
         }
-        IAdditionalTargetInformation info = new ChassiTargetInformation(getPositionInt());
+        IAdditionalTargetInformation info = new ModuleSlotTargetInformation(getPositionInt());
         boolean failed = false;
 
         int containers = wanted - getBuffered(itemBuffer, current.container)

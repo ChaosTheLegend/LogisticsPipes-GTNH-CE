@@ -22,4 +22,12 @@ public interface IFluidSink {
     default FixedPriority getFluidSinkPriority(FluidStack stack) {
         return FixedPriority.ItemSink;
     }
+
+    /**
+     * @return the player-set priority among sinks of the same {@link #getFluidSinkPriority}: the higher one is
+     *         preferred even when it is further away
+     */
+    default int getFluidSinkCustomPriority(FluidStack stack) {
+        return 0;
+    }
 }

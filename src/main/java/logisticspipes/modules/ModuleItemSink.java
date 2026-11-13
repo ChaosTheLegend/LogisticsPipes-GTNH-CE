@@ -25,6 +25,7 @@ import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
+import logisticspipes.modules.abstractmodules.IPrioritizedModule;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.network.NewGuiHandler;
@@ -39,7 +40,7 @@ import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ModuleInventory;
 import logisticspipes.network.packets.modules.ItemSinkDefault;
 import logisticspipes.network.packets.modules.ItemSinkFuzzy;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.computers.interfaces.CCCommand;
 import logisticspipes.proxy.computers.interfaces.CCType;
@@ -54,8 +55,9 @@ import logisticspipes.utils.string.StringUtils;
 import logisticspipes.utils.tuples.Pair;
 
 @CCType(name = "ItemSink Module")
-public class ModuleItemSink extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler,
-        IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive, IMUICompatibleModule {
+public class ModuleItemSink extends LogisticsGuiModule
+        implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler,
+        IModuleInventoryReceive, IMUICompatibleModule, IPrioritizedModule {
 
     private final ItemIdentifierInventory _filterInventory = new ItemIdentifierInventory(
             9,
@@ -70,13 +72,39 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
 
     private final PlayerCollectionList localModeWatchers = new PlayerCollectionList();
 
-    public ModuleItemSink() {
-        _filterInventory.addListener(this);
-    }
-
     @CCCommand(description = "Returns the FilterInventory of this Module")
     public ItemIdentifierInventory getFilterInventory() {
         return _filterInventory;
+    }
+
+    /**
+     * Saved setting: the terminus priority instead of the item sink's (what the terminus module did).
+     */
+    public static final String TERMINUS_KEY = "terminus";
+
+    // the terminus priority: below the item sink, above the tag and enchantment sinks
+    private boolean terminus;
+
+    public ModuleItemSink() {
+        this(false);
+    }
+
+    /**
+     * @param terminus the priority of settings saved without one: the terminus module saved only its filter
+     */
+    protected ModuleItemSink(boolean terminus) {
+        this.terminus = terminus;
+        _filterInventory.addListener(this);
+    }
+
+    @CCCommand(description = "Returns true if the module has the terminus priority")
+    public boolean isTerminus() {
+        return terminus;
+    }
+
+    @CCCommand(description = "Sets the terminus priority of this module")
+    public void setTerminus(Boolean terminus) {
+        this.terminus = terminus;
     }
 
     @CCCommand(description = "Returns true if the module is a default route")
@@ -95,6 +123,7 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
     }
 
     private SinkReply _sinkReply;
+    private SinkReply _sinkReplyTerminus;
     private SinkReply _sinkReplyDefault;
 
     @Override
@@ -107,7 +136,15 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                 false,
                 1,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
+        _sinkReplyTerminus = new SinkReply(
+                FixedPriority.Terminus,
+                0,
+                true,
+                false,
+                2,
+                0,
+                new ModuleSlotTargetInformation(getPositionInt()));
         _sinkReplyDefault = new SinkReply(
                 FixedPriority.DefaultRoute,
                 0,
@@ -115,7 +152,7 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                 true,
                 1,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     /**
@@ -225,12 +262,13 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
         if (_isDefaultRoute && !allowDefault) {
             return null;
         }
-        if (bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal()
-                && bestCustomPriority >= _sinkReply.customPriority)) {
+        SinkReply reply = prioritized(terminus ? _sinkReplyTerminus : _sinkReply);
+        if (bestPriority > reply.fixedPriority.ordinal()
+                || (bestPriority == reply.fixedPriority.ordinal() && bestCustomPriority >= reply.customPriority)) {
             return null;
         }
         if (_filterInventory.containsUndamagedItem(item.getUndamaged())) {
-            return replyIfRoom(_sinkReply, item, includeInTransit, 1);
+            return replyIfRoom(reply, item, includeInTransit, terminus ? 2 : 1);
         }
         if (_service.getUpgradeManager(slot, positionInt).isFuzzyUpgrade()) {
             for (Pair<ItemIdentifierStack, Integer> stack : _filterInventory) {
@@ -251,17 +289,18 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
                     ident2 = ident2.getIgnoringNBT();
                 }
                 if (ident1.equals(ident2)) {
-                    return replyIfRoom(_sinkReply, item, includeInTransit, 5);
+                    return replyIfRoom(reply, item, includeInTransit, 5);
                 }
             }
         }
         if (_isDefaultRoute) {
-            if (bestPriority > _sinkReplyDefault.fixedPriority.ordinal()
-                    || (bestPriority == _sinkReplyDefault.fixedPriority.ordinal()
-                            && bestCustomPriority >= _sinkReplyDefault.customPriority)) {
+            SinkReply defaultReply = prioritized(_sinkReplyDefault);
+            if (bestPriority > defaultReply.fixedPriority.ordinal()
+                    || (bestPriority == defaultReply.fixedPriority.ordinal()
+                            && bestCustomPriority >= defaultReply.customPriority)) {
                 return null;
             }
-            return replyIfRoom(_sinkReplyDefault, item, includeInTransit, 1);
+            return replyIfRoom(defaultReply, item, includeInTransit, 1);
         }
         return null;
     }
@@ -287,6 +326,10 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
     public void readFromNBT(NBTTagCompound nbttagcompound) {
         _filterInventory.readFromNBT(nbttagcompound, "");
         _isDefaultRoute = nbttagcompound.getBoolean("defaultdestination");
+        readPriority(nbttagcompound);
+        if (nbttagcompound.hasKey(TERMINUS_KEY)) {
+            terminus = nbttagcompound.getBoolean(TERMINUS_KEY);
+        }
         if (nbttagcompound.hasKey("ignoreData")) {
             ignoreData = BitSet.valueOf(nbttagcompound.getByteArray("ignoreData"));
             ignoreNBT = BitSet.valueOf(nbttagcompound.getByteArray("ignoreNBT"));
@@ -297,6 +340,8 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
     public void writeToNBT(NBTTagCompound nbttagcompound) {
         _filterInventory.writeToNBT(nbttagcompound, "");
         nbttagcompound.setBoolean("defaultdestination", isDefaultRoute());
+        writePriority(nbttagcompound);
+        nbttagcompound.setBoolean(TERMINUS_KEY, terminus);
         nbttagcompound.setByteArray("ignoreData", ignoreData.toByteArray());
         nbttagcompound.setByteArray("ignoreNBT", ignoreNBT.toByteArray());
     }
@@ -308,6 +353,9 @@ public class ModuleItemSink extends LogisticsGuiModule implements IClientInforma
     public List<String> getClientInformation() {
         List<String> list = new ArrayList<>();
         list.add("Default: " + (isDefaultRoute() ? "Yes" : "No"));
+        if (terminus) {
+            list.add("Terminus");
+        }
         list.add("Filter: ");
         list.add("<inventory>");
         list.add("<that>");

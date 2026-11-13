@@ -57,6 +57,7 @@ public class LogisticsFluidManager implements ILogisticsFluidManager {
         int bestRouter = 0;
         int bestAmount = 0;
         FixedPriority bestPriority = null;
+        int bestCustomPriority = 0;
         for (ExitRoute candidateRouter : candidates) {
             CoreRoutedPipe pipe = candidateRouter.destination.getPipe();
             if (pipe == null || !pipe.isEnabled()) continue;
@@ -65,14 +66,19 @@ public class LogisticsFluidManager implements ILogisticsFluidManager {
                 continue;
 
             FixedPriority priority = iFluidSink.getFluidSinkPriority(stack);
-            // the candidates are sorted by distance, a later one has to be more important
-            if (bestPriority != null && priority.ordinal() <= bestPriority.ordinal()) continue;
+            int customPriority = iFluidSink.getFluidSinkCustomPriority(stack);
+            // the candidates are sorted by distance, a later one has to be more important: by its kind, then by the
+            // priority the player set
+            if (bestPriority != null && (priority.ordinal() < bestPriority.ordinal()
+                    || (priority.ordinal() == bestPriority.ordinal() && customPriority <= bestCustomPriority)))
+                continue;
 
             int amount = iFluidSink.sinkAmount(stack);
             if (amount > 0) {
                 bestRouter = candidateRouter.destination.getSimpleID();
                 bestAmount = amount;
                 bestPriority = priority;
+                bestCustomPriority = customPriority;
             }
         }
         return new Pair<>(bestRouter, bestAmount);

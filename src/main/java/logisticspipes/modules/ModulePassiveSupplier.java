@@ -29,7 +29,7 @@ import logisticspipes.network.PacketHandler;
 import logisticspipes.network.packets.hud.HUDStartModuleWatchingPacket;
 import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ModuleInventory;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.PlayerCollectionList;
@@ -74,7 +74,7 @@ public class ModulePassiveSupplier extends LogisticsSimpleFilterModule
                 false,
                 2,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override

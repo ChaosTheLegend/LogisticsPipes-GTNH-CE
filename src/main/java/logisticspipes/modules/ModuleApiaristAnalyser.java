@@ -26,8 +26,8 @@ import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
 import logisticspipes.network.guis.module.inhand.ApiaristAnalyserModuleInHand;
 import logisticspipes.network.guis.module.inpipe.ApiaristAnalyzerModuleSlot;
 import logisticspipes.network.packets.module.ApiaristAnalyserMode;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.routing.astar.CategoryInterests;
@@ -74,7 +74,7 @@ public class ModuleApiaristAnalyser extends LogisticsGuiModule
                 false,
                 3,
                 0,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     @Override

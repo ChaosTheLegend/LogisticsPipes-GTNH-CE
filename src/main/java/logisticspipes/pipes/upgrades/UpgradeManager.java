@@ -1,6 +1,5 @@
 package logisticspipes.pipes.upgrades;
 
-import java.util.EnumSet;
 import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -23,10 +22,9 @@ import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.network.NewGuiHandler;
 import logisticspipes.network.guis.pipe.UpgradeManagerGui;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
-import logisticspipes.pipes.upgrades.power.IC2PowerSupplierUpgrade;
-import logisticspipes.pipes.upgrades.power.RFPowerSupplierUpgrade;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
+import logisticspipes.utils.DeprecatedContent;
 import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.PlayerCollectionList;
 import logisticspipes.utils.gui.DummyContainer;
@@ -38,6 +36,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
     @Getter
     private final SimpleStackInventory inv = new SimpleStackInventory(9, "UpgradeInventory", 16);
 
+    private static final String SNEAKY_FACES_KEY = "SneakyFaces";
     @Getter
     private final SimpleStackInventory sneakyInv = new SimpleStackInventory(9, "SneakyUpgradeInventory", 1);
 
@@ -45,33 +44,25 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
     private final SimpleStackInventory secInv = new SimpleStackInventory(1, "SecurityInventory", 16);
 
     private final IPipeUpgrade[] upgrades = new IPipeUpgrade[9];
-    private final IPipeUpgrade[] sneakyUpgrades = new IPipeUpgrade[9];
     private final CoreRoutedPipe pipe;
     private int securityDelay = 0;
 
     /* cached attributes */
-    private ForgeDirection sneakyOrientation = ForgeDirection.UNKNOWN;
-    private final ForgeDirection[] combinedSneakyOrientation = new ForgeDirection[9];
+    // the faces set in the settings window, in order; they work while a sneaky upgrade is in the slots
+    private ForgeDirection[] sneakyFaces = SneakyFaces.NONE;
+    private boolean hasSneakyItem = false;
     private int speedUpgradeCount = 0;
-    private final EnumSet<ForgeDirection> disconnectedSides = EnumSet.noneOf(ForgeDirection.class);
     private boolean isAdvancedCrafter = false;
     private boolean hasInstantSatelliteUpgrade = false;
     private boolean isFuzzyUpgrade = false;
-    private boolean isCombinedSneakyUpgrade = false;
     private int liquidCrafter = 0;
     private boolean hasByproductExtractor = false;
     private UUID uuid = null;
     private String uuidS = null;
     private boolean hasPatternUpgrade = false;
-    private boolean hasPowerPassUpgrade = false;
-    private boolean hasRFPowerUpgrade = false;
-    private int getIC2PowerLevel = 0;
-    private boolean hasCCRemoteControlUpgrade = false;
     private boolean hasCraftingMonitoringUpgrade = false;
-    private boolean hasOpaqueUpgrade = false;
     private int craftingCleanup = 0;
     private boolean hasLogicControll = false;
-    private boolean hasUpgradeModuleUpgarde = false;
 
     private boolean needsContainerPositionUpdate = false;
 
@@ -94,6 +85,13 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
                 sneakyInv.setInventorySlotContents(8, null);
             }
         }
+        if (nbttagcompound.hasKey(SNEAKY_FACES_KEY)) {
+            sneakyFaces = SneakyFaces.read(nbttagcompound, SNEAKY_FACES_KEY);
+        } else {
+            // saved before the faces: the old sneaky upgrades give them; the ones in the slots of a combined upgrade
+            // stay there and drop when the upgrade window closes or the pipe breaks
+            sneakyFaces = SneakyFaces.convertLegacy(inv, sneakyInv);
+        }
 
         InventoryChanged(inv);
     }
@@ -102,12 +100,20 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
         inv.writeToNBT(nbttagcompound, "UpgradeInventory_");
         sneakyInv.writeToNBT(nbttagcompound, "SneakyUpgradeInventory_");
         secInv.writeToNBT(nbttagcompound, "SecurityInventory_");
+        SneakyFaces.write(nbttagcompound, SNEAKY_FACES_KEY, sneakyFaces);
         InventoryChanged(inv);
     }
 
     private boolean updateModule(int slot, IPipeUpgrade[] upgrades, IInventory inv) {
+        // old sneaky upgrades were converted on load (SneakyFaces.convertLegacy) and can't be put in
         upgrades[slot] = LogisticsPipes.UpgradeItem.getUpgradeForItem(inv.getStackInSlot(slot), upgrades[slot]);
-        if (upgrades[slot] == null) {
+        // a connection upgrade becomes a disconnected side of the pipe (decided 2026-11-06), then it is deleted
+        if (upgrades[slot] instanceof ConnectionUpgrade connection && pipe != null) {
+            pipe.setSideDisconnected(connection.getSide(), true);
+        }
+        // deprecated upgrades are deleted, not given back (decided 2026-10-30)
+        if (upgrades[slot] == null || DeprecatedContent.isDeprecatedUpgrade(inv.getStackInSlot(slot))) {
+            upgrades[slot] = null;
             inv.setInventorySlotContents(slot, null);
             return false;
         } else {
@@ -132,89 +138,46 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
                 needUpdate |= removeUpgrade(i, upgrades);
             }
         }
-        // update sneaky direction, speed upgrade count and disconnection
-        sneakyOrientation = ForgeDirection.UNKNOWN;
+        // update the cached attributes; deprecated upgrades were deleted above
+        hasSneakyItem = false;
         speedUpgradeCount = 0;
         isAdvancedCrafter = false;
         hasInstantSatelliteUpgrade = false;
         isFuzzyUpgrade = false;
-        boolean combinedBuffer = isCombinedSneakyUpgrade;
-        isCombinedSneakyUpgrade = false;
         liquidCrafter = 0;
-        disconnectedSides.clear();
         hasByproductExtractor = false;
         hasPatternUpgrade = false;
-        hasPowerPassUpgrade = false;
-        hasRFPowerUpgrade = false;
-        getIC2PowerLevel = 0;
-        hasCCRemoteControlUpgrade = false;
         hasCraftingMonitoringUpgrade = false;
-        hasOpaqueUpgrade = false;
         craftingCleanup = 0;
         hasLogicControll = false;
-        hasUpgradeModuleUpgarde = false;
         for (int i = 0; i < upgrades.length; i++) {
             IPipeUpgrade upgrade = upgrades[i];
-            if (upgrade instanceof SneakyUpgrade && sneakyOrientation == ForgeDirection.UNKNOWN
-                    && !isCombinedSneakyUpgrade) {
-                sneakyOrientation = ((SneakyUpgrade) upgrade).getSneakyOrientation();
+            if (upgrade instanceof SneakyUpgrade) {
+                hasSneakyItem = true;
             } else if (upgrade instanceof SpeedUpgrade) {
                 speedUpgradeCount += inv.getStackInSlot(i).stackSize;
-            } else if (upgrade instanceof ConnectionUpgrade) {
-                disconnectedSides.add(((ConnectionUpgrade) upgrade).getSide());
             } else if (upgrade instanceof AdvancedSatelliteUpgrade) {
                 isAdvancedCrafter = true;
             } else if (upgrade instanceof InstantSatelliteUpgrade) {
                 hasInstantSatelliteUpgrade = true;
             } else if (upgrade instanceof FuzzyUpgrade) {
                 isFuzzyUpgrade = true;
-            } else if (upgrade instanceof CombinedSneakyUpgrade && sneakyOrientation == ForgeDirection.UNKNOWN) {
-                isCombinedSneakyUpgrade = true;
             } else if (upgrade instanceof FluidCraftingUpgrade) {
                 liquidCrafter += inv.getStackInSlot(i).stackSize;
             } else if (upgrade instanceof CraftingByproductUpgrade) {
                 hasByproductExtractor = true;
             } else if (upgrade instanceof PatternUpgrade) {
                 hasPatternUpgrade = true;
-            } else if (upgrade instanceof PowerTransportationUpgrade) {
-                hasPowerPassUpgrade = true;
-            } else if (upgrade instanceof RFPowerSupplierUpgrade) {
-                hasRFPowerUpgrade = true;
-            } else if (upgrade instanceof IC2PowerSupplierUpgrade) {
-                getIC2PowerLevel = Math.max(getIC2PowerLevel, ((IC2PowerSupplierUpgrade) upgrade).getPowerLevel());
-            } else if (upgrade instanceof CCRemoteControlUpgrade) {
-                hasCCRemoteControlUpgrade = true;
             } else if (upgrade instanceof CraftingMonitoringUpgrade) {
                 hasCraftingMonitoringUpgrade = true;
-            } else if (upgrade instanceof OpaqueUpgrade) {
-                hasOpaqueUpgrade = true;
             } else if (upgrade instanceof CraftingCleanupUpgrade) {
                 craftingCleanup += inv.getStackInSlot(i).stackSize;
             } else if (upgrade instanceof LogicControllerUpgrade) {
                 hasLogicControll = true;
-            } else if (upgrade instanceof UpgradeModuleUpgrade) {
-                hasUpgradeModuleUpgarde = true;
             }
         }
         liquidCrafter = Math.min(liquidCrafter, ItemUpgrade.MAX_LIQUID_CRAFTER);
         craftingCleanup = Math.min(craftingCleanup, ItemUpgrade.MAX_CRAFTING_CLEANUP);
-        if (combinedBuffer != isCombinedSneakyUpgrade) {
-            needsContainerPositionUpdate = true;
-        }
-        for (int i = 0; i < sneakyInv.getSizeInventory() - 1; i++) {
-            ItemStack item = sneakyInv.getStackInSlot(i);
-            if (item != null) {
-                needUpdate |= updateModule(i, sneakyUpgrades, sneakyInv);
-            } else if (item == null && sneakyUpgrades[i] != null) {
-                needUpdate |= removeUpgrade(i, sneakyUpgrades);
-            }
-        }
-        for (int i = 0; i < sneakyUpgrades.length; i++) {
-            IPipeUpgrade upgrade = sneakyUpgrades[i];
-            if (upgrade instanceof SneakyUpgrade) {
-                combinedSneakyOrientation[i] = ((SneakyUpgrade) upgrade).getSneakyOrientation();
-            }
-        }
         if (needUpdate) {
             pipe.connectionUpdate();
             if (pipe.container != null) {
@@ -245,12 +208,32 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
 
     @Override
     public boolean hasSneakyUpgrade() {
-        return sneakyOrientation != ForgeDirection.UNKNOWN;
+        return getSneakyOrientations().length > 0;
     }
 
     @Override
     public ForgeDirection getSneakyOrientation() {
-        return sneakyOrientation;
+        return hasSneakyUpgrade() ? sneakyFaces[0] : ForgeDirection.UNKNOWN;
+    }
+
+    @Override
+    public ForgeDirection[] getSneakyOrientations() {
+        return hasSneakyItem ? sneakyFaces : SneakyFaces.NONE;
+    }
+
+    @Override
+    public boolean hasSneakyItem() {
+        return hasSneakyItem;
+    }
+
+    @Override
+    public ForgeDirection[] getSneakyFaces() {
+        return sneakyFaces;
+    }
+
+    @Override
+    public void setSneakyFaces(ForgeDirection[] faces) {
+        sneakyFaces = faces == null ? SneakyFaces.NONE : faces;
     }
 
     @Override
@@ -258,14 +241,13 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
         return speedUpgradeCount;
     }
 
+    /**
+     * @return false: the combined sneaky upgrade is merged into the sneaky upgrade, the old windows show no sneaky
+     *         slots
+     */
     @Override
     public boolean hasCombinedSneakyUpgrade() {
-        return isCombinedSneakyUpgrade;
-    }
-
-    @Override
-    public ForgeDirection[] getCombinedSneakyOrientation() {
-        return combinedSneakyOrientation;
+        return false;
     }
 
     @Override
@@ -290,7 +272,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
             @Override
             public void guiClosedByPlayer(EntityPlayer player) {
                 players.remove(player);
-                if (players.isEmpty() && !isCombinedSneakyUpgrade) {
+                if (players.isEmpty()) {
                     sneakyInv.dropContents(pipe.getWorld(), pipe.getX(), pipe.getY(), pipe.getZ());
                 }
             }
@@ -299,7 +281,7 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
 
     public DummyContainer getDummyContainer(EntityPlayer player) {
         DummyContainer dummy = new DummyContainer(player, inv, getGuiController());
-        dummy.addNormalSlotsForPlayerInventory(8, isCombinedSneakyUpgrade ? 90 : 60);
+        dummy.addNormalSlotsForPlayerInventory(8, 60);
 
         // Pipe slots
         for (int pipeSlot = 0; pipeSlot < 8; pipeSlot++) {
@@ -321,7 +303,8 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
                     .isAuthorized(UUID.fromString(itemStack.getTagCompound().getString("UUID")));
         }, 1);
 
-        int y = isCombinedSneakyUpgrade ? 58 : 100000;
+        // the slots of the old combined sneaky upgrade, hidden: what is left in them drops when the window closes
+        int y = 100000;
         for (int pipeSlot = 0; pipeSlot < 9; pipeSlot++) {
             dummy.addRestrictedSlot(pipeSlot, sneakyInv, 8 + pipeSlot * 18, y, itemStack -> {
                 if (itemStack == null) {
@@ -352,11 +335,6 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
         sneakyInv.dropContents(pipe.getWorld(), pipe.getX(), pipe.getY(), pipe.getZ());
     }
 
-    @Override
-    public boolean isSideDisconnected(ForgeDirection side) {
-        return disconnectedSides.contains(side);
-    }
-
     public boolean tryIserting(World world, EntityPlayer entityplayer) {
         if (entityplayer.getCurrentEquippedItem() != null
                 && entityplayer.getCurrentEquippedItem().getItem() == LogisticsPipes.UpgradeItem) {
@@ -366,13 +344,6 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
             IPipeUpgrade upgrade = LogisticsPipes.UpgradeItem
                     .getUpgradeForItem(entityplayer.getCurrentEquippedItem(), null);
             if (upgrade != null && upgrade.isAllowedForPipe(pipe)) {
-                if (isCombinedSneakyUpgrade) {
-                    if (upgrade instanceof SneakyUpgrade) {
-                        if (insertIntInv(entityplayer, sneakyInv)) {
-                            return true;
-                        }
-                    }
-                }
                 if (insertIntInv(entityplayer, inv)) {
                     return true;
                 }
@@ -480,39 +451,22 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
         return hasByproductExtractor;
     }
 
+    /**
+     * @return false: a priority upgrade never goes into a pipe's slots
+     */
+    @Override
+    public boolean hasPriorityUpgrade() {
+        return false;
+    }
+
     @Override
     public boolean hasPatternUpgrade() {
         return hasPatternUpgrade;
     }
 
     @Override
-    public boolean hasPowerPassUpgrade() {
-        return hasPowerPassUpgrade || hasRFPowerUpgrade || getIC2PowerLevel > 0;
-    }
-
-    @Override
-    public boolean hasRFPowerSupplierUpgrade() {
-        return hasRFPowerUpgrade;
-    }
-
-    @Override
-    public int getIC2PowerLevel() {
-        return getIC2PowerLevel;
-    }
-
-    @Override
-    public boolean hasCCRemoteControlUpgrade() {
-        return hasCCRemoteControlUpgrade;
-    }
-
-    @Override
     public boolean hasCraftingMonitoringUpgrade() {
         return pipe instanceof RequestTablePipe table ? table.hasMonitoringUpgrade() : hasCraftingMonitoringUpgrade;
-    }
-
-    @Override
-    public boolean isOpaque() {
-        return hasOpaqueUpgrade;
     }
 
     @Override
@@ -522,15 +476,5 @@ public class UpgradeManager implements ISimpleInventoryEventHandler, ISlotUpgrad
 
     public boolean hasLogicControll() {
         return hasLogicControll;
-    }
-
-    @Override
-    public boolean hasUpgradeModuleUpgrade() {
-        return hasUpgradeModuleUpgarde;
-    }
-
-    @Override
-    public boolean hasOwnSneakyUpgrade() {
-        return false;
     }
 }

@@ -23,8 +23,8 @@ import logisticspipes.gui.modularUI.dynamicModules.ModuleFluidContainerSinkMuiDy
 import logisticspipes.interfaces.IFluidModuleHost;
 import logisticspipes.interfaces.IInventorylessSink;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.routing.astar.ItemCategory;
@@ -67,7 +67,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
      */
     private int containersWithRoom(ItemIdentifier container, FluidStack fluid) {
         IFluidModuleHost host = getHost();
-        if (host == null || getTankTile() == null || fluid.amount <= 0) {
+        if (host == null || !hasTank() || fluid.amount <= 0) {
             return 0;
         }
         FluidIdentifier fluidId = FluidIdentifier.get(fluid);
@@ -104,7 +104,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
                 false,
                 1,
                 containers,
-                new ChassiTargetInformation(getPositionInt()));
+                new ModuleSlotTargetInformation(getPositionInt()));
     }
 
     /**
@@ -115,7 +115,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
      * @return false if the tank doesn't take all of it; nothing is filled then
      */
     public boolean acceptContainer(FluidStack fluid, Consumer<FluidStack> overflow) {
-        if (getTankTile() == null || !filter.contains(fluid)) {
+        if (!hasTank() || !filter.contains(fluid)) {
             return false;
         }
         roomCache.clear();
@@ -140,7 +140,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
     @Override
     public Collection<ItemIdentifier> getSpecificInterests() {
         List<ItemIdentifier> interests = new ArrayList<>();
-        if (getHost() == null || getTankTile() == null) {
+        if (getHost() == null || !hasTank()) {
             return interests;
         }
         for (FluidIdentifier wanted : filter.getFluids()) {
@@ -158,7 +158,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
      */
     @Override
     public CategoryInterests getCategoryInterests() {
-        if (getHost() == null || getTankTile() == null) {
+        if (getHost() == null || !hasTank()) {
             return CategoryInterests.EMPTY;
         }
         for (FluidIdentifier wanted : filter.getFluids()) {
@@ -259,7 +259,7 @@ public class ModuleFluidContainerSink extends LogisticsFluidModule implements II
      * Sets the filter to the fluids that are in the tank.
      */
     public void importFromTank() {
-        if (getTankTile() == null || MainProxy.isClient(getWorld())) {
+        if (!hasTank() || MainProxy.isClient(getWorld())) {
             return;
         }
         filter.setFluids(getTankContents().keySet());

@@ -13,6 +13,9 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleInfoMuiDynamic;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
@@ -21,7 +24,7 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.tuples.Pair;
 
-public class ModuleApiaristRefiller extends LogisticsModule {
+public class ModuleApiaristRefiller extends LogisticsModule implements IMUICompatibleModule {
 
     private int currentTickCount = 0;
     private final int ticksToOperation = 200;
@@ -183,5 +186,22 @@ public class ModuleApiaristRefiller extends LogisticsModule {
     @SideOnly(Side.CLIENT)
     public IIcon getIconTexture(IIconRegister register) {
         return register.registerIcon("logisticspipes:itemModule/ModuleApiaristRefiller");
+    }
+
+    // nothing to configure: a window that says what the module does and holds its upgrade slots in hand
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return ModuleInfoMuiDynamic.of(this, prefix);
     }
 }

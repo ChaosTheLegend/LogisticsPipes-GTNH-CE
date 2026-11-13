@@ -6,6 +6,7 @@ import com.cleanroommc.modularui.value.sync.BooleanSyncValue;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widgets.CycleButtonWidget;
+import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 
 import logisticspipes.gui.modularUI.GenericModuleMUI;
 import logisticspipes.modules.ModuleApiaristAnalyser;
@@ -28,6 +29,8 @@ public class ModuleBeeAnalyzerMuiDynamic extends GenericModuleMUI<ModuleApiarist
     @Override
     public ParentWidget addWidgets(ParentWidget widget, PanelSyncManager syncManager, boolean addPlayerInventory) {
 
+        if (addPlayerInventory) widget.child(SlotGroupWidget.playerInventory(true));
+
         BooleanSyncValue extractModeSync = syncManager != null
                 ? syncManager.getOrCreateSyncHandler(
                         getFullId() + "_extract_mode",
@@ -38,8 +41,7 @@ public class ModuleBeeAnalyzerMuiDynamic extends GenericModuleMUI<ModuleApiarist
         widget.child(
                 new CycleButtonWidget().value(extractModeSync).overlay(
                         IKey.lang(() -> module.getExtractModeBool() ? "Extract items: On" : "Extract items: Off"))
-                        .width(120).height(22).leftRel(Alignment.CENTER.x).anchorLeft(Alignment.CENTER.x)
-                        .topRel(Alignment.CENTER.y).anchorTop(Alignment.CENTER.y));
+                        .width(120).height(22).leftRel(Alignment.CENTER.x).anchorLeft(Alignment.CENTER.x).top(20));
 
         return widget;
     }
@@ -51,11 +53,11 @@ public class ModuleBeeAnalyzerMuiDynamic extends GenericModuleMUI<ModuleApiarist
 
     @Override
     public int getWidth() {
-        return 140;
+        return 180;
     }
 
     @Override
     public int getHeight() {
-        return 80;
+        return 140;
     }
 }

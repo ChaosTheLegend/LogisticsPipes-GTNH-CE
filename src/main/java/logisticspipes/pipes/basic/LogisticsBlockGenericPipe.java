@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -24,6 +25,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.IIcon;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
@@ -38,6 +40,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import logisticspipes.LPConstants;
 import logisticspipes.LogisticsPipes;
+import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.crafting.requesttable.RequestTablePipe;
 import logisticspipes.interfaces.IBlockShapedPipe;
@@ -238,7 +241,7 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
     public AxisAlignedBB getSelectedBoundingBoxFromPool(World world, int x, int y, int z) {
         TileEntity tile = world.getTileEntity(x, y, z);
         if (tile instanceof LogisticsTileGenericPipe
-                && ((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
+                && (((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe || isClientGridMode(tile))) {
             return AxisAlignedBB.getBoundingBox(
                     (double) x + 0,
                     (double) y + 0,
@@ -264,11 +267,23 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
         return super.getSelectedBoundingBoxFromPool(world, x, y, z).expand(-0.85F, -0.85F, -0.85F);
     }
 
+    /**
+     * @return true on the client while the player is in the grid mode at a logistics pipe (shift + wrench, or a
+     *         screwdriver at a pipe with a working side): it is a full block then, so the whole face is the grid of
+     *         {@link PipeSideGrid}
+     */
+    private static boolean isClientGridMode(TileEntity tile) {
+        // the client player comes through the proxy, so this common class doesn't touch client-only classes
+        return ((LogisticsTileGenericPipe) tile).pipe instanceof CoreRoutedPipe routed && tile.getWorldObj() != null
+                && tile.getWorldObj().isRemote
+                && PipeSideGrid.isGridMode(MainProxy.proxy.getClientPlayer(), routed);
+    }
+
     @Override
     public MovingObjectPosition collisionRayTrace(World world, int x, int y, int z, Vec3 origin, Vec3 direction) {
         TileEntity tile = world.getTileEntity(x, y, z);
         if (tile instanceof LogisticsTileGenericPipe
-                && ((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe) {
+                && (((LogisticsTileGenericPipe) tile).pipe instanceof IBlockShapedPipe || isClientGridMode(tile))) {
             setBlockBoundsBasedOnState(world, x, y, z);
             origin = origin.addVector((-x), (-y), (-z));
             direction = direction.addVector((-x), (-y), (-z));
@@ -854,11 +869,39 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
                 return false;
             } else if (currentItem.getItem() instanceof ItemLogisticsPipe) {
                 return false;
-            } else if (SimpleServiceLocator.toolWrenchHandler.isWrench(currentItem.getItem())) {
-                // Only check the instance at this point. Call the IToolWrench
-                // interface callbacks for the individual pipe/logic calls
-                return pipe.blockActivated(player);
-            }
+            } else if (pipe instanceof CoreRoutedPipe routed && routed.hasWorkingSide()
+                    && PipeSideGrid.isScrewdriver(player)) {
+                        // a screwdriver makes the side the 3x3 grid of the clicked face stands for the working side
+                        if (!world.isRemote && maySetUp(player, routed)) {
+                            ForgeDirection target = PipeSideGrid.sideFor(side, xOffset, yOffset, zOffset);
+                            boolean set = routed.setWorkingSide(target);
+                            player.addChatComponentMessage(
+                                    new ChatComponentTranslation(
+                                            set ? "lp.chat.side.working" : "lp.chat.side.nothing",
+                                            target.name().toLowerCase(Locale.ENGLISH)));
+                        }
+                        return true;
+                    } else
+                if (pipe instanceof CoreRoutedPipe routed && PipeSideGrid.isSideMode(player)) {
+                    // shift + wrench connects or disconnects the side the 3x3 grid of the clicked face stands for
+                    if (!world.isRemote && SimpleServiceLocator.toolWrenchHandler.canWrench(player, x, y, z)
+                            && maySetUp(player, routed)) {
+                        ForgeDirection target = PipeSideGrid.sideFor(side, xOffset, yOffset, zOffset);
+                        if (target != ForgeDirection.UNKNOWN) {
+                            boolean disconnected = routed.toggleSideDisconnected(target);
+                            player.addChatComponentMessage(
+                                    new ChatComponentTranslation(
+                                            disconnected ? "lp.chat.side.disconnected" : "lp.chat.side.connected",
+                                            target.name().toLowerCase(Locale.ENGLISH)));
+                            SimpleServiceLocator.toolWrenchHandler.wrenchUsed(player, x, y, z);
+                        }
+                    }
+                    return true;
+                } else if (SimpleServiceLocator.toolWrenchHandler.isWrench(currentItem.getItem())) {
+                    // Only check the instance at this point. Call the IToolWrench
+                    // interface callbacks for the individual pipe/logic calls
+                    return pipe.blockActivated(player);
+                }
             if (pipe.canHoldBCParts()) {
                 IBCClickResult result = SimpleServiceLocator.buildCraftProxy
                         .handleBCClickOnPipe(world, x, y, z, player, side, xOffset, yOffset, zOffset, pipe);
@@ -872,6 +915,22 @@ public class LogisticsBlockGenericPipe extends BlockContainer {
             return pipe.blockActivated(player);
         }
 
+        return false;
+    }
+
+    /**
+     * The security station check {@link CoreRoutedPipe#blockActivated} does before the wrench opens the settings, for
+     * the screwdriver and the shift + wrench side grid. Runs on the server; tells the player when denied.
+     *
+     * @return true if the player may set up the pipe
+     */
+    private static boolean maySetUp(EntityPlayer player, CoreRoutedPipe pipe) {
+        LogisticsSecurityTileEntity station = SimpleServiceLocator.securityStationManager
+                .getStation(pipe.getOriginalUpgradeManager().getSecurityID());
+        if (station == null || station.getSecuritySettingsForPlayer(player, true).openGui) {
+            return true;
+        }
+        player.addChatComponentMessage(new ChatComponentTranslation("lp.chat.permissiondenied"));
         return false;
     }
 

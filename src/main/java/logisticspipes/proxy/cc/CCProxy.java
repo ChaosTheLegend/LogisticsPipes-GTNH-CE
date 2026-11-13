@@ -14,7 +14,6 @@ import dan200.computercraft.shared.computer.blocks.TileComputer;
 import dan200.computercraft.shared.turtle.blocks.TileTurtle;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.items.ItemModule;
-import logisticspipes.items.ItemUpgrade;
 import logisticspipes.pipes.basic.LogisticsTileGenericPipe;
 import logisticspipes.proxy.cc.wrapper.CCCommandWrapper;
 import logisticspipes.proxy.computers.wrapper.CCObjectWrapper;
@@ -107,25 +106,7 @@ public class CCProxy implements ICCProxy {
     @Override
     public void addCraftingRecipes(ICraftingParts parts) {
         LocalCraftingManager craftingManager = RecipeManager.craftingManager;
-        craftingManager.addRecipe(
-                new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.CC_REMOTE_CONTROL),
-                CraftingDependency.Upgrades,
-                false,
-                "rTr",
-                "WCM",
-                "rKr",
-                'C',
-                parts.getChipTear3(),
-                'r',
-                Items.redstone,
-                'T',
-                Blocks.redstone_torch,
-                'W',
-                new ItemStack(ComputerCraft.Blocks.peripheral, 1, 1),
-                'M',
-                new ItemStack(ComputerCraft.Blocks.cable, 1, 1),
-                'K',
-                new ItemStack(ComputerCraft.Blocks.cable, 1, 0));
+        // the CC remote control upgrade is deprecated (2026-11-05), no recipe
         craftingManager.addRecipe(
                 new ItemStack(LogisticsPipes.ModuleItem, 1, ItemModule.CC_BASED_ITEMSINK),
                 CraftingDependency.Upgrades,

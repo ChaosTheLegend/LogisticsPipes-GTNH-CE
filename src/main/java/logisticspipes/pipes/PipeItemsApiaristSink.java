@@ -1,24 +1,26 @@
 package logisticspipes.pipes;
 
 import net.minecraft.item.Item;
-import net.minecraft.tileentity.TileEntity;
 
-import logisticspipes.modules.ModuleApiaristSink;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.api.IMUICompatiblePipeV2;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
+import logisticspipes.items.ItemModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.routing.astar.CategoryInterests;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 
-public class PipeItemsApiaristSink extends CoreRoutedPipe {
-
-    private final ModuleApiaristSink sinkModule;
+/**
+ * Takes bees by their genome. Its built-in apiarist sink module, the same one that goes into a chassis, decides.
+ */
+public class PipeItemsApiaristSink extends CoreRoutedPipe implements IMUICompatiblePipeV2 {
 
     public PipeItemsApiaristSink(Item item) {
         super(item);
-        sinkModule = new ModuleApiaristSink();
-        sinkModule.registerHandler(this, this);
+        hostModule(ItemModule.BEESINK);
     }
 
     @Override
@@ -28,18 +30,12 @@ public class PipeItemsApiaristSink extends CoreRoutedPipe {
 
     @Override
     public LogisticsModule getLogisticsModule() {
-        return sinkModule;
+        return hostedModule();
     }
 
     @Override
     public ItemSendMode getItemSendMode() {
         return ItemSendMode.Normal;
-    }
-
-    @Override
-    public void setTile(TileEntity tile) {
-        super.setTile(tile);
-        sinkModule.registerPosition(ModulePositionType.IN_PIPE, 0);
     }
 
     @Override
@@ -49,6 +45,15 @@ public class PipeItemsApiaristSink extends CoreRoutedPipe {
 
     @Override
     public CategoryInterests getCategoryInterests() {
-        return sinkModule.getCategoryInterests();
+        LogisticsModule module = hostedModule();
+        return module == null ? CategoryInterests.EMPTY : module.getCategoryInterests();
+    }
+
+    /**
+     * The window of its built-in module, with the module's upgrades and the settings window.
+     */
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromModule(this, (IMUICompatibleModule) hostedModule());
     }
 }

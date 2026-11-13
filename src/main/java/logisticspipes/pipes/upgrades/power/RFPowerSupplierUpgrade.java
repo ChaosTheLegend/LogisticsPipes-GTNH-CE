@@ -13,7 +13,8 @@ public class RFPowerSupplierUpgrade implements IPipeUpgrade {
 
     @Override
     public boolean isAllowedForPipe(CoreRoutedPipe pipe) {
-        return true;
+        // deprecated: does nothing, installed ones are deleted when the pipe loads
+        return false;
     }
 
     @Override
@@ -23,7 +24,7 @@ public class RFPowerSupplierUpgrade implements IPipeUpgrade {
 
     @Override
     public String[] getAllowedPipes() {
-        return new String[] { "all" };
+        return new String[] {};
     }
 
     @Override

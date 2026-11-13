@@ -46,6 +46,33 @@ public final class SinkReply {
         this.addInfo = addInfo;
     }
 
+    private SinkReply(FixedPriority fixedPriority, int customPriority, boolean isPassive, boolean isDefault,
+            int energyUse, int maxNumberOfItems, BufferMode bufferMode, IAdditionalTargetInformation addInfo) {
+        this.fixedPriority = fixedPriority;
+        this.customPriority = customPriority;
+        this.isPassive = isPassive;
+        this.isDefault = isDefault;
+        this.energyUse = energyUse;
+        this.maxNumberOfItems = maxNumberOfItems;
+        this.bufferMode = bufferMode;
+        this.addInfo = addInfo;
+    }
+
+    /**
+     * @return the same reply with another custom priority
+     */
+    public SinkReply withCustomPriority(int customPriority) {
+        return new SinkReply(
+                fixedPriority,
+                customPriority,
+                isPassive,
+                isDefault,
+                energyUse,
+                maxNumberOfItems,
+                bufferMode,
+                addInfo);
+    }
+
     public SinkReply(SinkReply base, int maxNumberOfItems) {
         fixedPriority = base.fixedPriority;
         customPriority = base.customPriority;

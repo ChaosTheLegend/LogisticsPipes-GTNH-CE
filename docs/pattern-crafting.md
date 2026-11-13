@@ -449,7 +449,8 @@ Still legacy (no MUI yet): `RequestTableGui`.
   - Items only teleport pipe to pipe. The known issue "items get teleported to satellite pipes" (B13) is about the
     crafting pipe inserting satellite ingredients straight into the satellite's machine (`insertPatternInput`) instead
     of the items travelling to the satellite pipe, not about the transport rewrite.
-  - Satellite and fluid satellite **modules** (new) work like the satellite pipes, so a chassis can be a satellite.
+  - ~~Satellite and fluid satellite **modules** (new) work like the satellite pipes, so a chassis can be a satellite.~~
+    Dropped (decided 2026-11-07): satellites stay pipes.
   - Crafting pipes get a toggle to mark ingredients that aren't consumed or that lose durability (tools). That is the
     player-side answer to D7 (re-extracting catalysts and containers) and part of C8 (permanent contents keep
     BLOCKING locked).

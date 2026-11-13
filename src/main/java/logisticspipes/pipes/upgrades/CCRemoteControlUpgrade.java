@@ -12,7 +12,8 @@ public class CCRemoteControlUpgrade implements IPipeUpgrade {
 
     @Override
     public boolean isAllowedForPipe(CoreRoutedPipe pipe) {
-        return true;
+        // deprecated (2026-11-05): every computer at a pipe reaches the pipes of its network without it
+        return false;
     }
 
     @Override
@@ -22,7 +23,7 @@ public class CCRemoteControlUpgrade implements IPipeUpgrade {
 
     @Override
     public String[] getAllowedPipes() {
-        return new String[] { "all" };
+        return new String[] {};
     }
 
     @Override

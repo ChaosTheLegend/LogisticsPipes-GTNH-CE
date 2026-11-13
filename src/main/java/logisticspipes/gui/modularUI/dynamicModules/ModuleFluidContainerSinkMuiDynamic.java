@@ -8,6 +8,7 @@ import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 
+import logisticspipes.gui.modularUI.CurrentModuleRef;
 import logisticspipes.gui.modularUI.FluidSinkWidgets;
 import logisticspipes.gui.modularUI.GenericModuleMUI;
 import logisticspipes.modules.ModuleFluidContainerSink;
@@ -32,12 +33,16 @@ public class ModuleFluidContainerSinkMuiDynamic extends GenericModuleMUI<ModuleF
 
         if (addPlayerInventory) widget.child(SlotGroupWidget.playerInventory(true));
 
+        // the handlers ask for the module now: a chassis page rebuilt for another module gets them by key
+        CurrentModuleRef<ModuleFluidContainerSink> ref = CurrentModuleRef.of(syncManager, getFullId(), module);
         widget.child(
                 new Flow(GuiAxis.Y).coverChildren().left(9).top(4).childPadding(4)
                         .crossAxisAlignment(Alignment.CrossAxis.START)
                         .child(IKey.lang("gui.module.ModuleFluidContainerSink").asWidget())
-                        .child(FluidSinkWidgets.filterRow(module.getFilter(), syncManager, getFullId()))
-                        .child(FluidSinkWidgets.importButton(module::importFromTank, syncManager, getFullId()))
+                        .child(FluidSinkWidgets.filterRow(() -> ref.get().getFilter(), syncManager, getFullId()))
+                        .child(
+                                FluidSinkWidgets
+                                        .importButton(() -> ref.get().importFromTank(), syncManager, getFullId()))
                         .child(IKey.lang("gui.module.ModuleFluidContainerSink.hint").asWidget().width(162)));
 
         return widget;
@@ -56,6 +61,6 @@ public class ModuleFluidContainerSinkMuiDynamic extends GenericModuleMUI<ModuleF
     @Override
     public int getHeight() {
         // the hint takes a few lines between the import button and the player inventory
-        return 190;
+        return 178;
     }
 }

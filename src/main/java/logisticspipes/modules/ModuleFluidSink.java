@@ -11,6 +11,7 @@ import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.dynamicModules.ModuleFluidSinkMuiDynamic;
 import logisticspipes.interfaces.IFluidModuleHost;
 import logisticspipes.interfaces.IFluidSinkSettings;
+import logisticspipes.modules.abstractmodules.IPrioritizedModule;
 import logisticspipes.modules.abstractmodules.LogisticsFluidModule;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.FluidFilter;
@@ -21,7 +22,7 @@ import logisticspipes.utils.item.ItemIdentifier;
 /**
  * Takes fluids from the network into the tank, like the basic fluid pipe.
  */
-public class ModuleFluidSink extends LogisticsFluidModule implements IFluidSinkSettings {
+public class ModuleFluidSink extends LogisticsFluidModule implements IFluidSinkSettings, IPrioritizedModule {
 
     private final FluidFilter filter = new FluidFilter();
     private boolean defaultRoute = false;
@@ -77,7 +78,7 @@ public class ModuleFluidSink extends LogisticsFluidModule implements IFluidSinkS
     @Override
     public Collection<ItemIdentifier> getSpecificInterests() {
         List<ItemIdentifier> interests = new ArrayList<>();
-        if (getHost() == null || getTankTile() == null) {
+        if (getHost() == null || !hasTank()) {
             return interests;
         }
         for (FluidIdentifier fluid : filter.getFluids()) {
@@ -90,12 +91,12 @@ public class ModuleFluidSink extends LogisticsFluidModule implements IFluidSinkS
 
     @Override
     public boolean hasGenericInterests() {
-        return defaultRoute && getHost() != null && getTankTile() != null;
+        return defaultRoute && getHost() != null && hasTank();
     }
 
     @Override
     public void importFromTank() {
-        if (getTankTile() == null || MainProxy.isClient(getWorld())) {
+        if (!hasTank() || MainProxy.isClient(getWorld())) {
             return;
         }
         filter.setFluids(getTankContents().keySet());
@@ -105,12 +106,14 @@ public class ModuleFluidSink extends LogisticsFluidModule implements IFluidSinkS
     public void readFromNBT(NBTTagCompound nbttagcompound) {
         filter.readFromNBT(nbttagcompound);
         defaultRoute = nbttagcompound.getBoolean("defaultRoute");
+        readPriority(nbttagcompound);
     }
 
     @Override
     public void writeToNBT(NBTTagCompound nbttagcompound) {
         filter.writeToNBT(nbttagcompound);
         nbttagcompound.setBoolean("defaultRoute", defaultRoute);
+        writePriority(nbttagcompound);
     }
 
     @Override

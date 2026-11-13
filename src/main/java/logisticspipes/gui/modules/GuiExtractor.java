@@ -20,13 +20,21 @@ import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.string.StringUtils;
 
+/**
+ * The old window that picks the one face of the module's sneaky upgrade. It shows the face the server sent and changes
+ * the module only through the server, when the player clicks a face.
+ */
 public class GuiExtractor extends ModuleBaseGui {
 
     private final LogisticsSneakyDirectionModule _directionReceiver;
+    // the first face of the module as the server sees it
+    private ForgeDirection shown;
 
-    public GuiExtractor(IInventory playerInventory, LogisticsSneakyDirectionModule directionReceiver) {
+    public GuiExtractor(IInventory playerInventory, LogisticsSneakyDirectionModule directionReceiver,
+            ForgeDirection shown) {
         super(new DummyContainer(playerInventory, null), directionReceiver);
         _directionReceiver = directionReceiver;
+        this.shown = shown == null ? ForgeDirection.UNKNOWN : shown;
         xSize = 160;
         ySize = 200;
     }
@@ -58,11 +66,10 @@ public class GuiExtractor extends ModuleBaseGui {
 
     @Override
     protected void actionPerformed(GuiButton guibutton) {
-        _directionReceiver.setSneakyDirection(ForgeDirection.getOrientation(guibutton.id));
-
+        shown = ForgeDirection.getOrientation(guibutton.id);
         MainProxy.sendPacketToServer(
-                PacketHandler.getPacket(ExtractorModuleDirectionPacket.class)
-                        .setDirection(_directionReceiver.getSneakyDirection()).setModulePos(_directionReceiver));
+                PacketHandler.getPacket(ExtractorModuleDirectionPacket.class).setDirection(shown)
+                        .setModulePos(_directionReceiver));
 
         refreshButtons();
         super.actionPerformed(guibutton);
@@ -95,14 +102,24 @@ public class GuiExtractor extends ModuleBaseGui {
 
     private String isExtract(ForgeDirection o) {
         String s = (o == ForgeDirection.UNKNOWN ? "DEFAULT" : o.name());
-        if (o == _directionReceiver.getSneakyDirection()) {
+        if (o == shown) {
             return "\u00a7a>" + s + "<";
         }
         return s.toLowerCase(Locale.US);
     }
 
+    /**
+     * Shows the face the server answered with.
+     */
     public void setMode(ForgeDirection o) {
-        _directionReceiver.setSneakyDirection(o);
+        shown = o == null ? ForgeDirection.UNKNOWN : o;
         refreshButtons();
+    }
+
+    /**
+     * @return true if the window is for that module
+     */
+    public boolean isFor(Object receiver) {
+        return _directionReceiver == receiver;
     }
 }

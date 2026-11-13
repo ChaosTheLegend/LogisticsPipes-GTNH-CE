@@ -22,9 +22,8 @@ public class GuiOpenChassie extends CoordinatesPacket {
         if (!(pipe.pipe instanceof CoreRoutedPipe)) {
             return;
         }
-        NewGuiHandler.getGui(ChassiGuiProvider.class).setFlag(pipe.pipe.getUpgradeManager().hasUpgradeModuleUpgrade())
-                .setSlot(ModulePositionType.IN_PIPE).setPositionInt(0).setPosX(getPosX()).setPosY(getPosY())
-                .setPosZ(getPosZ()).open(player);
+        NewGuiHandler.getGui(ChassiGuiProvider.class).setSlot(ModulePositionType.IN_PIPE).setPositionInt(0)
+                .setPosX(getPosX()).setPosY(getPosY()).setPosZ(getPosZ()).open(player);
     }
 
     @Override

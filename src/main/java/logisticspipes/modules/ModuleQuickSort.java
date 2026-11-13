@@ -13,6 +13,9 @@ import net.minecraft.util.IIcon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.dynamicModules.ModuleInfoMuiDynamic;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.modules.abstractmodules.LogisticsGuiModule;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
@@ -29,10 +32,19 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.item.ItemIdentifier;
 import logisticspipes.utils.tuples.Pair;
 
-public class ModuleQuickSort extends LogisticsGuiModule {
+public class ModuleQuickSort extends LogisticsGuiModule implements IMUICompatibleModule {
 
     protected final int stalledDelay = 24;
-    protected final int normalDelay = 6;
+    // ticks between two sends by speed upgrades (0-4); the stalled delay stays
+    private static final int[] NORMAL_DELAY = { 6, 4, 3, 2, 1 };
+
+    /**
+     * @return the ticks between two sends: fewer with speed upgrades
+     */
+    protected int normalDelay() {
+        return NORMAL_DELAY[getSpeedLevel()];
+    }
+
     protected int currentTick = 0;
     protected boolean stalled;
     protected int lastStackLookedAt = 0;
@@ -68,7 +80,7 @@ public class ModuleQuickSort extends LogisticsGuiModule {
         if (stalled) {
             currentTick = stalledDelay;
         } else {
-            currentTick = normalDelay;
+            currentTick = normalDelay();
         }
 
         // Extract Item
@@ -329,5 +341,22 @@ public class ModuleQuickSort extends LogisticsGuiModule {
     @Override
     protected ModuleInHandGuiProvider getInHandGuiProvider() {
         return null;
+    }
+
+    // nothing to configure: a window that says what the module does and holds its upgrade slots in hand
+
+    @Override
+    public LogisticsModularUI getHandGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return ModuleInfoMuiDynamic.of(this, "");
+    }
+
+    @Override
+    public LogisticsModularUI getPipeGui(String prefix) {
+        return ModuleInfoMuiDynamic.of(this, prefix);
     }
 }

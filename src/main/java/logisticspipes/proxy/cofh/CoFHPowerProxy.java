@@ -1,26 +1,15 @@
 package logisticspipes.proxy.cofh;
 
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import cofh.api.energy.EnergyStorage;
 import cofh.api.energy.IEnergyReceiver;
-import logisticspipes.LogisticsPipes;
-import logisticspipes.blocks.LogisticsSolidBlock;
-import logisticspipes.config.Configs;
-import logisticspipes.items.ItemPipeComponents;
-import logisticspipes.items.ItemUpgrade;
 import logisticspipes.proxy.cofh.subproxies.ICoFHEnergyReceiver;
 import logisticspipes.proxy.cofh.subproxies.ICoFHEnergyStorage;
 import logisticspipes.proxy.interfaces.ICoFHPowerProxy;
 import logisticspipes.proxy.interfaces.ICraftingParts;
-import logisticspipes.recipes.CraftingDependency;
-import logisticspipes.recipes.RecipeManager;
-import logisticspipes.recipes.RecipeManager.LocalCraftingManager;
 
 public class CoFHPowerProxy implements ICoFHPowerProxy {
 
@@ -58,85 +47,7 @@ public class CoFHPowerProxy implements ICoFHPowerProxy {
 
     @Override
     public void addCraftingRecipes(ICraftingParts parts) {
-        LocalCraftingManager craftingManager = RecipeManager.craftingManager;
-        if (!Configs.ENABLE_BETA_RECIPES) {
-            craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_RF_SUPPLIER),
-                    CraftingDependency.Power_Distribution,
-                    false,
-                    "PEP",
-                    "RBR",
-                    "PTP",
-                    'B',
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_TRANSPORTATION),
-                    'P',
-                    Items.paper,
-                    'E',
-                    parts.getBlockDynamo(),
-                    'T',
-                    parts.getPowerCoilSilver(),
-                    'R',
-                    parts.getPowerCoilGold());
-            craftingManager.addRecipe(
-                    new ItemStack(
-                            LogisticsPipes.LogisticsSolidBlock,
-                            1,
-                            LogisticsSolidBlock.LOGISTICS_RF_POWERPROVIDER),
-                    CraftingDependency.Power_Distribution,
-                    false,
-                    "PEP",
-                    "RBR",
-                    "PTP",
-                    'B',
-                    Blocks.redstone_block,
-                    'P',
-                    Items.paper,
-                    'E',
-                    parts.getBlockDynamo(),
-                    'T',
-                    parts.getPowerCoilSilver(),
-                    'R',
-                    parts.getPowerCoilGold());
-        }
-        if (Configs.ENABLE_BETA_RECIPES) {
-            craftingManager.addRecipe(
-                    new ItemStack(LogisticsPipes.UpgradeItem, 1, ItemUpgrade.POWER_RF_SUPPLIER),
-                    CraftingDependency.Power_Distribution,
-                    false,
-                    "PEP",
-                    "RBR",
-                    "PTP",
-                    'B',
-                    new ItemStack(LogisticsPipes.LogisticsPipeComponents, 1, ItemPipeComponents.ITEM_LOGICEXPANDER),
-                    'P',
-                    Items.paper,
-                    'E',
-                    new ItemStack(LogisticsPipes.LogisticsPipeComponents, 1, ItemPipeComponents.ITEM_POWERACCEPT),
-                    'T',
-                    parts.getPowerCoilSilver(),
-                    'R',
-                    parts.getPowerCoilGold());
-            craftingManager.addRecipe(
-                    new ItemStack(
-                            LogisticsPipes.LogisticsSolidBlock,
-                            1,
-                            LogisticsSolidBlock.LOGISTICS_RF_POWERPROVIDER),
-                    CraftingDependency.Power_Distribution,
-                    false,
-                    "PEP",
-                    "RBR",
-                    "PTP",
-                    'B',
-                    Blocks.glowstone,
-                    'P',
-                    Items.iron_ingot,
-                    'E',
-                    new ItemStack(LogisticsPipes.LogisticsPipeComponents, 1, ItemPipeComponents.ITEM_FOCUSLENSE),
-                    'T',
-                    parts.getPowerCoilSilver(),
-                    'R',
-                    parts.getPowerCoilGold());
-        }
+        // its only recipes made the deprecated RF power supply items
     }
 
     @Override

@@ -1,71 +1,92 @@
 package logisticspipes.pipes;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.TreeSet;
-
 import net.minecraft.item.Item;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.gui.modularUI.LogisticsModularUI;
 import logisticspipes.gui.modularUI.PipeGuiFactory;
-import logisticspipes.gui.modularUI.pipes.PipeFluidBasicMui;
 import logisticspipes.interfaces.IFluidSinkSettings;
 import logisticspipes.interfaces.routing.IFluidSink;
+import logisticspipes.items.ItemModule;
+import logisticspipes.modules.ModuleFluidSink;
 import logisticspipes.pipes.basic.fluid.FluidRoutedPipe;
-import logisticspipes.proxy.MainProxy;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.utils.FluidFilter;
 import logisticspipes.utils.FluidIdentifier;
-import logisticspipes.utils.FluidRoomCache;
-import logisticspipes.utils.FluidTankUtil;
 import logisticspipes.utils.SinkReply.FixedPriority;
-import logisticspipes.utils.item.ItemIdentifier;
-import logisticspipes.utils.tuples.Pair;
 
+/**
+ * Takes fluid from the network into the tanks on every side. Its built-in fluid sink module, the same one that goes
+ * into a chassis, keeps the filter and the default route; the module host takes the arriving fluid.
+ */
 public class PipeFluidBasic extends FluidRoutedPipe implements IFluidSink, IFluidSinkSettings, IMUICompatiblePipeV2 {
-
-    private final FluidFilter filter = new FluidFilter();
-    private boolean defaultRoute = false;
-    private final FluidRoomCache roomCache = new FluidRoomCache();
 
     public PipeFluidBasic(Item item) {
         super(item);
+        hostModule(ItemModule.FLUID_SINK);
     }
+
+    private ModuleFluidSink sink() {
+        return (ModuleFluidSink) getLogisticsModule();
+    }
+
+    /*** IFluidSinkSettings, kept by the module ***/
 
     @Override
     public FluidFilter getFilter() {
-        return filter;
+        return sink().getFilter();
     }
 
     @Override
     public boolean isDefaultRoute() {
-        return defaultRoute;
+        return sink().isDefaultRoute();
     }
 
     @Override
     public void setDefaultRoute(boolean defaultRoute) {
-        this.defaultRoute = defaultRoute;
+        sink().setDefaultRoute(defaultRoute);
+    }
+
+    @Override
+    public void importFromTank() {
+        sink().importFromTank();
+    }
+
+    /*** IFluidSink ***/
+
+    @Override
+    public int sinkAmount(FluidStack stack) {
+        // fluid an older version left waiting at the pipe has its place in the tanks already
+        long waiting = getPendingFluids().getAmount(FluidIdentifier.get(stack));
+        return (int) Math.max(0, moduleHost.getFluidManager().sinkAmount(stack) - waiting);
     }
 
     /**
-     * Sets the filter to the fluids that are in the adjacent tanks.
+     * A fluid that is taken by filter is preferred over one that is only taken as default route.
      */
     @Override
-    public void importFromTank() {
-        if (MainProxy.isClient(getWorld())) {
-            return;
+    public FixedPriority getFluidSinkPriority(FluidStack stack) {
+        return moduleHost.getFluidManager().getFluidSinkPriority(stack);
+    }
+
+    @Override
+    public int getFluidSinkCustomPriority(FluidStack stack) {
+        return moduleHost.getFluidManager().getFluidSinkCustomPriority(stack);
+    }
+
+    /**
+     * The module reads its filter and default route from the pipe's tag, where the pipe kept them before. Older
+     * versions kept the first, then only, filter slot in the tag of the pipe itself.
+     */
+    @Override
+    public void readFromNBT(NBTTagCompound nbttagcompound) {
+        super.readFromNBT(nbttagcompound);
+        if (!nbttagcompound.hasKey("filter0")) {
+            sink().getFilter().getTank(0).setFluid(FluidStack.loadFluidStackFromNBT(nbttagcompound));
         }
-        Set<FluidIdentifier> fluids = new LinkedHashSet<>();
-        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(false)) {
-            fluids.addAll(FluidTankUtil.getContents(pair.getValue1(), pair.getValue2().getOpposite(), false).keySet());
-        }
-        filter.setFluids(fluids);
     }
 
     @Override
@@ -76,83 +97,6 @@ public class PipeFluidBasic extends FluidRoutedPipe implements IFluidSink, IFlui
     @Override
     public boolean canInsertFromSideToTanks() {
         return true;
-    }
-
-    @Override
-    public int sinkAmount(FluidStack stack) {
-        if (!defaultRoute && !filter.contains(stack)) return 0;
-
-        FluidIdentifier ident = FluidIdentifier.get(stack);
-        // what is on its way or waiting at the pipe already has its place in the tanks
-        long freeSpace = getRoom(ident) - countOnRoute(ident) - getPendingFluids().getAmount(ident);
-        return (int) Math.max(0, Math.min(freeSpace, stack.amount));
-    }
-
-    /**
-     * @return the room the adjacent tanks have for that fluid, remembered for a moment
-     */
-    private long getRoom(FluidIdentifier ident) {
-        return roomCache.getRoom(ident, getWorld().getTotalWorldTime(), this::computeRoom);
-    }
-
-    private long computeRoom(FluidIdentifier ident) {
-        long freeSpace = 0;
-        for (Pair<TileEntity, ForgeDirection> pair : getAdjacentTanks(true)) {
-            freeSpace += FluidTankUtil.getRoom(pair.getValue1(), pair.getValue2().getOpposite(), ident);
-        }
-        return freeSpace;
-    }
-
-    @Override
-    protected void onTankContentChanged() {
-        super.onTankContentChanged();
-        roomCache.clear();
-    }
-
-    /**
-     * A fluid that is taken by filter is preferred over one that is only taken as default route.
-     */
-    @Override
-    public FixedPriority getFluidSinkPriority(FluidStack stack) {
-        return filter.contains(stack) ? FixedPriority.ItemSink : FixedPriority.DefaultRoute;
-    }
-
-    /**
-     * A filter fluid isn't announced while the tanks have no room for it, so a full sink drops out of the destination
-     * searches.
-     */
-    @Override
-    public Set<ItemIdentifier> getSpecificInterests() {
-        Set<ItemIdentifier> interests = new TreeSet<>();
-        for (FluidIdentifier ident : filter.getFluids()) {
-            if (getRoom(ident) > 0) {
-                interests.add(ident.getItemIdentifier());
-            }
-        }
-        return interests;
-    }
-
-    @Override
-    public boolean hasGenericInterests() {
-        return defaultRoute && !getAdjacentTanks(true).isEmpty();
-    }
-
-    @Override
-    public void writeToNBT(NBTTagCompound nbttagcompound) {
-        super.writeToNBT(nbttagcompound);
-        filter.writeToNBT(nbttagcompound);
-        nbttagcompound.setBoolean("defaultRoute", defaultRoute);
-    }
-
-    @Override
-    public void readFromNBT(NBTTagCompound nbttagcompound) {
-        super.readFromNBT(nbttagcompound);
-        filter.readFromNBT(nbttagcompound);
-        if (!nbttagcompound.hasKey("filter0")) {
-            // older versions kept the first, then only, slot in the tag of the pipe itself
-            filter.getTank(0).setFluid(FluidStack.loadFluidStackFromNBT(nbttagcompound));
-        }
-        defaultRoute = nbttagcompound.getBoolean("defaultRoute");
     }
 
     @Override
@@ -167,6 +111,7 @@ public class PipeFluidBasic extends FluidRoutedPipe implements IFluidSink, IFlui
 
     @Override
     public LogisticsModularUI getPipeGui() {
-        return PipeGuiFactory.fromMui(new PipeFluidBasicMui(this));
+        // the window of its fluid sink module, with the module's upgrades and the settings (sides, priority)
+        return PipeGuiFactory.fromModule(this, sink());
     }
 }

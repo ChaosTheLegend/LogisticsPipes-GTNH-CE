@@ -4,6 +4,7 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 
+import logisticspipes.gui.modularUI.CurrentModuleRef;
 import logisticspipes.gui.modularUI.FluidSinkWidgets;
 import logisticspipes.gui.modularUI.GenericModuleMUI;
 import logisticspipes.modules.ModuleFluidSink;
@@ -28,7 +29,8 @@ public class ModuleFluidSinkMuiDynamic extends GenericModuleMUI<ModuleFluidSink>
 
         if (addPlayerInventory) widget.child(SlotGroupWidget.playerInventory(true));
 
-        widget.child(FluidSinkWidgets.sinkPage(module, syncManager, getFullId()));
+        CurrentModuleRef<ModuleFluidSink> ref = CurrentModuleRef.of(syncManager, getFullId(), module);
+        widget.child(FluidSinkWidgets.sinkPage(ref::get, syncManager, getFullId()));
 
         return widget;
     }

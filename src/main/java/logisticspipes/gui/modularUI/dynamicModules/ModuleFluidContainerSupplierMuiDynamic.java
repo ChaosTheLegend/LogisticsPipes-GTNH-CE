@@ -75,7 +75,7 @@ public class ModuleFluidContainerSupplierMuiDynamic extends GenericModuleMUI<Mod
                                         .child(containerSlot))
                         .child(
                                 row().child(IKey.comp(IKey.lang(LANG + ".amount"), IKey.str(":")).asWidget())
-                                        .child(new TextFieldWidget().width(60).setNumbers(0, 9999).value(amountSync)))
+                                        .child(new TextFieldWidget().width(44).setNumbers(0, 9999).value(amountSync)))
                         .child(IKey.lang(LANG + ".hint").asWidget().width(162)));
 
         return widget;
@@ -105,6 +105,6 @@ public class ModuleFluidContainerSupplierMuiDynamic extends GenericModuleMUI<Mod
 
     @Override
     public int getHeight() {
-        return 170;
+        return 176;
     }
 }

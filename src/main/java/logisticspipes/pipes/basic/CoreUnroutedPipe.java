@@ -335,33 +335,8 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
         return new IPipeUpgradeManager() {
 
             @Override
-            public boolean hasPowerPassUpgrade() {
-                return false;
-            }
-
-            @Override
-            public boolean hasRFPowerSupplierUpgrade() {
-                return false;
-            }
-
-            @Override
-            public int getIC2PowerLevel() {
-                return 0;
-            }
-
-            @Override
             public int getSpeedUpgradeCount() {
                 return 0;
-            }
-
-            @Override
-            public boolean isSideDisconnected(ForgeDirection side) {
-                return false;
-            }
-
-            @Override
-            public boolean hasCCRemoteControlUpgrade() {
-                return false;
             }
 
             @Override
@@ -370,23 +345,8 @@ public abstract class CoreUnroutedPipe implements IClientState, ILPPipe, ILPCCTy
             }
 
             @Override
-            public boolean isOpaque() {
-                return false;
-            }
-
-            @Override
-            public boolean hasUpgradeModuleUpgrade() {
-                return false;
-            }
-
-            @Override
             public boolean hasCombinedSneakyUpgrade() {
                 return false;
-            }
-
-            @Override
-            public ForgeDirection[] getCombinedSneakyOrientation() {
-                return null;
             }
 
             @Override

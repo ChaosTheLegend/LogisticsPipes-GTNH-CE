@@ -9,7 +9,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.IFluidHandler;
 
@@ -78,7 +78,7 @@ public class PatternCraftingTargetSelector {
             connectedInventoryDirection = ForgeDirection.UNKNOWN;
             cachedConnectedInventory = null;
             pipe.refreshSelectedInventoryConnection();
-            player.addChatComponentMessage(new ChatComponentText("Pattern crafting target: none"));
+            player.addChatComponentMessage(new ChatComponentTranslation("lp.chat.side.none"));
             return;
         }
         int current = -1;
@@ -93,8 +93,9 @@ public class PatternCraftingTargetSelector {
         cachedConnectedInventory = selected;
         pipe.refreshSelectedInventoryConnection();
         player.addChatComponentMessage(
-                new ChatComponentText(
-                        "Pattern crafting target: " + connectedInventoryDirection.name().toLowerCase(Locale.ENGLISH)));
+                new ChatComponentTranslation(
+                        "lp.chat.side.working",
+                        connectedInventoryDirection.name().toLowerCase(Locale.ENGLISH)));
     }
 
     /**
@@ -141,6 +142,29 @@ public class PatternCraftingTargetSelector {
     }
 
     /**
+     * @return the side of the selected target, {@link ForgeDirection#UNKNOWN} for none
+     */
+    public ForgeDirection getConnectedInventoryDirection() {
+        return connectedInventoryDirection;
+    }
+
+    /**
+     * Selects the target on that side, if there is a usable one.
+     *
+     * @return true if it is the target now
+     */
+    public boolean selectConnectedInventory(ForgeDirection direction) {
+        AdjacentTile selected = getSelectableAdjacentInventory(direction);
+        if (selected == null) {
+            return false;
+        }
+        connectedInventoryDirection = selected.orientation;
+        cachedConnectedInventory = selected;
+        pipe.refreshSelectedInventoryConnection();
+        return true;
+    }
+
+    /**
      * Resolves the selected target side, auto-selecting the first usable adjacent target for old pipe data.
      */
     private AdjacentTile resolveConnectedInventoryTile() {
@@ -157,6 +181,11 @@ public class PatternCraftingTargetSelector {
         }
         selected = inventories.get(0);
         connectedInventoryDirection = selected.orientation;
+        // the server saves the picked side and tells the client, as when the player picks it
+        if (pipe.container != null && pipe.getWorld() != null && !pipe.getWorld().isRemote) {
+            pipe.container.markDirty();
+            pipe.container.sendUpdateToClient();
+        }
         return selected;
     }
 

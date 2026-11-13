@@ -16,7 +16,8 @@ public abstract class ConnectionUpgrade implements IPipeUpgrade {
 
     @Override
     public boolean isAllowedForPipe(CoreRoutedPipe pipe) {
-        return true;
+        // deprecated (2026-11-06): sides are disconnected with shift + wrench, installed upgrades become that setting
+        return false;
     }
 
     @Override
@@ -26,7 +27,7 @@ public abstract class ConnectionUpgrade implements IPipeUpgrade {
 
     @Override
     public String[] getAllowedPipes() {
-        return new String[] { "all" };
+        return new String[] {};
     }
 
     @Override

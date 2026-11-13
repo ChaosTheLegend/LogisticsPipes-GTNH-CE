@@ -1,17 +1,17 @@
 package logisticspipes.modules.abstractmodules;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.IIcon;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.IFluidHandler;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -22,6 +22,7 @@ import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
 import logisticspipes.network.abstractguis.ModuleCoordinatesGuiProvider;
 import logisticspipes.network.abstractguis.ModuleInHandGuiProvider;
+import logisticspipes.pipes.modulehost.FluidTarget;
 import logisticspipes.utils.FluidIdentifier;
 import logisticspipes.utils.FluidSendUtil;
 import logisticspipes.utils.FluidTankUtil;
@@ -41,18 +42,19 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
         return _service instanceof IFluidModuleHost host ? host : null;
     }
 
-    protected TileEntity getTankTile() {
+    /**
+     * @return the tanks this module works on, empty while it has none (held in hand, nothing to point at)
+     */
+    protected List<FluidTarget> getTargets() {
         IFluidModuleHost host = getHost();
-        return host == null ? null : host.getFluidTargetTile();
+        return host == null ? Collections.emptyList() : host.getFluidTargets(getPositionInt());
     }
 
-    protected IFluidHandler getTank() {
-        return getTankTile() instanceof IFluidHandler handler ? handler : null;
-    }
-
-    public ForgeDirection getTankSide() {
-        IFluidModuleHost host = getHost();
-        return host == null ? ForgeDirection.UNKNOWN : host.getFluidTargetSide(getPositionInt());
+    /**
+     * @return true if the module has a tank to work on
+     */
+    protected boolean hasTank() {
+        return !getTargets().isEmpty();
     }
 
     /**
@@ -64,48 +66,90 @@ public abstract class LogisticsFluidModule extends LogisticsGuiModule implements
         return fillTank(stack, stack.amount);
     }
 
+    /**
+     * Fills the tanks one after another.
+     *
+     * @return the amount filled
+     */
     protected int fillTank(FluidStack stack, int max) {
-        if (max <= 0) {
-            return 0;
+        int left = Math.min(stack.amount, max);
+        int filled = 0;
+        for (FluidTarget target : getTargets()) {
+            if (left <= 0) {
+                break;
+            }
+            FluidStack toFill = stack.copy();
+            toFill.amount = left;
+            int done = FluidTankUtil.fill(target.tile, target.side, toFill, true);
+            filled += done;
+            left -= done;
         }
-        FluidStack toFill = stack.copy();
-        toFill.amount = Math.min(stack.amount, max);
-        return FluidTankUtil.fill(getTankTile(), getTankSide(), toFill, true);
+        return filled;
     }
 
     /**
-     * @return how much of that fluid the tank still takes
+     * @return how much of that fluid the tanks still takes
      */
     protected long getTankRoom(FluidIdentifier fluid) {
-        return FluidTankUtil.getRoom(getTankTile(), getTankSide(), fluid);
+        long room = 0;
+        for (FluidTarget target : getTargets()) {
+            room += FluidTankUtil.getRoom(target.tile, target.side, fluid);
+        }
+        return room;
     }
 
     /**
-     * @return the fluids that can be drained from the tank
+     * @return the fluids that can be drained from the tanks, summed up
      */
     protected Map<FluidIdentifier, Integer> getTankContents() {
+        Map<FluidIdentifier, Long> sum = new HashMap<>();
+        for (FluidTarget target : getTargets()) {
+            for (Entry<FluidIdentifier, Long> entry : FluidTankUtil.getContents(target.tile, target.side, true)
+                    .entrySet()) {
+                sum.merge(entry.getKey(), entry.getValue(), Long::sum);
+            }
+        }
         Map<FluidIdentifier, Integer> map = new HashMap<>();
-        for (Entry<FluidIdentifier, Long> entry : FluidTankUtil.getContents(getTankTile(), getTankSide(), true)
-                .entrySet()) {
+        for (Entry<FluidIdentifier, Long> entry : sum.entrySet()) {
             map.put(entry.getKey(), (int) Math.min(entry.getValue(), Integer.MAX_VALUE));
         }
         return map;
     }
 
     /**
-     * @return the amount of that fluid in the tank, drainable or not
+     * @return the amount of that fluid in the tanks, drainable or not
      */
     protected int getStoredAmount(FluidIdentifier fluid) {
-        return (int) Math.min(FluidTankUtil.getStored(getTankTile(), getTankSide(), fluid), Integer.MAX_VALUE);
+        long stored = 0;
+        for (FluidTarget target : getTargets()) {
+            stored += FluidTankUtil.getStored(target.tile, target.side, fluid);
+        }
+        return (int) Math.min(stored, Integer.MAX_VALUE);
     }
 
     /**
-     * Drains up to that amount of the fluid from the tank.
+     * Drains up to that amount of the fluid from the tanks, one after another.
      *
      * @return what was drained, or null
      */
     protected FluidStack drainTank(FluidIdentifier fluid, int amount) {
-        return FluidTankUtil.drain(getTankTile(), getTankSide(), fluid, amount);
+        FluidStack drained = null;
+        for (FluidTarget target : getTargets()) {
+            int left = amount - (drained == null ? 0 : drained.amount);
+            if (left <= 0) {
+                break;
+            }
+            FluidStack part = FluidTankUtil.drain(target.tile, target.side, fluid, left);
+            if (part == null || part.amount <= 0) {
+                continue;
+            }
+            if (drained == null) {
+                drained = part;
+            } else {
+                drained.amount += part.amount;
+            }
+        }
+        return drained;
     }
 
     /**

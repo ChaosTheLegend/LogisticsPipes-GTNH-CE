@@ -13,15 +13,19 @@ import net.minecraft.item.Item;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import logisticspipes.api.IMUICompatibleModule;
+import logisticspipes.api.IMUICompatiblePipeV2;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.blocks.powertile.LogisticsPowerJunctionTileEntity;
+import logisticspipes.gui.modularUI.LogisticsModularUI;
+import logisticspipes.gui.modularUI.PipeGuiFactory;
 import logisticspipes.interfaces.IInventoryUtil;
+import logisticspipes.items.ItemModule;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.PipeTransportLayer;
 import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.abstractmodules.LogisticsModule;
-import logisticspipes.modules.abstractmodules.LogisticsModule.ModulePositionType;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.textures.Textures;
@@ -32,9 +36,11 @@ import logisticspipes.utils.InventoryHelper;
 import logisticspipes.utils.OrientationsUtil;
 import logisticspipes.utils.item.ItemIdentifier;
 
-public class PipeItemsBasicLogistics extends CoreRoutedPipe {
-
-    private final ModuleItemSink itemSinkModule;
+/**
+ * Puts items from the network into the inventory next to it. Its built-in item sink module, the same one that goes into
+ * a chassis, decides what it takes and owns the module upgrades.
+ */
+public class PipeItemsBasicLogistics extends CoreRoutedPipe implements IMUICompatiblePipeV2 {
 
     public PipeItemsBasicLogistics(Item item) {
         super(new PipeTransportLogistics(true) {
@@ -53,8 +59,11 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
                 return false;
             }
         }, item);
-        itemSinkModule = new ModuleItemSink();
-        itemSinkModule.registerHandler(this, this);
+        hostModule(ItemModule.ITEMSINK);
+    }
+
+    private ModuleItemSink itemSinkModule() {
+        return (ModuleItemSink) hostedModule();
     }
 
     @Override
@@ -97,7 +106,7 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 
     @Override
     public LogisticsModule getLogisticsModule() {
-        return itemSinkModule;
+        return hostedModule();
     }
 
     /**
@@ -111,7 +120,7 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 
                 @Override
                 public boolean stillWantItem(IRoutedItem item) {
-                    return itemSinkModule.sinksItem(item.getItemIdentifierStack().getItem(), -1, 0, true, false)
+                    return itemSinkModule().sinksItem(item.getItemIdentifierStack().getItem(), -1, 0, true, false)
                             != null;
                 }
             };
@@ -122,12 +131,6 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
     @Override
     public ItemSendMode getItemSendMode() {
         return ItemSendMode.Normal;
-    }
-
-    @Override
-    public void setTile(TileEntity tile) {
-        super.setTile(tile);
-        itemSinkModule.registerPosition(ModulePositionType.IN_PIPE, 0);
     }
 
     @Override
@@ -150,7 +153,7 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 
     @Override
     public Set<ItemIdentifier> getSpecificInterests() {
-        Collection<ItemIdentifier> current = itemSinkModule.getSpecificInterests();
+        Collection<ItemIdentifier> current = itemSinkModule().getSpecificInterests();
         if (current == null) {
             return null;
         }
@@ -159,6 +162,14 @@ public class PipeItemsBasicLogistics extends CoreRoutedPipe {
 
     @Override
     public boolean hasGenericInterests() {
-        return itemSinkModule.hasGenericInterests();
+        return itemSinkModule().hasGenericInterests();
+    }
+
+    /**
+     * The window of its built-in module, with the module's upgrades and the settings window.
+     */
+    @Override
+    public LogisticsModularUI getPipeGui() {
+        return PipeGuiFactory.fromModule(this, (IMUICompatibleModule) hostedModule());
     }
 }

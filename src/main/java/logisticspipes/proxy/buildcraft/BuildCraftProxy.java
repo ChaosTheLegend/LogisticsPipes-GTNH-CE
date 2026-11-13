@@ -199,12 +199,6 @@ public class BuildCraftProxy implements IBCProxy {
                         || pipe.pipe instanceof PipeItemsFluidSupplier) {
                     override = ((IPipeConnection) with).overridePipeConnection(PipeType.FLUID, side.getOpposite());
                 }
-                if (override == IPipeConnection.ConnectOverride.DISCONNECT) {
-                    // nope, maybe you'd like some BC power?
-                    if (pipe.pipe.getUpgradeManager().hasRFPowerSupplierUpgrade()) {
-                        override = ((IPipeConnection) with).overridePipeConnection(PipeType.POWER, side.getOpposite());
-                    }
-                }
             }
             if (override == IPipeConnection.ConnectOverride.DISCONNECT) {
                 return new IConnectionOverrideResult() {

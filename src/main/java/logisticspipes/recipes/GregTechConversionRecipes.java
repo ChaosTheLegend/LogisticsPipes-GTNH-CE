@@ -39,6 +39,23 @@ final class GregTechConversionRecipes {
                 .itemOutputs(output).duration(30 * 20).eut(TierEU.RECIPE_MV).addTo(RecipeMaps.assemblerRecipes);
     }
 
+    /** Assembler: LV circuit + comparator + paper + programmed circuit 18 → priority upgrade, at LV. */
+    static void addPriorityUpgrade(ItemStack output) {
+        GTValues.RA.stdBuilder()
+                .itemInputs(
+                        GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LV, 1L),
+                        new ItemStack(net.minecraft.init.Items.comparator, 1),
+                        new ItemStack(net.minecraft.init.Items.paper, 1),
+                        GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
+                .itemOutputs(output).duration(10 * 20).eut(TierEU.RECIPE_LV).addTo(RecipeMaps.assemblerRecipes);
+    }
+
+    /** Assembler: basic logistics pipe + extractor module + programmed circuit 18 → extractor pipe, at LV. */
+    static void addExtractorPipe(ItemStack basicPipe, ItemStack extractorModule, ItemStack output) {
+        GTValues.RA.stdBuilder().itemInputs(basicPipe, extractorModule, GTUtility.getIntegratedCircuit(PACK_CIRCUIT))
+                .itemOutputs(output).duration(10 * 20).eut(TierEU.RECIPE_LV).addTo(RecipeMaps.assemblerRecipes);
+    }
+
     /** Assembler: 2 basic logistics pipes + HV emitter + HV sensor + programmed circuit 18 → 2 connectors, at HV. */
     static void addInvSysConnector(ItemStack basicPipes, ItemStack output) {
         GTValues.RA.stdBuilder()

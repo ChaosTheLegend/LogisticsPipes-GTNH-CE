@@ -140,6 +140,6 @@ public class ModuleFluidTankSupplierMuiDynamic extends GenericModuleMUI<ModuleFl
 
     @Override
     public int getHeight() {
-        return 170;
+        return 176;
     }
 }

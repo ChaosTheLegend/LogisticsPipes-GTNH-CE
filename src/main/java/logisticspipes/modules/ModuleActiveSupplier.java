@@ -46,8 +46,8 @@ import logisticspipes.network.packets.hud.HUDStartModuleWatchingPacket;
 import logisticspipes.network.packets.hud.HUDStopModuleWatchingPacket;
 import logisticspipes.network.packets.module.ModuleInventory;
 import logisticspipes.pipefxhandlers.Particles;
-import logisticspipes.pipes.PipeLogisticsChassi.ChassiTargetInformation;
 import logisticspipes.pipes.basic.debug.StatusEntry;
+import logisticspipes.pipes.modulehost.ModuleSlotTargetInformation;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.request.RequestTree;
@@ -654,7 +654,7 @@ public class ModuleActiveSupplier extends LogisticsGuiModule
         }
     }
 
-    public class SupplierTargetInformation extends ChassiTargetInformation {
+    public class SupplierTargetInformation extends ModuleSlotTargetInformation {
 
         public SupplierTargetInformation() {
             super(getPositionInt());

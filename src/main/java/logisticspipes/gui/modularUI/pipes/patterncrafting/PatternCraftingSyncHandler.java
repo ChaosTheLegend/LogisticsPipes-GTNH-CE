@@ -28,6 +28,7 @@ public class PatternCraftingSyncHandler extends PatternEditorSyncHandler {
     private static final int C_CANCEL = 20;
     private static final int C_RETURN_INPUTS = 21;
     private static final int C_BLOCKING_MODE = 22;
+    private static final int C_NEXT_TARGET = 23;
 
     private static final int S_HUD = 120;
     private static final int S_STATE = 121;
@@ -100,6 +101,13 @@ public class PatternCraftingSyncHandler extends PatternEditorSyncHandler {
         syncToServer(C_RETURN_INPUTS);
     }
 
+    /**
+     * Picks the next adjacent inventory as the target (shift + wrench did this before it became the side grid).
+     */
+    public void nextTarget() {
+        syncToServer(C_NEXT_TARGET);
+    }
+
     public void cycleBlockingMode() {
         if (blockingModeFixed) {
             return;
@@ -169,6 +177,7 @@ public class PatternCraftingSyncHandler extends PatternEditorSyncHandler {
         switch (id) {
             case C_CANCEL -> pipe.cancelPatternCraft(state.getSelectedSlot());
             case C_RETURN_INPUTS -> pipe.returnStoredInputsToStorage();
+            case C_NEXT_TARGET -> pipe.cycleConnectedInventory(getSyncManager().getPlayer());
             case C_BLOCKING_MODE -> {
                 int mode = buf.readVarIntFromBuffer();
                 if (mode >= 0 && mode < BlockingMode.values().length) {
